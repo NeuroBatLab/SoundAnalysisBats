@@ -1,6 +1,18 @@
-function [to, fo, logB, pg, tError, fError] = spec_only_bats(sound_in, fband, samprate, dBScale, f_high)
+function [to, fo, logB, pg, tError, fError] = spec_only_bats(sound_in, samprate, DBNOISE, f_high, fband)
 % The Theunissen Lab Spectrogram with Guassian window.  Plots the
 % spectrogram and oscillogram of the sound
+
+if nargin<3
+    DBNOISE = 60;                          % dB in Noise for the log compression - values below will be set to zero.
+end
+
+if nargin<4
+    f_high=10000;                               % Upper frequency bound to get average amplitude in spectrogram
+end
+
+if nargin<5
+    fband = 100;                            % Size of each frequency band
+end
 
 % Parameters for the Spectrogram
 nstd = 6;
@@ -9,8 +21,6 @@ winLength = fix(twindow*samprate/1000.0);  % Window length in number of points
 winLength = fix(winLength/2)*2;            % Enforce even window length
 increment = fix(0.001*samprate);           % Sampling rate of spectrogram in number of points - set at approximately 1000 Hz
 f_low=0;                                 % Lower frequency bounds to get average amplitude in spectrogram
-%f_high=15000;                               % Upper frequency bound to get average amplitude in spectrogram
-DBNOISE = dBScale;                          % dB in Noise for the log compression - values below will be set to zero.
 
 % Calculate and plot the spectrogram    
 [s, to, fo, pg, tError, fError] = GaussianSpectrum(sound_in, increment, winLength, samprate); 
