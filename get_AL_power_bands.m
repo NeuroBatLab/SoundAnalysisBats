@@ -1,15 +1,17 @@
-function [call_bat_IDs, logger_power_bands] = get_bat_call_ID(cut_call_data,tsData,audio2nlg)
+function [logger_power_bands,success] = get_AL_power_bands(cut_call_data,tsData,audio2nlg,manual_noise_flag)
+addpath('C:\Users\phyllo\Documents\GitHub\SoundAnalysisBats\')
+if nargin < 4
+    manual_noise_flag = false;
+end    
+
 al_fs = 50e3;
 nLogger = length(tsData);
-bc = bout_call_data;
-bc.min_calls_in_bout = 1;
-bc.min_bout_length = 0;
 
-% cut_call_data = cut_call_data(~[cut_call_data.noise]);
+if manual_noise_flag
+    cut_call_data = cut_call_data(~[cut_call_data.noise]);
+end
 callPos = vertcat(cut_call_data.corrected_callpos);
-file_callPos = vertcat(cut_call_data.callpos);
-
-nCalls = size(file_callPos,1);
+nCalls = size(callPos,1);
 
 logger_power_nfft = 256;
 
@@ -20,8 +22,8 @@ f_idx = cell(1,n_freq_band);
 for band_k = 1:n_freq_band
     [~, f_idx{band_k}] = inRange(logger_power_freqs,f_bounds(band_k,:));
 end
-call_bat_IDs = cell(1,nCalls);
-logger_power_bands = zeros(n_freq_band,nLogger,nCalls);
+success = true(1,nCalls);
+logger_power_bands = nan(n_freq_band,nLogger,nCalls);
 out_of_bounds = false;
 for k = 1:nCalls
     
@@ -34,7 +36,7 @@ for k = 1:nCalls
                 tsData(logger_k).Timestamps_of_first_samples_usec,...
                 tsData(logger_k).Sampling_period_usec_Logger);
             if isempty(call_ts_nlg_sample)
-                call_bat_IDs{k} = NaN;
+                success(k) = false;
                 break
             end
             piezo_bout_file_callpos = reshape(call_ts_nlg_sample,[],2);
@@ -50,11 +52,8 @@ for k = 1:nCalls
                 logger_power_bands(band_k,logger_k,k) = bandpower(double(tsData(logger_k).AD_count_int16(piezo_sample_idx)),al_fs,f_bounds(band_k,:));
             end
         end
-        if ~out_of_bounds
-            [~,logger_identity_idx] = max(squeeze(logger_power_bands(1,:,k)./logger_power_bands(2,:,k)));
-            call_bat_IDs{k} = tsData(logger_identity_idx).Bat_id;
-        else
-            call_bat_IDs{k} = NaN;
+        if out_of_bounds
+            success(k) = false;
             out_of_bounds = false; 
         end
 end
