@@ -63,7 +63,7 @@ for vv=1:Nvoc
     yyaxis right
     plot((1:length(Amp_env_Mic{vv}))/Fs_env*1000, Amp_env_Mic{vv}, 'r-', 'LineWidth',2)
     ylabel('Amplitude')
-    title('Ambient Microphone')
+    title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
     pause(0.1)
     Player= audioplayer((Raw_wave{vv} - mean(Raw_wave{vv}))/std(Raw_wave{vv}), FS); %#ok<TNMLP>
     play(Player)
@@ -97,6 +97,16 @@ for vv=1:Nvoc
         Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
         play(Player)
         pause(1)
+    end
+    % Treat the case where some approximations of the calculations led to
+    % slight diffreent sizes of running RMS
+    Short = min(cellfun('length',Amp_env_LowPassLogVoc{vv}));
+    Long = max(cellfun('length',Amp_env_LowPassLogVoc{vv}));
+    if (Long-Short)>1
+        error('The length of vectors of running RMS are too different than expected, please check!\n')
+    elseif Long~=Short
+        Amp_env_LowPassLogVoc{vv} = cellfun(@(X) X(1:Short), Amp_env_LowPassLogVoc{vv}, 'UniformOutput',false);
+        Amp_env_HighPassLogVoc{vv} = cellfun(@(X) X(1:Short), Amp_env_HighPassLogVoc{vv}, 'UniformOutput',false);
     end
     Amp_env_LowPassLogVoc_MAT = cell2mat(Amp_env_LowPassLogVoc{vv});
     Amp_env_HighPassLogVoc_MAT = cell2mat(Amp_env_HighPassLogVoc{vv});
@@ -146,7 +156,11 @@ for vv=1:Nvoc
             Call1Hear0_temp = nan(NV,1);
             for ii=1:NV
                 IVStop = find(Vocp(ll,IndVocStart{ll}(ii):end)==0, 1, 'first');
-                IndVocStop{ll}(ii) = IndVocStart{ll}(ii) + IVStop;
+                if ~isempty(IVStop)
+                    IndVocStop{ll}(ii) = IndVocStart{ll}(ii) + IVStop -1;
+                else
+                    IndVocStop{ll}(ii) = length(Vocp);
+                end
                 IndVocStartRaw{ll}(ii) = round(IndVocStart{ll}(ii)/Fs_env*FS);
                 IndVocStopRaw{ll}(ii) = round(IndVocStop{ll}(ii)/Fs_env*FS);
                 IndVocStartPiezo{ll}(ii) = round(IndVocStart{ll}(ii)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
