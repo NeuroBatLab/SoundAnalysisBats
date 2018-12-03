@@ -76,27 +76,32 @@ for vv=1:Nvoc
         [z,p,k] = butter(6,BandPassFilter(2:3)/(Piezo_FS.(Fns_AL{ll})(vv)/2),'bandpass');
         sos_high = zp2sos(z,p,k);
         % filter the loggers' signals
-        LowPassLogVoc{vv}{ll} = (filtfilt(sos_low,1,Piezo_wave.(Fns_AL{ll}){vv})); % low-pass filter the voltage trace
-        HighPassLogVoc = (filtfilt(sos_high,1,Piezo_wave.(Fns_AL{ll}){vv})); % high-pass filter the voltage trace
-        Amp_env_LowPassLogVoc{vv}{ll}=running_rms(LowPassLogVoc{vv}{ll}, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
-        Amp_env_HighPassLogVoc{vv}{ll}=running_rms(HighPassLogVoc, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
-        
-        % Plot the low pass filtered signal of each logger
-        figure(1)
-        subplot(length(AudioLogs)+2,1,ll+1)
-        [~] = spec_only_bats(LowPassLogVoc{vv}{ll}, Piezo_FS.(Fns_AL{ll})(vv));
-        title(sprintf('%s',Fns_AL{ll}))
-        hold on
-        yyaxis right
-        plot((1:length(Amp_env_LowPassLogVoc{vv}{ll}))/Fs_env*1000, Amp_env_LowPassLogVoc{vv}{ll}, 'b-','LineWidth', 2);
-        hold on
-        plot((1:length(Amp_env_HighPassLogVoc{vv}{ll}))/Fs_env*1000, Amp_env_HighPassLogVoc{vv}{ll}, 'r-','LineWidth',2);
-        ylabel('Amplitude')
-        hold off
-        pause(0.1)
-        Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
-        play(Player)
-        pause(1)
+        if sum(isnan(Piezo_wave.(Fns_AL{ll}){vv}))~=length(Piezo_wave.(Fns_AL{ll}){vv})
+            LowPassLogVoc{vv}{ll} = (filtfilt(sos_low,1,Piezo_wave.(Fns_AL{ll}){vv})); % low-pass filter the voltage trace
+            HighPassLogVoc = (filtfilt(sos_high,1,Piezo_wave.(Fns_AL{ll}){vv})); % high-pass filter the voltage trace
+            Amp_env_LowPassLogVoc{vv}{ll}=running_rms(LowPassLogVoc{vv}{ll}, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
+            Amp_env_HighPassLogVoc{vv}{ll}=running_rms(HighPassLogVoc, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
+
+            % Plot the low pass filtered signal of each logger
+            figure(1)
+            subplot(length(AudioLogs)+2,1,ll+1)
+            [~] = spec_only_bats(LowPassLogVoc{vv}{ll}, Piezo_FS.(Fns_AL{ll})(vv));
+            title(sprintf('%s',Fns_AL{ll}))
+            hold on
+            yyaxis right
+            plot((1:length(Amp_env_LowPassLogVoc{vv}{ll}))/Fs_env*1000, Amp_env_LowPassLogVoc{vv}{ll}, 'b-','LineWidth', 2);
+            hold on
+            plot((1:length(Amp_env_HighPassLogVoc{vv}{ll}))/Fs_env*1000, Amp_env_HighPassLogVoc{vv}{ll}, 'r-','LineWidth',2);
+            ylabel('Amplitude')
+            hold off
+            pause(0.1)
+            Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+            play(Player)
+            pause(1)
+        else
+            Amp_env_LowPassLogVoc{vv}{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})), Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
+            Amp_env_HighPassLogVoc{vv}{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})), Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
+        end 
     end
     % Treat the case where some approximations of the calculations led to
     % slight diffreent sizes of running RMS
