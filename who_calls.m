@@ -1,4 +1,4 @@
-function [IndVocStartRaw, IndVocStopRaw, IndVocStartPiezo, IndVocStopPiezo] = who_calls(Loggers_dir, Date, ExpStartTime, Manual)
+function [IndVocStartRaw, IndVocStopRaw, IndVocStartPiezo, IndVocStopPiezo] = who_calls(Loggers_dir, Date, ExpStartTime, MergeThresh, Manual)
 load(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime)), 'Piezo_wave', 'Piezo_FS',  'Raw_wave','FS', 'RatioRMS', 'DiffRMS','BandPassFilter', 'AudioLogs', 'RMSHigh', 'RMSLow','VocFilename');
 %% Identify sound elements in each vocalization extract
 % Run a time window of duration 2 ms to identify who is vocalizing
@@ -6,6 +6,12 @@ load(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTim
 % and the other one low pass filtered at 5kHz. The vocalizer will have
 % the highest energy of all vocalizers and will have more energy in the
 % lower compare to higher filtered signal
+if nargin<5
+    Manual=0;
+end
+if nargin<4
+    MergeThresh = 500; % any 2 detected call spaced by less than MergeThresh ms are merged
+end
 
 % parameters
 Consecutive_bins = 20; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
@@ -15,7 +21,6 @@ BandPassFilter = [1000 5000 9900]; % Frequency bands chosen for digital signal p
 Fhigh_power =20; % Frequency upper bound for calculating the envelope (time running RMS)
 Fs_env = 1000; % Sample freqency of the enveloppe
 % Buffer=100; % Maximum lag calculated for the cross correlation in ms, not used in that code for identification puposes but still calculated as of now
-MergeThresh = 500; % any 2 detected call spaced by less than MergeThresh ms are merged
 
 % Initialize variables
 Nvoc = length(Raw_wave); %#ok<USENS>
@@ -273,8 +278,8 @@ for vv=1:Nvoc
     ylabel('AL ID')
     xlabel('Time (ms)')
     [~,FileVoc]=fileparts(VocFilename{vv}); %#ok<IDISVAR,USENS>
-    saveas(F1,fullfile(Loggers_dir,sprintf('%s_whocalls_spec.pdf', FileVoc)),'pdf')
-    saveas(F2,fullfile(Loggers_dir,sprintf('%s_whocalls_RMS.pdf', FileVoc)),'pdf')
+    saveas(F1,fullfile(Loggers_dir,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'pdf')
+    saveas(F2,fullfile(Loggers_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
     if Manual
         pause()
     else
@@ -296,5 +301,5 @@ for vv=1:Nvoc
 end
 
 
-save(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all', '-append');
+save(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all');
 end
