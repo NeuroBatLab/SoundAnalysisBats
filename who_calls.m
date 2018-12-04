@@ -273,8 +273,8 @@ for vv=1:Nvoc
     ylabel('AL ID')
     xlabel('Time (ms)')
     [~,FileVoc]=fileparts(VocFilename{vv}); %#ok<IDISVAR,USENS>
-    saveas(F1,fullfile(Loggers_dir,sprintf('%s_whocalls_spec', FileVoc)),'epsc')
-    saveas(F2,fullfile(Loggers_dir,sprintf('%s_whocalls_RMS', FileVoc)),'epsc')
+    saveas(F1,fullfile(Loggers_dir,sprintf('%s_whocalls_spec.pdf', FileVoc)),'pdf')
+    saveas(F2,fullfile(Loggers_dir,sprintf('%s_whocalls_RMS.pdf', FileVoc)),'pdf')
     if Manual
         pause()
     else
