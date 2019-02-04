@@ -1,18 +1,39 @@
-function [logger_power_bands,classMat,usableIdx] = generate_classification_mat_AL(expDate)
+function [logger_power_bands,logger_xcorr,classMat,batNums,usableIdx] = generate_classification_mat_AL(cut_call_data,tsData,audio2nlg)
 
-[cut_call_data,tsData,audio2nlg] = get_AL_data(expDate);
+wav_fs = 250e3;
+[logger_power_bands,logger_xcorr,success] = get_AL_stats(cut_call_data,tsData,audio2nlg,false);
+nLogger = size(logger_power_bands,2);
+batNums = cell(1,nLogger);
+max_n_logger = 6;
 
-[logger_power_bands,success] = get_AL_power_bands(cut_call_data,tsData,audio2nlg,false);
-%%
-if length(logger_nums) < max_n_logger
-    nan_data_append = nan(size(logger_power_bands,1),max_n_logger - length(logger_nums),size(logger_power_bands,3));
+if nLogger < max_n_logger
+    nan_data_append = nan(size(logger_power_bands,1),max_n_logger - nLogger,size(logger_power_bands,3));
     logger_power_bands = cat(2,logger_power_bands,nan_data_append);
 end
-%%
-lowPower = squeeze(log10(max(logger_power_bands(1,:,:),[],2)));
-highPower = squeeze(log10(max(logger_power_bands(2,:,:),[],2)));
-powerRatio = lowPower./highPower;
-powerDifference = lowPower - highPower;
-classMat = table(lowPower,highPower,powerRatio,powerDifference);
-usableIdx = success' & ~any(isnan(table2array(classMat)),2) & ~any(isinf(table2array(classMat)),2);
-classMat = classMat{usableIdx,:};
+
+
+classMat = cell(1,nLogger);
+usableIdx = success';
+callRMS = cellfun(@rms,{cut_call_data.cut})';
+callLength = cellfun(@length,{cut_call_data.cut})'/wav_fs;
+for k = 1:nLogger
+    batNums{k} = tsData(k).Bat_id;
+    lowPower = squeeze(log10(logger_power_bands(1,k,:)));
+    highPower = squeeze(log10(logger_power_bands(2,k,:)));
+    powerRatio = lowPower./highPower;
+    powerDifference = lowPower - highPower;
+    crossCorr = logger_xcorr(k,:)';
+    classMat{k} = table(lowPower,highPower,powerRatio,powerDifference,crossCorr);
+    usableIdx = usableIdx & ~any(isnan(table2array(classMat{k})),2) & ~any(isinf(table2array(classMat{k})),2);
+end
+
+
+callRMS = callRMS(usableIdx);
+callLength = callLength(usableIdx);
+
+for k = 1:nLogger
+    classMat{k} = classMat{k}(usableIdx,:);
+    classMat{k} = addvars(classMat{k},callLength,callRMS,'NewVariableNames',{'callLength','callRMS'});
+end
+
+end

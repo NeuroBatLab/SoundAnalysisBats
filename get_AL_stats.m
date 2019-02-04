@@ -1,10 +1,13 @@
-function [logger_power_bands,success] = get_AL_power_bands(cut_call_data,tsData,audio2nlg,manual_noise_flag)
+function [logger_power_bands,logger_xcorr,success] = get_AL_stats(cut_call_data,tsData,audio2nlg,manual_noise_flag)
 addpath('C:\Users\phyllo\Documents\GitHub\SoundAnalysisBats\')
 if nargin < 4
     manual_noise_flag = false;
 end    
 
 al_fs = 50e3;
+wav_fs = 250e3;
+ds_factor = wav_fs/al_fs;
+envelope_window_s = 10e-3;
 nLogger = length(tsData);
 
 if manual_noise_flag
@@ -22,8 +25,10 @@ f_idx = cell(1,n_freq_band);
 for band_k = 1:n_freq_band
     [~, f_idx{band_k}] = inRange(logger_power_freqs,f_bounds(band_k,:));
 end
+[b,a]=butter(3,f_bounds(1,:)/(50e3/2),'bandpass');
 success = true(1,nCalls);
 logger_power_bands = nan(n_freq_band,nLogger,nCalls);
+logger_xcorr = nan(nLogger,nCalls);
 out_of_bounds = false;
 for k = 1:nCalls
     
@@ -34,7 +39,8 @@ for k = 1:nCalls
             call_ts_nlg_sample = get_voltage_samples_for_Nlg_timestamps(call_ts_nlg(:),...
                 tsData(logger_k).Indices_of_first_and_last_samples(:,1)',...
                 tsData(logger_k).Timestamps_of_first_samples_usec,...
-                tsData(logger_k).Sampling_period_usec_Logger);
+                tsData(logger_k).Samples_per_channel_per_file,...
+                1e6/nanmean(tsData(logger_k).Estimated_channelFS_Transceiver));
             if isempty(call_ts_nlg_sample)
                 success(k) = false;
                 break
@@ -47,10 +53,21 @@ for k = 1:nCalls
                 out_of_bounds = true;
                 break
             end
+            call_logger_chunk = double(tsData(logger_k).AD_count_int16(piezo_sample_idx));
             
             for band_k = 1:n_freq_band
-                logger_power_bands(band_k,logger_k,k) = bandpower(double(tsData(logger_k).AD_count_int16(piezo_sample_idx)),al_fs,f_bounds(band_k,:));
+                logger_power_bands(band_k,logger_k,k) = bandpower(call_logger_chunk,al_fs,f_bounds(band_k,:));
             end
+            
+            call_wav_env = zscore(downsample(envelope(cut_call_data(k).cut,envelope_window_s*wav_fs,'rms'),ds_factor));
+            call_al_env = envelope(filtfilt(b,a,call_logger_chunk),envelope_window_s*al_fs,'rms');
+            call_wav_env_L = length(call_wav_env);
+            call_al_env_L = length(call_al_env);
+            N = min(call_al_env_L,call_wav_env_L);
+
+            r = xcorr(call_al_env(1:N),call_wav_env(1:N),1,'unbiased');
+            logger_xcorr(logger_k,k) = r(2);
+            
         end
         if out_of_bounds
             success(k) = false;
