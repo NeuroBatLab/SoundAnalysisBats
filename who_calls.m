@@ -1,6 +1,16 @@
 function [IndVocStartRaw, IndVocStopRaw, IndVocStartPiezo, IndVocStopPiezo] = who_calls(Loggers_dir, Date, ExpStartTime, MergeThresh, Manual)
 load(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime)), 'Piezo_wave', 'Piezo_FS',  'Raw_wave','FS', 'RatioRMS', 'DiffRMS','BandPassFilter', 'AudioLogs', 'RMSHigh', 'RMSLow','VocFilename');
-%% Identify sound elements in each vocalization extract
+%% Identify sound elements in each vocalization extract and decide of the vocalizer
+% Output corresponds to onset and offset indices of each vocal element in
+% sound section for each vocalizing logger. A cell array of length the
+% number of sound sections identified by voc_localize or
+% voc_localize_operant. For IndVocStartRaw_merged each cell contains the onset/offset samples of each vocal element in the sound section.
+% For IndVocStartPiezo_merged each cell is a cell array of size the number of
+% audio-loggers where each cell contains the onset or offset sample of
+% individual vocal element emitted by the respective audio-loggers. Note
+% that for both these variables, vocal elements that are within MergeThresh
+% ms were merged in a single vocal element.
+% 
 % Run a time window of duration 2 ms to identify who is vocalizing
 % create 2 signals for the logger, one high pass filtered above 5kHz
 % and the other one low pass filtered at 5kHz. The vocalizer will have
@@ -15,11 +25,13 @@ end
 
 % parameters
 Consecutive_bins = 20; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
+Factor_RMS_low = 2; % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection
+Factor_AmpRatio = 1.5; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
 DB_noise = 60; % Noise threshold for the spectrogram colormap
 FHigh_spec = 90000; % Max frequency (Hz) for the raw data spectrogram
 BandPassFilter = [1000 5000 9900]; % Frequency bands chosen for digital signal processing
 Fhigh_power =20; % Frequency upper bound for calculating the envelope (time running RMS)
-Fs_env = 1000; % Sample freqency of the enveloppe
+Fs_env = 1000; % Sample frequency of the enveloppe
 % Buffer=100; % Maximum lag calculated for the cross correlation in ms, not used in that code for identification puposes but still calculated as of now
 
 % Initialize variables
@@ -79,7 +91,7 @@ for vv=1:Nvoc
     end
     %% Loop through the loggers and calculate envelopes
     for ll=1:length(AudioLogs)
-        if isnan(Piezo_FS.(Fns_AL{ll})(vv))
+        if isnan(Piezo_FS.(Fns_AL{ll})(vv)) || isempty(Piezo_wave.(Fns_AL{ll}){vv})
             fprintf(1, 'NO DATA for Vocalization %d from %s\n', vv, Fns_AL{ll})
         else
             % design the filters
@@ -145,15 +157,25 @@ for vv=1:Nvoc
         subplot(3,1,1)
         plot(RatioAmp', 'LineWidth',2)
         title('Frequency bands Ratio')
-        legend(Fns_AL)
+        hold on
+        for ll=1:length(AudioLogs)
+            plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_AmpRatio * RatioRMS.(Fns_AL{ll})(1)*ones(2,1), 'Color',ColorCode(ll,:),'LineStyle','--');
+            hold on
+        end
+        legend({Fns_AL{:} 'calling detection threshold' 'calling detection threshold'})
         subplot(3,1,2)
         plot(DiffAmp', 'LineWidth',2)
         title('Frequency bands Diff')
         legend(Fns_AL)
         subplot(3,1,3)
         plot(Amp_env_LowPassLogVoc_MAT', 'LineWidth',2)
+        hold on
         title(sprintf('Running RMS %dHz-%dHz', BandPassFilter(1:2)))
-        legend(Fns_AL)
+        for ll=1:length(AudioLogs)
+            plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_RMS_low * RMSLow.(Fns_AL{ll})(1)*ones(2,1), 'Color',ColorCode(ll,:),'LineStyle','--');
+            hold on
+        end
+        legend({Fns_AL{:} 'voc detection threshold' 'voc detection threshold'})
 
         %% Find out which calls are emitted by each individual
         Vocp = nan(size(DiffAmp)); % This is the output of the decision criterion to determine at each time point if a bat is vocalizing or not. each row=a logger, each column = a time point
@@ -168,7 +190,7 @@ for vv=1:Nvoc
         RMSDiff = cell(length(AudioLogs),1);
         for ll=1:length(AudioLogs)
             %         Vocp(ll,:)=(DiffAmp(ll,:)>(4*DiffRMS.(Fns_AL{ll})(1))) .* (RatioAmp(ll,:)>(4*RatioRMS.(Fns_AL{ll})(1)));
-            Vocp(ll,:) = Amp_env_LowPassLogVoc_MAT(ll,:)>(2*RMSLow.(Fns_AL{ll})(1)); % Time points above amplitude threshold on the low-passed logger signal
+            Vocp(ll,:) = Amp_env_LowPassLogVoc_MAT(ll,:)>(Factor_RMS_low * RMSLow.(Fns_AL{ll})(1)); % Time points above amplitude threshold on the low-passed logger signal
             IndVocStart{ll} = strfind(Vocp(ll,:), ones(1,Consecutive_bins)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
             if isempty(IndVocStart{ll})
                 fprintf('No vocalization detected on %s\n',Fns_AL{ll});
@@ -219,7 +241,7 @@ for vv=1:Nvoc
                     % and decide about the vocalization ownership
                     RMSRatio{ll}(ii) = mean(RatioAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
                     RMSDiff{ll}(ii) = mean(DiffAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
-                    Call1Hear0_temp(ii) = RMSRatio{ll}(ii) > 3*RatioRMS.(Fns_AL{ll})(1);
+                    Call1Hear0_temp(ii) = RMSRatio{ll}(ii) > Factor_AmpRatio * RatioRMS.(Fns_AL{ll})(1);
                     
                     % update figure(3) with the decision
                     figure(3)
