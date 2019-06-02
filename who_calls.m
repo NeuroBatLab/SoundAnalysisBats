@@ -160,9 +160,9 @@ for vv=1:Nvoc
         % varying RMS of the low frequency band
         F2=figure(2);
         clf(F2)
-        subplot(3,1,1)
+        subplot(3,1,3)
         plot(RatioAmp', 'LineWidth',2)
-        title('Frequency bands Ratio')
+        ylabel('Frequency bands Ratio')
 %         hold on
 %         for ll=1:length(AudioLogs)
 %             plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_AmpRatio * RatioRMS.(Fns_AL{ll})(1)*ones(2,1), 'Color',ColorCode(ll,:),'LineStyle','--');
@@ -172,17 +172,19 @@ for vv=1:Nvoc
         legend(Fns_AL{:})
         subplot(3,1,2)
         plot(DiffAmp', 'LineWidth',2)
-        title('Frequency bands Diff')
+        title('Calling vs Hearing')
+        ylabel('Frequency bands Diff')
         hold on
         for ll=1:length(AudioLogs)
             plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1)*ones(2,1), 'Color',ColorCode(ll,:),'LineStyle','--');
             hold on
         end
         legend({Fns_AL{:} 'calling detection threshold' 'calling detection threshold'})
-        subplot(3,1,3)
+        subplot(3,1,1)
         plot(Amp_env_LowPassLogVoc_MAT', 'LineWidth',2)
         hold on
-        title(sprintf('Running RMS %dHz-%dHz', BandPassFilter(1:2)))
+        ylabel(sprintf('Running RMS %dHz-%dHz', BandPassFilter(1:2)))
+        title('Detection of vocalizations on each logger')
         for ll=1:length(AudioLogs)
             plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_RMS_low * RMSLow.(Fns_AL{ll})(1)*ones(2,1), 'Color',ColorCode(ll,:),'LineStyle','--');
             hold on
