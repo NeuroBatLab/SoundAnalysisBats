@@ -25,7 +25,7 @@ end
 
 % parameters
 Consecutive_bins = 20; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
-Factor_RMS_low = 10; % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection
+Factor_RMS_low = 5; % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection
 % Factor_AmpRatio = 1.5; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
 Factor_AmpDiff = 50; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
 DB_noise = 60; % Noise threshold for the spectrogram colormap
@@ -93,7 +93,7 @@ for vv=1:Nvoc
         pause(0.1)
         Player= audioplayer((Raw_wave{vv} - mean(Raw_wave{vv}))/std(Raw_wave{vv}), FS); %#ok<TNMLP>
         play(Player)
-        pause(1)
+        pause(length(Raw_wave{vv})/FS +1)
     end
     %% Loop through the loggers and calculate envelopes
     for ll=1:length(AudioLogs)
@@ -128,7 +128,7 @@ for vv=1:Nvoc
                     pause(0.1)
                     Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                     play(Player)
-                    pause(1)
+                    pause(length(Raw_wave{vv})/FS +1)
                 end
             else
                 Amp_env_LowPassLogVoc{vv}{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})), Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
