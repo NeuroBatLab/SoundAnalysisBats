@@ -5,56 +5,60 @@ function [] = piezo_find_calls(directory)
     mergethresh = 5e-3; % in s
     Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
     FS_env = 1000; % Sample frequency of the envelope
-    BandPassFilter = [1000 5000]; %the frequencies we care about to identiy when a call is made
+    BandPassFilter = [1000 5000]; %the frequencies we care about to identify when a call is made
 
 
     % AD_count_int16 is the raw_data variable in the extracted CSC.mat file
     % Esimated_channelFS_Transceiver is the estimated sample frequencies
     load(strcat(directory, '/logger12/extracted_data/71306_20180907_CSC0.mat'), 'AD_count_int16', 'Estimated_channelFS_Transceiver')
-    samplingFreq = mean(Estimated_channelFS_Transceiver);
-    recordingLength = length(AD_count_int16) / samplingFreq / 60;  % in minutes
-    sampleSize = 2; % in minutes
+    SamplingFreq = mean(Estimated_channelFS_Transceiver);
+    RecordingLength = length(AD_count_int16) / SamplingFreq / 60;  % in minutes
+    SampleSize = 2; % in minutes
 
 
 
-    % Center the signal and filter it
-    centered_piezo_signal = AD_count_int16 - mean(AD_count_int16);
-    centered_piezo_signal = double(centered_piezo_signal);
+    % Center the signal
+    Centered_piezo_signal = AD_count_int16 - mean(AD_count_int16);
+    Centered_piezo_signal = double(Centered_piezo_signal);
 
     %Design the bandpass filter for the 1000-5000Hz range
-    [z,p,k] = butter(6,BandPassFilter / (samplingFreq / 2),'bandpass');
-    sos_low = zp2sos(z,p,k);
+    [z,p,k] = butter(6,BandPassFilter / (SamplingFreq ./ 2),'bandpass');
+    Sos_low = zp2sos(z,p,k);
 
     %get the baseline noise for the RMS of the piezo data
-    noise = getNoiseLevel(centered_piezo_signal, samplingFreq, sos_low, Fhigh_power, FS_env);
-    disp(['Done with calculating noise: ', num2str(noise)])
+    Noise = getNoiseLevel(Centered_piezo_signal, SamplingFreq, Sos_low, Fhigh_power, FS_env);
+    disp(['Done with calculating noise: ', num2str(Noise)])
     %still varies more than I like (6-9 ish), could increase sample size
+    % JEE: Or alternatively, randomly sample a certain number of samples of
+    % size SamplingFreq and take as noise the average of these mean
+    % envelope values
 
     %loop after designing filter but before applying it
     %seems to be about 15 seconds per 2 minute sample to filter and calculate
     %the envelope. 
-
-    for j = 0:sampleSize: 2%recordingLength
-        sampleStart = uint64(j * 60 * samplingFreq + 1);
-        sampleEnd = uint64((j + sampleSize) * 60 * samplingFreq);
-        if sampleEnd > length(centered_piezo_signal)
-           sampleEnd = length(centered_piezo_signal);
+    % JEE: j and i are internal variables in matlab, you want to use jj or ii
+    % for iteration purposes.
+    for jj = 0:SampleSize: 2%recordingLength
+        sampleStart = uint64(jj * 60 * SamplingFreq + 1);
+        sampleEnd = uint64((jj + SampleSize) * 60 * SamplingFreq);
+        if sampleEnd > length(Centered_piezo_signal)
+           sampleEnd = length(Centered_piezo_signal);
         end
-        sample = centered_piezo_signal(sampleStart : sampleEnd);
+        sample = Centered_piezo_signal(sampleStart : sampleEnd);
         
-        filtered_piezo_sample = filtfilt(sos_low, 1, sample);
-        piezo_envelope = running_rms(filtered_piezo_sample, samplingFreq, Fhigh_power, FS_env);
+        filtered_piezo_sample = filtfilt(Sos_low, 1, sample);
+        piezo_envelope = running_rms(filtered_piezo_sample, SamplingFreq, Fhigh_power, FS_env);
         
 
-        x_start = j * (length(piezo_envelope) / sampleSize) + 1;
-        x_end = (j + sampleSize) * (length(piezo_envelope) / sampleSize);
+        x_start = jj * (length(piezo_envelope) / SampleSize) + 1;
+        x_end = (jj + SampleSize) * (length(piezo_envelope) / SampleSize);
         x_values = (x_start : x_end);
         plot(x_values, piezo_envelope, 'Color',[0,0.5,0.9])
-        line([x_start, x_end], [noise * RMSfactor, noise * RMSfactor], 'Color','red','LineStyle','--')
+        line([x_start, x_end], [Noise * RMSfactor, Noise * RMSfactor], 'Color','red','LineStyle','--')
         hold on
  
         %List of a bunch of 1s and 0s indicating calls
-        callIndicator = piezo_envelope > (RMSfactor * noise);
+        callIndicator = piezo_envelope > (RMSfactor * Noise);
         
         %Start/Stop times is any time there is a change
         startTimes = find(diff(callIndicator) > 0);
@@ -117,8 +121,8 @@ function [] = piezo_find_calls(directory)
         %visually inspect that the previous step is correct
         for i = 1:length(callTimes)
             call = callTimes{i};
-            x_start = call(1) + j * (length(piezo_envelope) / sampleSize);
-            x_stop = call(2) + j * (length(piezo_envelope) / sampleSize);
+            x_start = call(1) + jj * (length(piezo_envelope) / SampleSize);
+            x_stop = call(2) + jj * (length(piezo_envelope) / SampleSize);
             line([x_start, x_stop], [1000,1000], 'Color','g','LineWidth', 5.0)
             hold on
         end
@@ -128,7 +132,11 @@ function [] = piezo_find_calls(directory)
  
 end
 
+%% JEE: I guess this is the loop that you want to improve for a better estimation of the noise
 function [average_noise] = getNoiseLevel(centered_piezo_signal, samplingFreq, filter, Fhigh_power, FS_env)
+    % Here we're using a hard threshold on the envelope of the piezo
+    % signal. The values of the envelope have to be below 50 to be
+    % considered as noise not contaminated by a loud vocalization.
     rand_indx = uint64(getRandomIndex(centered_piezo_signal, samplingFreq));    
     repeat = true;
     while repeat
