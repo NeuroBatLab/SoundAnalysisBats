@@ -18,7 +18,7 @@ fields = h5.get_subgroups(fid, '/');
 %%
 Feature_matrix = nan(length(h5files),length(fields));
 %%
-% For debugging
+% For debugging and reference
 
 temp_array = num2cell(zeros(1,length(fields)));
 features = cell2struct(temp_array,fields,2);
@@ -50,37 +50,40 @@ Stand_Feats = (Feature_matrix-repmat(mu,length(Feature_matrix),1))./repmat(sigma
 
 %%
 % Complete method with nan fields
-% Use vec to ignore pure nan fields 
+% Use vec to ignore irrelevant fields 
 vec1 = 1:length(fields);
-vec1([3,6,12,15,30,34,39]) = [];
+vec1([3,6,12,15,30,34,37,38,39,41,42]) = []; % Picked out by hand
 
 [coeff1,score1,latent1,tsquared1,explained1] = pca(Stand_Feats(:,vec1));
 %%
-% Take a look at the coefficients for the first three PCs
-field_coeff1 = [fields(vec1); num2cell(coeff1(:,1:3)')];
+% Plot explained values
+bar(1:length(explained1), explained1)
+title("Explained Percentages for each PC")
 %%
 %Plot data on first three/two PC's
 
-biplot(coeff1(:,1:3),'Scores',score1(:,1:3),'VarLabels',fields(vec1));
 biplot(coeff1(:,1:2),'Scores',score1(:,1:2),'VarLabels',fields(vec1));
+title("Biplot of First Two PCs")
 %% 
 % 
 % Complete method with no nan fields
 vec2 = 1:length(fields);
+
 temp = [];
 for k = 1:length(fields)
     if any(isnan(Stand_Feats(:,k)))
         temp = [temp,k];
     end
 end
-vec2(temp) = [];
+vec2([3,6,12,15,30,34,37,38,39,41,42,temp]) = [];
 %%
 [coeff2,score2,latent2,tsquared2,explained2] = pca(Stand_Feats(:,vec2));
 %%
-field_coeff2 = [fields(vec2); num2cell(coeff2(:,1:3)')];
+bar(1:length(explained2), explained2);
+title("Explained Percentages for each PC on All Obs");
 %%
-biplot(coeff2(:,1:3),'Scores',score2(:,1:3),'VarLabels',fields(vec2));
 biplot(coeff2(:,1:2),'Scores',score2(:,1:2),'VarLabels',fields(vec2));
+title("Biplot of First Two PCs with All Observations");
 %%
 % 
 %% 
