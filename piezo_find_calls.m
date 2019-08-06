@@ -1,165 +1,67 @@
 function [] = piezo_find_calls(directory)
-    % We will see what this ends up doing...
-    RMSfactor = 10;
-    callLength = 0.015; % in s
-    mergethresh = 5e-3; % in s
-    Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
+    %Wrapper function for piezo_find_calls_logger
+    mergeThresh = 5e-3; % in s
     FS_env = 1000; % Sample frequency of the envelope
-    BandPassFilter = [1000 5000]; %the frequencies we care about to identify when a call is made
 
-
-    % AD_count_int16 is the raw_data variable in the extracted CSC.mat file
-    % Esimated_channelFS_Transceiver is the estimated sample frequencies
-    load(strcat(directory, '/logger12/extracted_data/71306_20180907_CSC0.mat'), 'AD_count_int16', 'Estimated_channelFS_Transceiver')
-    SamplingFreq = mean(Estimated_channelFS_Transceiver);
-    RecordingLength = length(AD_count_int16) / SamplingFreq / 60;  % in minutes
-    SampleSize = 2; % in minutes
-
-
-
-    % Center the signal
-    Centered_piezo_signal = AD_count_int16 - mean(AD_count_int16);
-    Centered_piezo_signal = double(Centered_piezo_signal);
-
-    %Design the bandpass filter for the 1000-5000Hz range
-    [z,p,k] = butter(6,BandPassFilter / (SamplingFreq ./ 2),'bandpass');
-    Sos_low = zp2sos(z,p,k);
-
-    %get the baseline noise for the RMS of the piezo data
-    Noise = getNoiseLevel(Centered_piezo_signal, SamplingFreq, Sos_low, Fhigh_power, FS_env);
-    disp(['Done with calculating noise: ', num2str(Noise)])
-    %still varies more than I like (6-9 ish), could increase sample size
-    % JEE: Or alternatively, randomly sample a certain number of samples of
-    % size SamplingFreq and take as noise the average of these mean
-    % envelope values
-
-    %loop after designing filter but before applying it
-    %seems to be about 15 seconds per 2 minute sample to filter and calculate
-    %the envelope. 
-    % JEE: j and i are internal variables in matlab, you want to use jj or ii
-    % for iteration purposes.
-    for jj = 0:SampleSize: 2%recordingLength
-        sampleStart = uint64(jj * 60 * SamplingFreq + 1);
-        sampleEnd = uint64((jj + SampleSize) * 60 * SamplingFreq);
-        if sampleEnd > length(Centered_piezo_signal)
-           sampleEnd = length(Centered_piezo_signal);
-        end
-        sample = Centered_piezo_signal(sampleStart : sampleEnd);
-        
-        filtered_piezo_sample = filtfilt(Sos_low, 1, sample);
-        piezo_envelope = running_rms(filtered_piezo_sample, SamplingFreq, Fhigh_power, FS_env);
-        
-
-        x_start = jj * (length(piezo_envelope) / SampleSize) + 1;
-        x_end = (jj + SampleSize) * (length(piezo_envelope) / SampleSize);
-        x_values = (x_start : x_end);
-        plot(x_values, piezo_envelope, 'Color',[0,0.5,0.9])
-        line([x_start, x_end], [Noise * RMSfactor, Noise * RMSfactor], 'Color','red','LineStyle','--')
-        hold on
- 
-        %List of a bunch of 1s and 0s indicating calls
-        callIndicator = piezo_envelope > (RMSfactor * Noise);
-        
-        %Start/Stop times is any time there is a change
-        startTimes = find(diff(callIndicator) > 0);
-        stopTimes = find(diff(callIndicator) < 0);
-                
-        %check edge cases
-        if stopTimes(1) < startTimes(1)
-            startTimes = [1, startTimes];
-        end
-        
-        if startTimes(end) > stopTimes(end)
-            stopTimes = [stopTimes, length(piezo_envelope)];
-        end
-        
-%         %visually inspect that the previous step is correct
-%         x_values = [startTimes + j * (length(piezo_envelope) / sampleSize), stopTimes + j * (length(piezo_envelope) / sampleSize)];
-%         y_values = repmat((100),1,length(x_values));
-%         scatter(x_values, y_values) 
-%         hold on
-        
-
-        if length(startTimes) ~= length(stopTimes)
-            ME = MException('Start and Stop times are not the same size');
-            throw(ME) 
-        end
-        
-        %Find the call times, the requirements of which are that the call 
-        %is greater than callLength and also merge any calls that are less 
-        %than mergethresh apart
-        callTimes = cell(1, length(startTimes));
-        index = 1;
-        for i = 1:length(startTimes)
-            start = startTimes(i);
-            stop = stopTimes(i);
-            
-            if start > stop
-                ME = MException('Start time should not be greater than Stop time');
-                throw(ME)
-            end
-            
-            if stop - start >= FS_env * callLength
-                if index ~= 1
-                    %check to see if we can merge with last call 
-                    %just this start - previous stop < mergethresh * FS_env
-                    previous_call = callTimes{index - 1};
-                    if start - previous_call(2) <= mergethresh * FS_env
-                        callTimes{end} = [previous_call(1), stop];
-                    else
-                        callTimes{index} = [start, stop];
-                        index = index + 1;
-                    end
-                else
-                    callTimes{index} = [start, stop];
-                    index = index + 1;
-                end
-            end     
-        end
-        callTimes = callTimes(1 : index - 1);
-        
-        %visually inspect that the previous step is correct
-        for i = 1:length(callTimes)
-            call = callTimes{i};
-            x_start = call(1) + jj * (length(piezo_envelope) / SampleSize);
-            x_stop = call(2) + jj * (length(piezo_envelope) / SampleSize);
-            line([x_start, x_stop], [1000,1000], 'Color','g','LineWidth', 5.0)
-            hold on
-        end
-
-    end
-    hold off
- 
-end
-
-%% JEE: I guess this is the loop that you want to improve for a better estimation of the noise
-function [average_noise] = getNoiseLevel(centered_piezo_signal, samplingFreq, filter, Fhigh_power, FS_env)
-    % Here we're using a hard threshold on the envelope of the piezo
-    % signal. The values of the envelope have to be below 50 to be
-    % considered as noise not contaminated by a loud vocalization.
-    rand_indx = uint64(getRandomIndex(centered_piezo_signal, samplingFreq));    
-    repeat = true;
-    while repeat
-        total = 0;
-        repeat = false;
-        sample = centered_piezo_signal(rand_indx: rand_indx + samplingFreq);
-        filtered_piezo_sample = filtfilt(filter, 1, sample);
-        piezo_envelope = running_rms(filtered_piezo_sample, samplingFreq, Fhigh_power, FS_env);
-        if any(piezo_envelope >50)
-            rand_indx = uint64(getRandomIndex(centered_piezo_signal, samplingFreq));
-            repeat = true;
-        else
-            total = sum(piezo_envelope);
-        end
-    end
     
-    average_noise = total / length(piezo_envelope);
+    files = dir(directory);
+    
+%     allCallTimes = cell(1, length(files));
+%     index = 1;
+%     for i = 1:length(files)
+%        file = files(i);
+%        if contains(file.name, "logger")
+%            filepath = strcat(directory, "/", file.name);
+%            allCallTimes{index} = piezo_find_calls_logger(filepath);
+%            index = index + 1;
+%        end
+%     end
+%     allCallTimes = allCallTimes(1: index - 1);
+
+    %handle any merges    
+    a = [1,500,1500,1550];
+    b = [2000,2200,2300,2400];
+    c = [499,3500];
+    test2 = {c, a, b};
+    
+    allCallTimes = test2;
+    answer = zeros(1, sum(cellfun(@length, allCallTimes)));
+    i = 1;
+    while ~all(cellfun(@isempty, allCallTimes))
+        [~, index] = find_first_start(allCallTimes);
+        logger = allCallTimes{index};
+        allCallTimes{index} = logger(3:end);
+        start = logger(1);
+        stop = logger(2);
+        if i > 1
+            prevStop = answer(i - 1);
+            if start - prevStop <= mergeThresh * FS_env
+               if stop > prevStop 
+                    answer(i - 1) = stop;
+               end
+            else    
+                answer(i:i+1) = [start, stop];
+                i = i + 2;
+            end
+        else
+            answer(i:i+1) = [start, stop];
+            i = i + 2;
+        end
+        disp(answer)
+        disp("-----------------------------------")
+    end
+    answer = answer(1 : i - 1);
+    
 end
 
-function [rand_indx] = getRandomIndex(centered_piezo_signal, samplingFreq)
-    rand_indx = rand * length(centered_piezo_signal);
-    while (rand_indx + samplingFreq) > length(centered_piezo_signal)
-        rand_indx = rand * length(centered_piezo_signal);
+function [minimum, index] = find_first_start(nested_vectors)
+    starts = Inf(1, length(nested_vectors));
+    for i = 1:length(nested_vectors)
+       tmp = nested_vectors{i};
+       if ~isempty(tmp)
+            starts(i) = tmp(1);
+       end
     end
+    [minimum, index] = min(starts);
 end
 
