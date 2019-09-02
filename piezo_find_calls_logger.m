@@ -1,4 +1,4 @@
-function [callTimes] = piezo_find_calls_logger(logger_directory)
+function [callTimes] = piezo_find_calls_logger(data_directory)
     % Takes in the directory for the individidual logger data
     % LOGGER_DIRECTORY and outputs CALLTIMES, the start/stop times of potential
     % calls. Note that CallTIMES is currently a cell of vectors where each
@@ -14,14 +14,30 @@ function [callTimes] = piezo_find_calls_logger(logger_directory)
     mergeThresh = 5e-3; % minimum length between two calls in s
     FS_env = 1000; % Sample frequency of the envelope
     BandPassFilter = [1000 5000]; % the frequencies we care about to identiy when a call is made
-
-
-
+    logger_name = data_directory(end - 23 : end - 16); % I'm assuming all names of the form loggerXX
+    disp(logger_name)
+    
+   
+    % Loop through the files in the directory and find the data file. 
     % Load the raw signal and raw signal frequency, then calculate ratio of
     % raw signal frequency to what the envelope's frequency will be.
-    load(strcat(logger_directory, '/extracted_data/71306_20180907_CSC0.mat'), 'AD_count_int16', 'Estimated_channelFS_Transceiver')
-    samplingFreq = mean(Estimated_channelFS_Transceiver);
-    FS_ratio = round(samplingFreq / FS_env); 
+    files = dir(data_directory);
+    found = 0;
+    for ii = 1:length(files)
+       file = files(ii);
+       if contains(file.name, "CSC0")
+           filepath = strcat(data_directory, file.name);
+           load(filepath, 'AD_count_int16', 'Estimated_channelFS_Transceiver')
+           samplingFreq = mean(Estimated_channelFS_Transceiver);
+           FS_ratio = round(samplingFreq / FS_env); 
+           found = 1;
+       end
+    end
+    
+    if found == 0
+        ME = MException('Data file not found');
+        throw(ME)
+    end    
 
     % Center the signal and clear the old data from memory
     centered_piezo_signal = AD_count_int16 - mean(AD_count_int16);
@@ -38,6 +54,7 @@ function [callTimes] = piezo_find_calls_logger(logger_directory)
     piezo_envelope = zeros(1, floor(signal_length / (FS_ratio - 1)));
     envelope_length = 0;
     for i = 1:4
+        tic;
         sampleStart = 1;
         sampleEnd = floor(signal_length / 4);
         if i == 4
@@ -47,12 +64,13 @@ function [callTimes] = piezo_find_calls_logger(logger_directory)
         centered_piezo_signal(sampleStart: sampleEnd) = [];
         filtered_piezo_sample = filtfilt(sos_low, 1, sample);
         filtered_sample_envelope = envelope(filtered_piezo_sample, 1e-3 * 50000, 'rms');
-        disp(length(filtered_sample_envelope))
+%         disp(length(filtered_sample_envelope))
         %can likely get rid of, envelope window length takes care of this
         filtered_sample_envelope = resample(filtered_sample_envelope, 1, 50);
-        disp(length(filtered_sample_envelope))
+%         disp(length(filtered_sample_envelope))
         piezo_envelope(envelope_length + 1 : envelope_length + length(filtered_sample_envelope)) = filtered_sample_envelope;
         envelope_length = envelope_length + length(filtered_sample_envelope);
+        toc;
     end
     piezo_envelope = piezo_envelope(1:envelope_length);
     clear centered_piezo_signal
@@ -61,9 +79,11 @@ function [callTimes] = piezo_find_calls_logger(logger_directory)
     noise = getAverageNoise(piezo_envelope, FS_env, 50);
     disp(['Done with calculating noise: ', num2str(noise)])
     
-%     plot((1:length(piezo_envelope)), piezo_envelope, 'Color',[0,0.5,0.9])
-%     line([1, length(piezo_envelope)], [noise * RMSfactor, noise * RMSfactor], 'Color','red','LineStyle','--')
-%     hold on
+    %Display the nosie threshold
+    plot((1:length(piezo_envelope)), piezo_envelope, 'Color',[0,0.5,0.9])
+    line([1, length(piezo_envelope)], [noise * RMSfactor, noise * RMSfactor], 'Color','red','LineStyle','--')
+    title(logger_name)
+    hold on
  
     % Create a vector of 1s every time the data point is above the noise 
     % threshold and 0s every time it isn't
@@ -84,10 +104,10 @@ function [callTimes] = piezo_find_calls_logger(logger_directory)
     end
         
     %visually inspect that the previous step is correct
-%     x_values = [startTimes, stopTimes];
-%     y_values = repmat((100),1,length(x_values));
-%     scatter(x_values, y_values) 
-%     hold on
+    x_values = [startTimes, stopTimes];
+    y_values = repmat((100),1,length(x_values));
+    scatter(x_values, y_values) 
+    hold on
         
 
     if length(startTimes) ~= length(stopTimes)
@@ -129,14 +149,14 @@ function [callTimes] = piezo_find_calls_logger(logger_directory)
     callTimes = callTimes(1 : index - 1);
 
     %visually inspect that the previous step is correct
-%     for i = 1:length(callTimes)
-%         call = callTimes{i};
-%         x_start = call(1);
-%         x_stop = call(2);
-%         line([x_start, x_stop], [1000,1000], 'Color','g','Marker', '+')
-%         hold on
-%     end
-%     hold off
+    for i = 1:length(callTimes)
+        call = callTimes{i};
+        x_start = call(1);
+        x_stop = call(2);
+        line([x_start, x_stop], [1000,1000], 'Color','g','Marker', '+')
+        hold on
+    end
+    hold off
     
 end
 
