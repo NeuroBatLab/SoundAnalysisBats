@@ -88,6 +88,7 @@ for vv=1:Nvoc
     plot((1:length(Amp_env_Mic{vv}))/Fs_env*1000, Amp_env_Mic{vv}, 'r-', 'LineWidth',2)
     ylabel('Amplitude')
     title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
+    xlabel(' ')
     
     if Manual
         pause(0.1)
@@ -117,6 +118,9 @@ for vv=1:Nvoc
                 subplot(length(AudioLogs)+2,1,ll+1)
                 [~] = spec_only_bats(LowPassLogVoc{vv}{ll}, Piezo_FS.(Fns_AL{ll})(vv), DB_noise, FHigh_spec_Logger);
                 title(sprintf('%s',Fns_AL{ll}))
+                if ll<length(AudioLogs)
+                    xlabel(' '); % supress the x label output
+                end
                 hold on
                 yyaxis right
                 plot((1:length(Amp_env_LowPassLogVoc{vv}{ll}))/Fs_env*1000, Amp_env_LowPassLogVoc{vv}{ll}, 'b-','LineWidth', 2);
