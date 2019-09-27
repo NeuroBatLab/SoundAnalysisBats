@@ -1,4 +1,4 @@
-function [fund, sal, fund2, soundlen] = fundEstimator(SoundIn, FS)
+function [fund, sal, fund2, soundlen,t] = fundEstimator(SoundIn, FS)
 % Estimates the fundamental of a harmonic sound along with the pitch
 % saliency (sal) and the fundamental of a second voice (fund2).
 % soundIn is the sound pressure waveform.
@@ -9,7 +9,7 @@ function [fund, sal, fund2, soundlen] = fundEstimator(SoundIn, FS)
 global fundGlobal maxFund minFund
 
 % Some user parameters (should be part of the function at some time)
-DebugFig = 1;               % Set to zero to eliminate figures.
+DebugFig = 0;               % Set to zero to eliminate figures.
 maxFund = 10000;      % Maximum fundamental frequency
 minFund = 100;       % Minimum fundamental frequency
 LowFc = 100;         % Low frequency cut-off for band-passing the signal prior to auto-correlation.
@@ -25,12 +25,13 @@ sos_band = zp2sos(z,p,k);
 soundIn_filtered = filtfilt(sos_band,1,SoundIn);
 
 % Calculate and plot the spectrogram    
-figure()
+FIG = figure(9);
 [t, ~] = spec_only_bats(soundIn_filtered, FS, DBNOISE, f_high, fband);
 
 
 % Initializations and useful variables
 soundLen = length(SoundIn);
+t = (0:1:floor(length(SoundIn)/FS*10^3))*10^-3; % getting a value per ms, note that t is in seconds
 nt=length(t);
 soundRMS = zeros(1,nt);
 fund = zeros(1,nt);
@@ -135,7 +136,7 @@ for it = 1:nt
     end
     
     % Calculate the envelope of the auto-correlation after rectification
-    envCorr = enveloppe_estimator(autoCorr, FS, maxFund, FS);
+    envCorr = running_rms(autoCorr, FS, maxFund, FS);
     [pksEnvCorr,locsEnvCorr] = findpeaks(envCorr, 'MINPEAKHEIGHT', max(envCorr)./10);
     
     % The max peak should be around zero
@@ -358,6 +359,20 @@ for it = 1:nt
         pause();
     end
 end
+
+FIG;
+figure(9)
+hold on
+yyaxis left
+plot(t*10^3, fund, 'k-', 'LineWidth',2)
+hold on
+yyaxis right
+plot(t*10^3,sal, 'r--', 'LineWidth',2)
+ylabel('Pitch Saliency')
+ylim([0 1])
+hold off
+pause()
+
 
 function synS = synSpect(b, x)
 % Generates a faction spectrum made out of gaussian peaks
