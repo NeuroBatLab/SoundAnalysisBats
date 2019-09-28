@@ -209,12 +209,40 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
     % Ask Julie about call 61
     for ii = 1:length(callTimes)
         call = callTimes{ii};
+        % Calculate the dynamic pitch saliency of the sound event
         [sal, t] = salEstimator(AD_count_double(call(1)*50:call(2)*50), samplingFreq);
         title(strcat(int2str(ii), '/', int2str(length(callTimes))))
+        % Calculate the spectrum of the sound event
         figure(8)
         [p,f] = pspectrum(AD_count_double(call(1)*50:call(2)*50), samplingFreq, 'Leakage', 0.85);
         disp(size(p))
-        plot(f, pow2db(p))
+        plot(f, pow2db(p), 'LineWidth',2,'k-')
+        xlabel('Frequency (Hz)')
+        ylabel('Power (dB)')
+        % Find quartile power
+        cum_power = cumsum(p);
+        tot_power = sum(p);
+        quartile_freq = zeros(1,3);
+        quartile_values = [0.25, 0.5, 0.75];
+        nfreqs = length(cum_power);
+        iq = 1;
+        for ifreq=1:nfreqs
+            if (cum_power(ifreq) > quartile_values(iq)*tot_power)
+                quartile_freq(iq) = ifreq;
+                iq = iq+1;
+                if (iq > 3)
+                    break;
+                end
+            end
+        end
+        hold on
+        YLimFig8 = get(gca, 'YLim');
+        for iq=1:length(quartile_freq)
+            plot(quartile_freq(iq)*ones(2,1), YLimFig8, 'g--')
+            hold on\
+        end
+        MeanSpect = (p/sum(p)).*f/length(p);
+        plot(MeanSpect*ones(2,1), YLimFig8, 'r--')
         pause()
         close all
     end
