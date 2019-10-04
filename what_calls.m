@@ -5,7 +5,7 @@ F_high_Piezo = 10000;
 
 % Set to 1 if you want to manually pause after each vocalization and listen
 % to them
-ManualPause=0;
+ManualPause=1;
 
 % Import biosound library
 py.importlib.import_module('soundsig')
@@ -157,7 +157,11 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
         spectrum(BiosoundObj, F_high)
         % calculate the spectrogram (lhs spectroCalc(self, spec_sample_rate,
         % freq_spacing, min_freq, max_freq, pyargs))
-        spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing, Min_freq,Max_freq)
+        try % For ver short sound, the Freq_spacing is too small, doubling if error
+            spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing, Min_freq,Max_freq)
+        catch
+            spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing.*2, Min_freq,Max_freq)
+        end
         
         % calculate the fundamental and related values (lhs fundest(self, maxFund,
         % minFund, lowFc, highFc, minSaliency, debugFig, pyargs)
@@ -194,8 +198,12 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
         % Plot the fundamental and formants if they were calculated
         %     if double(BiosoundFi.sal)>MinSaliency
         Legend = {'F0' 'Formant1' 'Formant2' 'Formant3'};
-        hold on
-        plot(double(BiosoundObj.to)*1000,double(BiosoundObj.f0),'r-','LineWidth',2)
+        IndLegend = [];
+        if ~isempty(double(BiosoundObj.f0))
+            hold on
+            plot(double(BiosoundObj.to)*1000,double(BiosoundObj.f0),'r-','LineWidth',2)
+            IndLegend = [1 IndLegend];
+        end
         if FormantPlot
             hold on
             plot(double(BiosoundObj.to)*1000,double(BiosoundObj.F1),'Color',ColorCode(4,:),'LineWidth',2)
@@ -204,13 +212,12 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
             hold on
             if any(~isnan(double(BiosoundObj.F3)))
                 plot(double(BiosoundObj.to)*1000,double(BiosoundObj.F3),'Color',ColorCode(3,:),'LineWidth',2)
-                legend(Legend)
+                IndLegend = [IndLegend 2:4];
             else
-                legend(Legend(1:3))
+                IndLegend = [IndLegend 2:3];
             end
-        else
-            legend(Legend(1))
         end
+        legend(Legend(IndLegend))
         hold off
         subplot(2,1,2)
         yyaxis left
@@ -272,14 +279,16 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
         % Data)
         subplot(3,1,3)
         SoundFund = mysmooth(double(BiosoundPiezo.f0), Span);
-        for ii=HalfSpan:nx-HalfSpan
-            segcolor = cmap(fix((TimeSound(ii)+TimeSound(ii+1))*ncolors./3)+1,:);
-            plot([SoundFund(ii), SoundFund(ii+1)], [SoundAmp(ii), SoundAmp(ii+1)], "Color",segcolor, "LineWidth",2);
-            hold on;
+        if ~isempty(SoundFund)
+            for ii=HalfSpan:nx-HalfSpan
+                segcolor = cmap(fix((TimeSound(ii)+TimeSound(ii+1))*ncolors./3)+1,:);
+                plot([SoundFund(ii), SoundFund(ii+1)], [SoundAmp(ii), SoundAmp(ii+1)], "Color",segcolor, "LineWidth",2);
+                hold on;
+            end
+            ylabel('Amplitude')
+            xlabel(sprintf('Fundamental (Hz), %.1f Hz', double(BiosoundPiezo.fund)))
+            set(gca,'XLim',[0 3000])
         end
-        ylabel('Amplitude')
-        xlabel(sprintf('Fundamental (Hz), %.1f Hz', double(BiosoundPiezo.fund)))
-        set(gca,'XLim',[0 2000])
         
         
     end
