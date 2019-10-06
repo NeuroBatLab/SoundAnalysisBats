@@ -5,7 +5,7 @@ F_high_Piezo = 10000;
 
 % Set to 1 if you want to manually pause after each vocalization and listen
 % to them
-ManualPause=1;
+ManualPause=0;
 
 % Import biosound library
 py.importlib.import_module('soundsig')
@@ -153,19 +153,47 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
         % calculate the amplitude enveloppe
         ampenv(BiosoundObj, Cutoff_freq,Amp_sample_rate);
         
+        % Calculate the periodicity of the amplitude envelope
+        SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
+        [P,F] = pspectrum(SoundAmp,1000);
+        [PKS,LOCS]=findpeaks(P);
+        AmpPeriodF = F(LOCS(PKS == max(PKS))); % Frequency in hertz of the max peak
+        AmpPeriodP = max(PKS)/max(P);
+        
         % calculate the spectrum (lhs spectrum(self, f_high, pyargs))
         spectrum(BiosoundObj, F_high)
         % calculate the spectrogram (lhs spectroCalc(self, spec_sample_rate,
         % freq_spacing, min_freq, max_freq, pyargs))
-        try % For ver short sound, the Freq_spacing is too small, doubling if error
+        try % For very short sound, the Freq_spacing is too small, doubling if error
             spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing, Min_freq,Max_freq)
         catch
             spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing.*2, Min_freq,Max_freq)
         end
         
+        % Calculate time varying spectralmean and spectral max
+        Spectro = double(BiosoundObj.spectro);
+        Fo = double(BiosoundObj.fo);
+        TPoints = size(Spectro,2);
+        SpectralMean = nan(1,TPoints);
+        SpectralMax = nan(1,TPoints);
+        for tt=1:TPoints
+            SpectralMax(tt) = Fo(Spectro(:,tt)==max(Spectro(:,tt)));
+            PSDSpec = Spectro(:,tt)./(sum(Spectro(:,tt)));
+            SpectralMean(tt) = sum(PSDSpec' .* Fo);
+        end
+        
         % calculate the fundamental and related values (lhs fundest(self, maxFund,
         % minFund, lowFc, highFc, minSaliency, debugFig, pyargs)
         fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,Method)
+        
+        % convert biosound to a strcuture
+        BiosoundObj = struct(BiosoundObj);
+        % Add some fields
+        BiosoundObj.AmpPeriodF = AmpPeriodF;
+        BiosoundObj.AmpPeriodP = AmpPeriodP;
+        BiosoundObj.SpectralMean = SpectralMean;
+        BiosoundObj.SpectralMax = SpectralMax;
+        BiosoundObj.amp = SoundAmp;
     end
 
     function plotBiosound(BiosoundObj, F_high, FormantPlot)
@@ -230,6 +258,7 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
         YLIM(1) = -YLIM(2);
         set(gca, 'YLim', YLIM)
         xlabel('Time (ms)')
+        title(sprintf('AmpPeriodicity = %.3f AmpPF = %.1f Hz',BiosoundObj.AmpPeriodP, BiosoundObj.AmpPeriodF))
         hold off
     end
 
@@ -238,9 +267,8 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
         Span = 9;% Span is an unevennumber. smooth has a default span of 5 points = 5ms However end points are unchanged...
         HalfSpan = (Span-1)/2;
         % Plot the pitch saliency vs amplitude on microphone
-        subplot(3,1,1)
+        subplot(5,1,1)
         Saliency = mysmooth(double(BiosoundRaw.sal), Span);
-        SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundRaw.amp)));
         TimeSound = double(BiosoundRaw.to)*1000;
         TimeSound = TimeSound./max(TimeSound);
         cmap = colormap('jet');
@@ -249,7 +277,7 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
         
         for ii=HalfSpan:nx-HalfSpan
             segcolor = cmap(fix((TimeSound(ii)+TimeSound(ii+1))*ncolors./3)+1,:);
-            plot([Saliency(ii), Saliency(ii+1)], [SoundAmp(ii), SoundAmp(ii+1)], "Color",segcolor, "LineWidth",2);
+            plot([Saliency(ii), Saliency(ii+1)], [BiosoundRaw.amp(ii), BiosoundRaw.amp(ii+1)], "Color",segcolor, "LineWidth",2);
             hold on;
         end
         set(gca,'XLim',[0 1]);
@@ -258,7 +286,7 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
         
         % Plot the difference of formants (Mic data) vs sound amplitude (Mic
         % Data)
-        subplot(3,1,2)
+        subplot(5,1,2)
         SoundSpeed = 350;
         F1 = double(BiosoundRaw.F1);
         F2 = double(BiosoundRaw.F2);
@@ -268,21 +296,21 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
         
         for ii=HalfSpan:nx-HalfSpan
             segcolor = cmap(fix((TimeSound(ii)+TimeSound(ii+1))*ncolors./3)+1,:);
-            plot([FormantDisp(ii), FormantDisp(ii+1)], [SoundAmp(ii), SoundAmp(ii+1)], "Color",segcolor, "LineWidth",2);
+            plot([FormantDisp(ii), FormantDisp(ii+1)], [BiosoundRaw.amp(ii), BiosoundRaw.amp(ii+1)], "Color",segcolor, "LineWidth",2);
             hold on;
         end
         set(gca,'XLim',[10 130])
         xlabel('1/Formant disp (vocal tract length (mm))')
         ylabel('Amplitude')
         
-        % Plot the ratio of formants (Mic data) vs fundamental (Piezo
+        % Plot the amplitude (Mic data) vs fundamental (Piezo
         % Data)
-        subplot(3,1,3)
+        subplot(5,1,3)
         SoundFund = mysmooth(double(BiosoundPiezo.f0), Span);
         if ~isempty(SoundFund)
             for ii=HalfSpan:nx-HalfSpan
                 segcolor = cmap(fix((TimeSound(ii)+TimeSound(ii+1))*ncolors./3)+1,:);
-                plot([SoundFund(ii), SoundFund(ii+1)], [SoundAmp(ii), SoundAmp(ii+1)], "Color",segcolor, "LineWidth",2);
+                plot([SoundFund(ii), SoundFund(ii+1)], [BiosoundRaw.amp(ii), BiosoundRaw.amp(ii+1)], "Color",segcolor, "LineWidth",2);
                 hold on;
             end
             ylabel('Amplitude')
@@ -290,6 +318,35 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
             set(gca,'XLim',[0 3000])
         end
         
+        % Plot the Amplitude (Mic data) vs SpectralMean (Mic
+        % Data)
+        subplot(5,1,4)
+        SoundSpecMean = mysmooth(double(BiosoundRaw.SpectralMean), Span);
+        if ~isempty(SoundSpecMean)
+            for ii=HalfSpan:nx-HalfSpan
+                segcolor = cmap(fix((TimeSound(ii)+TimeSound(ii+1))*ncolors./3)+1,:);
+                plot([SoundSpecMean(ii), SoundSpecMean(ii+1)], [BiosoundRaw.amp(ii), BiosoundRaw.amp(ii+1)], "Color",segcolor, "LineWidth",2);
+                hold on;
+            end
+            ylabel('Amplitude')
+            xlabel(sprintf('Spectral Mean (Hz), %.1f Hz', nanmean(double(BiosoundPiezo.SpectralMean))))
+            % set(gca,'XLim',[0 3000])
+        end
+        
+        % Plot the Amplitude (Mic data) vs Spectral Max (Mic
+        % Data)
+        subplot(5,1,5)
+        SoundSpecMax = mysmooth(double(BiosoundRaw.SpectralMax), Span);
+        if ~isempty(SoundSpecMax)
+            for ii=HalfSpan:nx-HalfSpan
+                segcolor = cmap(fix((TimeSound(ii)+TimeSound(ii+1))*ncolors./3)+1,:);
+                plot([SoundSpecMax(ii), SoundSpecMax(ii+1)], [BiosoundRaw.amp(ii), BiosoundRaw.amp(ii+1)], "Color",segcolor, "LineWidth",2);
+                hold on;
+            end
+            ylabel('Amplitude')
+            xlabel(sprintf('Spectral Max (Hz), %.1f Hz', nanmean(double(BiosoundPiezo.SpectralMax))))
+            % set(gca,'XLim',[0 3000])
+        end
         
     end
 
