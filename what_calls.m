@@ -5,7 +5,7 @@ F_high_Piezo = 10000;
 
 % Set to 1 if you want to manually pause after each vocalization and listen
 % to them
-ManualPause=0;
+ManualPause=1;
 
 % Import biosound library
 py.importlib.import_module('soundsig')
@@ -105,14 +105,21 @@ for vv=1:NV
                 plotCallDynamic(BioSoundCalls{NVocFile,1}, BioSoundCalls{NVocFile,2})
                 print(Fig3,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Dyn.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
                 if ManualPause
-                    pause()
+                    Resp = input('Is this a Trill (t) or a Bark (b)?','s');
+                    if strcmp(Resp, 't')
+                        BioSoundCalls{NVocFile,1}.type = 'Tr';
+                        BioSoundCalls{NVocFile,2}.type = 'Tr';
+                    elseif strcmp(Resp, 'b')
+                        BioSoundCalls{NVocFile,1}.type = 'Ba';
+                        BioSoundCalls{NVocFile,2}.type = 'Ba';
+                    end
                 end
             end
         end
     end
 end
 % save the values!
-save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
+save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames','-append');
 
 %% Internal functions
 
@@ -193,7 +200,24 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
         BiosoundObj.AmpPeriodP = AmpPeriodP;
         BiosoundObj.SpectralMean = SpectralMean;
 %         BiosoundObj.SpectralMax = SpectralMax;
+        % convert all nmpy arrays to double to be able to save as matfiles
         BiosoundObj.amp = SoundAmp;
+        BiosoundObj.tAmp = double(BiosoundObj.tAmp);
+        BiosoundObj.spectro = double(BiosoundObj.spectro);
+        BiosoundObj.to = double(BiosoundObj.to);
+        BiosoundObj.fo = double(BiosoundObj.fo);
+        BiosoundObj.F1 = double(BiosoundObj.F1);
+        BiosoundObj.F2 = double(BiosoundObj.F2);
+        BiosoundObj.F3 = double(BiosoundObj.F3);
+        BiosoundObj.fpsd = double(BiosoundObj.fpsd);
+        BiosoundObj.psd = double(BiosoundObj.psd);
+        BiosoundObj.sal = double(BiosoundObj.sal);
+        BiosoundObj.f0 = double(BiosoundObj.f0);
+        BiosoundObj.f0_2 = double(BiosoundObj.f0_2);
+        BiosoundObj.sound = double(BiosoundObj.sound);
+        BiosoundObj.wf = double(BiosoundObj.wf);
+        BiosoundObj.wt = double(BiosoundObj.wt);
+        BiosoundObj.mps = double(BiosoundObj.mps);
     end
 
     function plotBiosound(BiosoundObj, F_high, FormantPlot)
@@ -299,7 +323,7 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
             plot([FormantDisp(ii), FormantDisp(ii+1)], [BiosoundRaw.amp(ii), BiosoundRaw.amp(ii+1)], "Color",segcolor, "LineWidth",2);
             hold on;
         end
-        set(gca,'XLim',[10 130])
+        set(gca,'XLim',[10 150])
         xlabel('1/Formant disp (vocal tract length (mm))')
         ylabel('Amplitude')
         
@@ -315,7 +339,7 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','-append');
             end
             ylabel('Amplitude')
             xlabel(sprintf('Fundamental (Hz), %.1f Hz', double(BiosoundPiezo.fund)))
-            set(gca,'XLim',[0 2000])
+            set(gca,'XLim',[200 3000])
         end
         
         % Plot the Amplitude (Mic data) vs SpectralMean (Mic
