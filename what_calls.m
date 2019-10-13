@@ -5,7 +5,7 @@ F_high_Piezo = 10000;
 
 % Set to 1 if you want to manually pause after each vocalization and listen
 % to them
-ManualPause=1;
+ManualPause=0;
 
 % Import biosound library
 py.importlib.import_module('soundsig')
@@ -14,10 +14,23 @@ py.importlib.import_module('soundsig')
 DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_*.mat', Date, ExpStartTime)));
 load(fullfile(DataFile.folder, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
 load(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime)), 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename');
+
+
+
 % Number of call sequences with identified vocalizations
 VocInd = find(~cellfun('isempty',IndVocStartRaw_merged));
 NV = length(VocInd);
 Fns_AL = fieldnames(Piezo_wave);
+
+% Filter for the Mic signal
+[z,p,k] = butter(3,100/(FS/2),'high');
+sos_high_raw = zp2sos(z,p,k);
+
+% Filter for the Piezo signal
+PFS = round(Piezo_FS.(Fns_AL{1})(1));
+[z,p,k] = butter(3,100/(PFS/2),'high');
+sos_high_piezo = zp2sos(z,p,k);
+
 % create the output directoty
 Path2Wav = fullfile(Loggers_dir, 'VocExtracts');
 mkdir(Path2Wav);
@@ -56,9 +69,11 @@ for vv=1:NV
                 IndOn = IndVocStartRaw_merged{VocInd(vv)}{ll}(nn);
                 IndOff = IndVocStopRaw_merged{VocInd(vv)}{ll}(nn);
                 WL = Raw_wave{VocInd(vv)}(IndOn:IndOff);
+                FiltWL = filtfilt(sos_high_raw,1,WL);
+                FiltWL = FiltWL-mean(FiltWL);
                 BioSoundFilenames{NVocFile,1} = fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.wav',FileVoc, BatID_local,ALNum,nn));
-                audiowrite(BioSoundFilenames{NVocFile,1},WL,FS);
-                BioSoundCalls{NVocFile,1} = runBiosound(WL, FS, F_high_Raw);
+                audiowrite(BioSoundFilenames{NVocFile,1},FiltWL,FS);
+                BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw);
                 % Plot figures of biosound results for Microphone data
                 Fig1=figure(1);
                 clf
@@ -66,7 +81,7 @@ for vv=1:NV
                 plotBiosound(BioSoundCalls{NVocFile,1}, F_high_Raw)
                 % Play the sound
                 if ManualPause
-                    AP=audioplayer(WL,FS);
+                    AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS);
                     play(AP)
                 end
                 print(Fig1,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
@@ -81,10 +96,11 @@ for vv=1:NV
                 if any(abs(WL)>=1)
                     WL = WL./max(abs(WL)); % scale between 0 and 1 if exceeding 1
                 end
+                FiltWL = filtfilt(sos_high_piezo,1,WL);
                 BioSoundFilenames{NVocFile,2} =fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Piezo.wav',FileVoc,BatID_local,ALNum,nn));
                 FSpiezo = round(Piezo_FS.(Fns_AL{ll})(VocInd(vv)));
-                audiowrite(BioSoundFilenames{NVocFile,2},WL,FSpiezo);
-                BioSoundCalls{NVocFile,2} = runBiosound(WL, FSpiezo, F_high_Piezo);
+                audiowrite(BioSoundFilenames{NVocFile,2},FiltWL,FSpiezo);
+                BioSoundCalls{NVocFile,2} = runBiosound(FiltWL, FSpiezo, F_high_Piezo);
                 % Plot figures of biosound results for piezo data
                 Fig2=figure(2);
                 clf
@@ -104,16 +120,36 @@ for vv=1:NV
                 title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
                 plotCallDynamic(BioSoundCalls{NVocFile,1}, BioSoundCalls{NVocFile,2})
                 print(Fig3,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Dyn.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
-                if ManualPause
-                    Resp = input('Is this a Trill (t) or a Bark (b)?','s');
-                    if strcmp(Resp, 't')
+                
+                
+                % Guess for the call category
+                try double(BioSoundCalls{NVocFile,1}.AmpPeriodP)
+                    try double(BioSoundCalls{NVocFile,2}.fund)
+                        if (BioSoundCalls{NVocFile,1}.AmpPeriodF<40) && (BioSoundCalls{NVocFile,1}.AmpPeriodF>34) && (BioSoundCalls{NVocFile,1}.AmpPeriodP>0.075) && (BioSoundCalls{NVocFile,2}.fund>1200)
+                            Guess ='Tr';
+                        else
+                            Guess ='Ba';
+                        end
+                    catch
+                        Guess='Ba';
+                    end
+                catch
+                    Guess = 'Ba';
+                end
+%                 if ManualPause
+%                     Resp = input(sprintf('Is this a Trill (t) or a Bark (b)? Computer guess: %s. Leave empty if you agree',Guess),'s');
+                    Resp = [];
+                    if isempty(Resp)
+                        BioSoundCalls{NVocFile,1}.type = Guess;
+                        BioSoundCalls{NVocFile,2}.type = Guess;
+                    elseif strcmp(Resp, 't')
                         BioSoundCalls{NVocFile,1}.type = 'Tr';
                         BioSoundCalls{NVocFile,2}.type = 'Tr';
                     elseif strcmp(Resp, 'b')
                         BioSoundCalls{NVocFile,1}.type = 'Ba';
                         BioSoundCalls{NVocFile,2}.type = 'Ba';
                     end
-                end
+%                 end
             end
         end
     end
@@ -131,9 +167,8 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilename
         Freq_spacing = 50; % width of the frequency window for the FFT Hz
         Min_freq = 300; % high pass filter before FFT Hz
         Max_freq = 50000; % Low pass filter before FFT Hz
-        % temporal enveloppe parameters (currenty unused, I don't find a way of
-        % passing them to the function under Matlab
-        Cutoff_freq = 75; % Hz
+        % temporal enveloppe parameters
+        Cutoff_freq = 150; % Hz
         Amp_sample_rate = 1000; % Hz
         if nargin<3
             % Spectrum parameters
@@ -142,12 +177,13 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilename
         % Fundamental parameters
         MaxFund = 4000;
         MinFund = 300;
-        LowFc = 500;
-        HighFc = 10000;
+        LowFc = 100; %100
+        HighFc = 18000;% 15000
         MinSaliency = 0.6;
         DebugFigFundest = 0;
         MinFormantFreq = 2000;
-        MaxFormantBW = 2000;
+        MaxFormantBW = 1000; %500
+        WindowFormant = 0.1;
         Method= 'Stack';
         
         % create the biosound object
@@ -165,7 +201,7 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilename
         [P,F] = pspectrum(SoundAmp,1000);
         [PKS,LOCS]=findpeaks(P);
         AmpPeriodF = F(LOCS(PKS == max(PKS))); % Frequency in hertz of the max peak
-        AmpPeriodP = max(PKS)/max(P);
+        AmpPeriodP = max(PKS)/mean(SoundAmp.^2); % Proportion of power in the max peak of the spectrum
         
         % calculate the spectrum (lhs spectrum(self, f_high, pyargs))
         spectrum(BiosoundObj, F_high)
@@ -191,7 +227,7 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilename
         
         % calculate the fundamental and related values (lhs fundest(self, maxFund,
         % minFund, lowFc, highFc, minSaliency, debugFig, pyargs)
-        fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,Method)
+        fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
         
         % convert biosound to a strcuture
         BiosoundObj = struct(BiosoundObj);
@@ -275,12 +311,16 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilename
         yyaxis left
         plot((1:length(double(BiosoundObj.sound)))/BiosoundObj.samprate*1000,double(BiosoundObj.sound), 'k-','LineWidth',2)
         hold on
+        YLIM = get(gca,'YLim');
+        YLIM = max(abs(YLIM)).*[-1 1];
+        set(gca, 'YLim', YLIM)
         SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
         yyaxis right
         plot(double(BiosoundObj.tAmp)*1000,double(SoundAmp), 'r-', 'LineWidth',2)
         YLIM = get(gca,'YLim');
-        YLIM(1) = -YLIM(2);
+        YLIM = max(abs(YLIM)).*[-1 1];
         set(gca, 'YLim', YLIM)
+        set(gca, 'XLim', v_axis(1:2))
         xlabel('Time (ms)')
         title(sprintf('AmpPeriodicity = %.3f AmpPF = %.1f Hz',BiosoundObj.AmpPeriodP, BiosoundObj.AmpPeriodF))
         hold off
