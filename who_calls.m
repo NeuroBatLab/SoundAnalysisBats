@@ -1,4 +1,4 @@
-function [IndVocStartRaw_merge_local, IndVocStopRaw_merge_local, IndVocStartPiezo_merge_local, IndVocStopPiezo_merge_local] = who_calls(Raw_dir, Loggers_dir, Date, ExpStartTime, MergeThresh, Manual,UseOld)
+function [IndVocStartRaw_merge_local, IndVocStopRaw_merge_local, IndVocStartPiezo_merge_local, IndVocStopPiezo_merge_local] = who_calls(Raw_dir, Loggers_dir, Date, ExpStartTime, MergeThresh, Manual,UseOld,CheckMicChannel)
 load(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime)), 'Piezo_wave', 'Piezo_FS',  'Raw_wave','FS', 'RatioRMS', 'DiffRMS','BandPassFilter', 'AudioLogs', 'RMSHigh', 'RMSLow','VocFilename');
 load(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'MeanStdAmpRawExtract')
 %% Identify sound elements in each vocalization extract and decide of the vocalizer
@@ -17,6 +17,10 @@ load(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime))
 % and the other one low pass filtered at 5kHz. The vocalizer will have
 % the highest energy of all vocalizers and will have more energy in the
 % lower compare to higher filtered signal
+if nargin<8
+    CheckMicChannel = 0;
+end
+
 if nargin<7
     UseOld = 0;
 end
@@ -217,23 +221,29 @@ for vv=vv:Nvoc
 
         %% Find out which calls are emitted by each individual
         Vocp = nan(size(DiffAmp) + [1 0]); % This is the output of the decision criterion to determine at each time point if a bat is vocalizing or not. each row=a logger, each column = a time point
-        IndVocStartRaw{vv} = cell(length(AudioLogs) +1,1);
-        IndVocStartPiezo{vv} = cell(length(AudioLogs)+1,1);
-        IndVocStopRaw{vv} = cell(length(AudioLogs)+1,1);
-        IndVocStopPiezo{vv} = cell(length(AudioLogs)+1,1);
-        IndVocStart = cell(length(AudioLogs)+1,1);
-        IndVocStop = cell(length(AudioLogs)+1,1);
-        IndVocStartRaw_merge_local = cell(length(AudioLogs)+1,1);
-        IndVocStopRaw_merge_local = cell(length(AudioLogs)+1,1);
-        IndVocStartPiezo_merge_local = cell(length(AudioLogs)+1,1);
-        IndVocStopPiezo_merge_local = cell(length(AudioLogs)+1,1);
+        if CheckMicChannel
+            RowSize = length(AudioLogs) +1;
+        else
+            RowSize = length(AudioLogs);
+        end
+        IndVocStartRaw{vv} = cell(RowSize,1);
+        IndVocStartPiezo{vv} = cell(RowSize,1);
+        IndVocStopRaw{vv} = cell(RowSize,1);
+        IndVocStopPiezo{vv} = cell(RowSize,1);
+        IndVocStart = cell(RowSize,1);
+        IndVocStop = cell(RowSize,1);
+        IndVocStartRaw_merge_local = cell(RowSize,1);
+        IndVocStopRaw_merge_local = cell(RowSize,1);
+        IndVocStartPiezo_merge_local = cell(RowSize,1);
+        IndVocStopPiezo_merge_local = cell(RowSize,1);
         %     Xcor = cell(length(AudioLogs),1);
-        RMSRatio = cell(length(AudioLogs)+1,1);
-        RMSDiff = cell(length(AudioLogs)+1,1);
-        for ll=1:(length(AudioLogs)+1)
-            if ll>length(AudioLogs) % we are looking at the microphone data now
-                Vocp(ll,:) = Amp_env_Mic{vv}(1:length(Vocp(ll,:)))>(Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
-                IndVocStart{ll} = strfind(Vocp(ll,:), ones(1,Consecutive_binsMic)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
+        RMSRatio = cell(RowSize,1);
+        RMSDiff = cell(RowSize,1);
+        for ll=1:RowSize
+            if ll>length(AudioLogs) && CheckMicChannel % we are looking at the microphone data now
+                VocpMic = Amp_env_Mic{vv}(1:size(Vocp,2))>(Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
+                VocpMic = reshape(VocpMic,1,size(Vocp,2));
+                IndVocStart{ll} = strfind(VocpMic, ones(1,Consecutive_binsMic)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
                 if isempty(IndVocStart{ll})
                     fprintf(1,'No vocalization detected on microphone\n');
                 else% Some vocalizations were detected
@@ -243,11 +253,11 @@ for vv=vv:Nvoc
                     IndVocStop{ll} = nan(1,NV);
                     NewCall1OldCall0_temp = nan(NV,1);
                     for ii=1:NV
-                        IVStop = find(Vocp(ll,IndVocStart{ll}(ii):end)==0, 1, 'first');
+                        IVStop = find(VocpMic(IndVocStart{ll}(ii):end)==0, 1, 'first');
                         if ~isempty(IVStop)
                             IndVocStop{ll}(ii) = IndVocStart{ll}(ii) + IVStop -1;
                         else
-                            IndVocStop{ll}(ii) = length(Vocp);
+                            IndVocStop{ll}(ii) = length(VocpMic);
                         end
                         % Plot the localization of that sound extract on figure 3
                         % Duplicate the figure of the spectrogram for manual input purposes
@@ -352,7 +362,7 @@ for vv=vv:Nvoc
                         
                     end
                 end
-            else
+            elseif ll<=length(AudioLogs)
                 Vocp(ll,:) = Amp_env_LowPassLogVoc_MAT(ll,:)>(Factor_RMS_low(ll) * RMSLow.(Fns_AL{ll})(1)); % Time points above amplitude threshold on the low-passed logger signal
                 IndVocStart{ll} = strfind(Vocp(ll,:), ones(1,Consecutive_binsPiezo)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
                 if isempty(IndVocStart{ll})
@@ -371,7 +381,7 @@ for vv=vv:Nvoc
                         if ~isempty(IVStop)
                             IndVocStop{ll}(ii) = IndVocStart{ll}(ii) + IVStop -1;
                         else
-                            IndVocStop{ll}(ii) = length(Vocp);
+                            IndVocStop{ll}(ii) = length(Vocp(ll,:));
                         end
                         % Plot the localization of that sound extract on figure 3
                         % Duplicate the figure of the spectrogram for manual input purposes
