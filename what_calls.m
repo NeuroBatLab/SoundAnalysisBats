@@ -125,13 +125,17 @@ for vv=1:NV
                 % Guess for the call category
                 try double(BioSoundCalls{NVocFile,1}.AmpPeriodP)
                     try double(BioSoundCalls{NVocFile,2}.fund)
-                        if (BioSoundCalls{NVocFile,1}.AmpPeriodF<40) && (BioSoundCalls{NVocFile,1}.AmpPeriodF>34) && (BioSoundCalls{NVocFile,1}.AmpPeriodP>0.075) && (BioSoundCalls{NVocFile,2}.fund>1200)
+                        if (BioSoundCalls{NVocFile,1}.AmpPeriodF<40.5) && (BioSoundCalls{NVocFile,1}.AmpPeriodF>34) && (BioSoundCalls{NVocFile,1}.AmpPeriodP>0.075) && (BioSoundCalls{NVocFile,2}.fund>1200)
                             Guess ='Tr';
                         else
                             Guess ='Ba';
                         end
                     catch
-                        Guess='Ba';
+                        if (BioSoundCalls{NVocFile,1}.AmpPeriodF<40.5) && (BioSoundCalls{NVocFile,1}.AmpPeriodF>34) && (BioSoundCalls{NVocFile,1}.AmpPeriodP>0.075)
+                            Guess ='Tr';
+                        else
+                            Guess ='Ba';
+                        end
                     end
                 catch
                     Guess = 'Ba';
