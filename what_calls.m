@@ -11,137 +11,134 @@ ManualPause=0;
 py.importlib.import_module('soundsig')
 
 % Load data
-DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_*.mat', Date, ExpStartTime)));
-load(fullfile(DataFile.folder, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
-load(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime)), 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename');
-
-
-
-% Number of call sequences with identified vocalizations
-VocInd = find(~cellfun('isempty',IndVocStartRaw_merged));
-NV = length(VocInd);
-Fns_AL = fieldnames(Piezo_wave);
-
-% Filter for the Mic signal
-[z,p,k] = butter(3,100/(FS/2),'high');
-sos_high_raw = zp2sos(z,p,k);
-
-% Filter for the Piezo signal
-PFS = round(Piezo_FS.(Fns_AL{1})(1));
-[z,p,k] = butter(3,100/(PFS/2),'high');
-sos_high_piezo = zp2sos(z,p,k);
-
-% create the output directoty
-Path2Wav = fullfile(Loggers_dir, 'VocExtracts');
-mkdir(Path2Wav);
-
-% Count the number of vocalization cuts for preallocation of space
-VocCall = 0;
-for vv=1:NV
-    for ll=1:length(IndVocStartRaw_merged{VocInd(vv)})
-        VocCall = VocCall + length(IndVocStartRaw_merged{VocInd(vv)}{ll});
+Data1 = fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime));
+if ~isfile(Data1)
+    warning('No vocalization data extracted by who_calls.m or get_logger_data_voc.m')
+else
+    DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_*.mat', Date, ExpStartTime)));
+    load(fullfile(DataFile.folder, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
+    load(Data1, 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename');
+    
+    
+    
+    % Number of call sequences with identified vocalizations
+    VocInd = find(~cellfun('isempty',IndVocStartRaw_merged));
+    NV = length(VocInd);
+    Fns_AL = fieldnames(Piezo_wave);
+    
+    % Filter for the Mic signal
+    [z,p,k] = butter(3,100/(FS/2),'high');
+    sos_high_raw = zp2sos(z,p,k);
+    
+    % Filter for the Piezo signal
+    PFS = round(Piezo_FS.(Fns_AL{1})(1));
+    [z,p,k] = butter(3,100/(PFS/2),'high');
+    sos_high_piezo = zp2sos(z,p,k);
+    
+    % create the output directoty
+    Path2Wav = fullfile(Loggers_dir, 'VocExtracts');
+    mkdir(Path2Wav);
+    
+    % Count the number of vocalization cuts for preallocation of space
+    VocCall = 0;
+    for vv=1:NV
+        for ll=1:length(IndVocStartRaw_merged{VocInd(vv)})
+            VocCall = VocCall + length(IndVocStartRaw_merged{VocInd(vv)}{ll});
+        end
     end
-end
-
-BioSoundFilenames = cell(VocCall,2);
-BioSoundCalls = cell(VocCall,2);
-
-%% Loop through calls, save them as wav files and run biosound
-Ncall = nan(NV,1);
-
-NVocFile = 0;
-for vv=1:NV
-    [~,FileVoc]=fileparts(VocFilename{VocInd(vv)});
-    for ll=1:length(IndVocStartRaw_merged{VocInd(vv)})
-        % Logger number
-        AL_local = Fns_AL{ll};
-        ALNum = AL_local(7:end);
-        % ID of the bat
-        ALIndex = contains(LoggerName, 'AL') .* contains(LoggerName, ALNum);
-        BatID_local =BatID{find(ALIndex)};
-        Ncall(vv) = length(IndVocStartRaw_merged{VocInd(vv)}{ll});
-        if Ncall(vv)
-            for nn=1:Ncall(vv)
-                NVocFile = NVocFile +1;
-                fprintf(1,'%d/%d Vocalization\n',NVocFile,VocCall)
-                % Extract the sound of the microphone that
-                % correspond to the data
-                IndOn = IndVocStartRaw_merged{VocInd(vv)}{ll}(nn);
-                IndOff = IndVocStopRaw_merged{VocInd(vv)}{ll}(nn);
-                WL = Raw_wave{VocInd(vv)}(IndOn:IndOff);
-                FiltWL = filtfilt(sos_high_raw,1,WL);
-                FiltWL = FiltWL-mean(FiltWL);
-                BioSoundFilenames{NVocFile,1} = fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.wav',FileVoc, BatID_local,ALNum,nn));
-                audiowrite(BioSoundFilenames{NVocFile,1},FiltWL,FS);
-                BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw);
-                % Plot figures of biosound results for Microphone data
-                Fig1=figure(1);
-                clf
-                title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
-                plotBiosound(BioSoundCalls{NVocFile,1}, F_high_Raw)
-                % Play the sound
-                if ManualPause
-                    AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS);
-                    play(AP)
-                end
-                print(Fig1,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
-                
-                
-                % Extract the sound of the audio-logger that
-                % correspond to the data
-                IndOn = IndVocStartPiezo_merged{VocInd(vv)}{ll}(nn);
-                IndOff = IndVocStopPiezo_merged{VocInd(vv)}{ll}(nn);
-                WL = Piezo_wave.(Fns_AL{ll}){VocInd(vv)}(IndOn:min(IndOff, length(Piezo_wave.(Fns_AL{ll}){VocInd(vv)})));
-                WL = WL - mean(WL); % center the piezo data around 0
-                if any(abs(WL)>=1)
-                    WL = WL./max(abs(WL)); % scale between 0 and 1 if exceeding 1
-                end
-                FiltWL = filtfilt(sos_high_piezo,1,WL);
-                BioSoundFilenames{NVocFile,2} =fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Piezo.wav',FileVoc,BatID_local,ALNum,nn));
-                FSpiezo = round(Piezo_FS.(Fns_AL{ll})(VocInd(vv)));
-                audiowrite(BioSoundFilenames{NVocFile,2},FiltWL,FSpiezo);
-                BioSoundCalls{NVocFile,2} = runBiosound(FiltWL, FSpiezo, F_high_Piezo);
-                % Plot figures of biosound results for piezo data
-                Fig2=figure(2);
-                clf
-                title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
-                plotBiosound(BioSoundCalls{NVocFile,2}, F_high_Piezo,0)
-                % Play the sound
-                if ManualPause
-                    AP=audioplayer(WL,FSpiezo);
-                    play(AP)
-                end
-                print(Fig2,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Piezo.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
-                
-                % Plot figures of dynamic jointly evaluated by piezo and
-                % microphone data
-                Fig3 = figure(3);
-                clf
-                title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
-                plotCallDynamic(BioSoundCalls{NVocFile,1}, BioSoundCalls{NVocFile,2})
-                print(Fig3,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Dyn.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
-                
-                
-                % Guess for the call category
-                try double(BioSoundCalls{NVocFile,1}.AmpPeriodP)
-                    try double(BioSoundCalls{NVocFile,2}.fund)
-                        if (BioSoundCalls{NVocFile,1}.AmpPeriodF<40.5) && (BioSoundCalls{NVocFile,1}.AmpPeriodF>34) && (BioSoundCalls{NVocFile,1}.AmpPeriodP>0.075) && (BioSoundCalls{NVocFile,2}.fund>1200)
-                            Guess ='Tr';
-                        else
-                            Guess ='Ba';
-                        end
-                    catch
+    
+    BioSoundFilenames = cell(VocCall,2);
+    BioSoundCalls = cell(VocCall,2);
+    
+    %% Loop through calls, save them as wav files and run biosound
+    Ncall = nan(NV,1);
+    
+    NVocFile = 0;
+    for vv=1:NV
+        [~,FileVoc]=fileparts(VocFilename{VocInd(vv)});
+        for ll=1:length(IndVocStartRaw_merged{VocInd(vv)})
+            % Logger number
+            AL_local = Fns_AL{ll};
+            ALNum = AL_local(7:end);
+            % ID of the bat
+            ALIndex = contains(LoggerName, 'AL') .* contains(LoggerName, ALNum);
+            BatID_local =BatID{find(ALIndex)};
+            Ncall(vv) = length(IndVocStartRaw_merged{VocInd(vv)}{ll});
+            if Ncall(vv)
+                for nn=1:Ncall(vv)
+                    NVocFile = NVocFile +1;
+                    fprintf(1,'%d/%d Vocalization\n',NVocFile,VocCall)
+                    % Extract the sound of the microphone that
+                    % correspond to the data
+                    IndOn = IndVocStartRaw_merged{VocInd(vv)}{ll}(nn);
+                    IndOff = IndVocStopRaw_merged{VocInd(vv)}{ll}(nn);
+                    WL = Raw_wave{VocInd(vv)}(IndOn:IndOff);
+                    FiltWL = filtfilt(sos_high_raw,1,WL);
+                    FiltWL = FiltWL-mean(FiltWL);
+                    BioSoundFilenames{NVocFile,1} = fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.wav',FileVoc, BatID_local,ALNum,nn));
+                    audiowrite(BioSoundFilenames{NVocFile,1},FiltWL,FS);
+                    BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw);
+                    % Plot figures of biosound results for Microphone data
+                    Fig1=figure(1);
+                    clf
+                    title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
+                    plotBiosound(BioSoundCalls{NVocFile,1}, F_high_Raw)
+                    % Play the sound
+                    if ManualPause
+                        AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS);
+                        play(AP)
+                    end
+                    print(Fig1,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
+                    
+                    
+                    % Extract the sound of the audio-logger that
+                    % correspond to the data
+                    IndOn = IndVocStartPiezo_merged{VocInd(vv)}{ll}(nn);
+                    IndOff = IndVocStopPiezo_merged{VocInd(vv)}{ll}(nn);
+                    WL = Piezo_wave.(Fns_AL{ll}){VocInd(vv)}(IndOn:min(IndOff, length(Piezo_wave.(Fns_AL{ll}){VocInd(vv)})));
+                    WL = WL - mean(WL); % center the piezo data around 0
+                    if any(abs(WL)>=1)
+                        WL = WL./max(abs(WL)); % scale between 0 and 1 if exceeding 1
+                    end
+                    FiltWL = filtfilt(sos_high_piezo,1,WL);
+                    BioSoundFilenames{NVocFile,2} =fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Piezo.wav',FileVoc,BatID_local,ALNum,nn));
+                    FSpiezo = round(Piezo_FS.(Fns_AL{ll})(VocInd(vv)));
+                    audiowrite(BioSoundFilenames{NVocFile,2},FiltWL,FSpiezo);
+                    BioSoundCalls{NVocFile,2} = runBiosound(FiltWL, FSpiezo, F_high_Piezo);
+                    % Plot figures of biosound results for piezo data
+                    Fig2=figure(2);
+                    clf
+                    title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
+                    plotBiosound(BioSoundCalls{NVocFile,2}, F_high_Piezo,0)
+                    % Play the sound
+                    if ManualPause
+                        AP=audioplayer(WL,FSpiezo);
+                        play(AP)
+                    end
+                    print(Fig2,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Piezo.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
+                    
+                    % Plot figures of dynamic jointly evaluated by piezo and
+                    % microphone data
+                    Fig3 = figure(3);
+                    clf
+                    title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
+                    plotCallDynamic(BioSoundCalls{NVocFile,1}, BioSoundCalls{NVocFile,2})
+                    print(Fig3,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Dyn.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
+                    
+                    
+                    % Guess for the call category
+                    try double(BioSoundCalls{NVocFile,1}.AmpPeriodP)
                         if (BioSoundCalls{NVocFile,1}.AmpPeriodF<40.5) && (BioSoundCalls{NVocFile,1}.AmpPeriodF>34) && (BioSoundCalls{NVocFile,1}.AmpPeriodP>0.075)
                             Guess ='Tr';
                         else
                             Guess ='Ba';
                         end
+                        
+                    catch
+                        Guess = 'Ba';
                     end
-                catch
-                    Guess = 'Ba';
-                end
-%                 if ManualPause
-%                     Resp = input(sprintf('Is this a Trill (t) or a Bark (b)? Computer guess: %s. Leave empty if you agree',Guess),'s');
+                    %                 if ManualPause
+                    %                     Resp = input(sprintf('Is this a Trill (t) or a Bark (b)? Computer guess: %s. Leave empty if you agree',Guess),'s');
                     Resp = [];
                     if isempty(Resp)
                         BioSoundCalls{NVocFile,1}.type = Guess;
@@ -153,13 +150,14 @@ for vv=1:NV
                         BioSoundCalls{NVocFile,1}.type = 'Ba';
                         BioSoundCalls{NVocFile,2}.type = 'Ba';
                     end
-%                 end
+                    %                 end
+                end
             end
         end
     end
+    % save the values!
+    save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames','-append');
 end
-% save the values!
-save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames','-append');
 
 %% Internal functions
 
@@ -222,9 +220,9 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilename
         Fo = double(BiosoundObj.fo);
         TPoints = size(Spectro,2);
         SpectralMean = nan(1,TPoints);
-%         SpectralMax = nan(1,TPoints);
+        %         SpectralMax = nan(1,TPoints);
         for tt=1:TPoints
-%             SpectralMax(tt) = Fo(Spectro(:,tt)==max(Spectro(:,tt)));
+            %             SpectralMax(tt) = Fo(Spectro(:,tt)==max(Spectro(:,tt)));
             PSDSpec = Spectro(:,tt)./(sum(Spectro(:,tt)));
             SpectralMean(tt) = sum(PSDSpec' .* Fo);
         end
@@ -239,7 +237,7 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilename
         BiosoundObj.AmpPeriodF = AmpPeriodF;
         BiosoundObj.AmpPeriodP = AmpPeriodP;
         BiosoundObj.SpectralMean = SpectralMean;
-%         BiosoundObj.SpectralMax = SpectralMax;
+        %         BiosoundObj.SpectralMax = SpectralMax;
         % convert all nmpy arrays to double to be able to save as matfiles
         BiosoundObj.amp = SoundAmp;
         BiosoundObj.tAmp = double(BiosoundObj.tAmp);
@@ -279,7 +277,7 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilename
         caxis([minB maxB]);
         cmap = spec_cmap();
         colormap(cmap);
-%         colorbar()
+        %         colorbar()
         
         v_axis = axis;
         v_axis(3)=f_low;
@@ -401,20 +399,20 @@ save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilename
             set(gca,'XLim',[25000 30000])
         end
         
-%         % Plot the Amplitude (Mic data) vs Spectral Max (Piezo
-%         % Data)
-%         subplot(5,1,5)
-%         SoundSpecMax = mysmooth(double(BiosoundPiezo.SpectralMax), Span);
-%         if ~isempty(SoundSpecMax)
-%             for ii=HalfSpan:nx-HalfSpan
-%                 segcolor = cmap(fix((TimeSound(ii)+TimeSound(ii+1))*ncolors./3)+1,:);
-%                 plot([SoundSpecMax(ii), SoundSpecMax(ii+1)], [BiosoundRaw.amp(ii), BiosoundRaw.amp(ii+1)], "Color",segcolor, "LineWidth",2);
-%                 hold on;
-%             end
-%             ylabel('Amplitude')
-%             xlabel(sprintf('Spectral Max (Hz), %.1f Hz', nanmean(double(BiosoundPiezo.SpectralMax))))
-%             set(gca,'XLim',[0 10000])
-%         end
+        %         % Plot the Amplitude (Mic data) vs Spectral Max (Piezo
+        %         % Data)
+        %         subplot(5,1,5)
+        %         SoundSpecMax = mysmooth(double(BiosoundPiezo.SpectralMax), Span);
+        %         if ~isempty(SoundSpecMax)
+        %             for ii=HalfSpan:nx-HalfSpan
+        %                 segcolor = cmap(fix((TimeSound(ii)+TimeSound(ii+1))*ncolors./3)+1,:);
+        %                 plot([SoundSpecMax(ii), SoundSpecMax(ii+1)], [BiosoundRaw.amp(ii), BiosoundRaw.amp(ii+1)], "Color",segcolor, "LineWidth",2);
+        %                 hold on;
+        %             end
+        %             ylabel('Amplitude')
+        %             xlabel(sprintf('Spectral Max (Hz), %.1f Hz', nanmean(double(BiosoundPiezo.SpectralMax))))
+        %             set(gca,'XLim',[0 10000])
+        %         end
         
     end
 
