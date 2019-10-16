@@ -82,6 +82,8 @@ else
     PreviousFile = fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh));
     if ~isempty(dir(PreviousFile)) && UseOld
         load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv');
+    else
+        vv=1;
     end
     %% Loop through vocalizations sequences and calculate amplitude envelopes
     for vv=vv:Nvoc
