@@ -247,8 +247,8 @@ else
             RMSDiff = cell(RowSize,1);
             for ll=1:RowSize
                 if ll>length(AudioLogs) && CheckMicChannel % we are looking at the microphone data now
-                    VocpMic = Amp_env_Mic{vv}(1:size(Vocp,2))>(Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
-                    VocpMic = reshape(VocpMic,1,size(Vocp,2));
+                    VocpMic = Amp_env_Mic{vv}>(Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
+                    VocpMic = reshape(VocpMic,1,length(VocpMic));
                     IndVocStart{ll} = strfind(VocpMic, ones(1,Consecutive_binsMic)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
                     if isempty(IndVocStart{ll})
                         fprintf(1,'No vocalization detected on microphone\n');
