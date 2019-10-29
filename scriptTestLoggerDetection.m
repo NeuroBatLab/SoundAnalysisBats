@@ -1,10 +1,16 @@
 %% Load input data
-Path2Data = '/Volumes/server_home/users/JulieE/LMC_CoEd/logger/20190623';
-Path2Audio = '/Volumes/server_home/users/JulieE/LMC_CoEd/audio/20190623';
+% Path2Data = '/Volumes/server_home/users/JulieE/LMC_CoEd/logger/20190623';
+% Path2Audio = '/Volumes/server_home/users/JulieE/LMC_CoEd/audio/20190623';
+% % Load data manually extracted
+% load(fullfile(Path2Data, '190623_1401_VocExtractData_200.mat'))
+% load(fullfile(Path2Data, '190623_1401_VocExtractData.mat'))
+% load(fullfile(Path2Audio, '190623_1401_VocExtractTimes.mat'))
+
+Path2Data = '/Volumes/server_home/users/JulieE/JuvenileRecordings155/20190927';
 % Load data manually extracted
-load(fullfile(Path2Data, '190623_1401_VocExtractData_200.mat'))
-load(fullfile(Path2Data, '190623_1401_VocExtractData.mat'))
-load(fullfile(Path2Audio, '190623_1401_VocExtractTimes.mat'))
+load(fullfile(Path2Data, 'audiologgers','190927_1014_VocExtractData_200.mat'))
+load(fullfile(Path2Data, 'audiologgers','190927_1014_VocExtractData.mat'))
+load(fullfile(Path2Data, 'audio', '190927_1014_VocExtractTimes.mat'))
 
 Fs_env=1000; % in Hertz, should have been saved in who_calls.m to correctly convert in time the starting and ending indices of vocalizations in IndVocStart
 FS_Piezo = 50000; % could also be retrieved from Piezo_FS
@@ -13,7 +19,8 @@ FS_Piezo = 50000; % could also be retrieved from Piezo_FS
 load(fullfile(Path2Data, 'allCallTimes.mat'))
 
 % Duration of the data manually analysed
-ManDur = 10*60*10^3; %in ms
+% ManDur = 10*60*10^3; %in ms
+ManDur = 10*10*60*10^3; %in ms
 
 %% Get in transceiver time the onset/offset of each vocalization manually
 % extracted for each logger
