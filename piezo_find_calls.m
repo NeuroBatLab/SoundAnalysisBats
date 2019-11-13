@@ -7,6 +7,7 @@ function [] = piezo_find_calls(directory)
     
     mergeThresh = 5e-3; % minimum length between two calls in s
     FS_env = 1000; % Sample frequency of the envelope
+    FS_ratio = 50; %because I'm lazy
 
     files = dir(directory); % get all of the files in the directory
 
@@ -17,12 +18,16 @@ function [] = piezo_find_calls(directory)
     for ii = 1:length(files)
        file = files(ii);
        if contains(file.name, "logger")
-           filepath = strcat(directory, '/', file.name, '/', 'extracted_data', '/');
-           allCallTimes{index} = piezo_find_calls_logger(filepath);
+           filepath = strcat(directory, file.name, '/', 'extracted_data', '/');
+           callTimes = piezo_find_calls_logger(filepath); 
+           callTimes = translate_transceiver_time(filepath, callTimes, FS_ratio);
+           allCallTimes{index} = callTimes;
            index = index + 1;
        end
     end
     allCallTimes = allCallTimes(1: index - 1);
+    
+    save("allCallTimes.mat", "allCallTimes")
 
     % test data set
 %     a = [1, 500];
@@ -40,34 +45,34 @@ function [] = piezo_find_calls(directory)
     % Handle the case of any calls that should be merged together. Note
     % this behavior is subject to change as it seems a bit weird to do it
     % like this. 
-    answer = zeros(1, sum(cellfun(@length, allCallTimes)));
-    ii = 1;
-    while ~all(cellfun(@isempty, allCallTimes))
-        [~, index] = find_first_start(allCallTimes);
-        logger = allCallTimes{index};
-        if iscell(logger)
-        logger = logger{1};
-        end
-        allCallTimes{index} = [];
-        start = logger(1);
-        stop = logger(2);
-        if ii > 1
-            prevStop = answer(ii - 1);
-            if start - prevStop <= mergeThresh * FS_env
-               if stop > prevStop 
-                    answer(ii - 1) = stop;
-               end
-            else    
-                answer(ii:ii+1) = [start, stop];
-                ii = ii + 2;
-            end
-        else
-            answer(ii:ii+1) = [start, stop];
-            ii = ii + 2;
-        end
-        disp(answer)
-    end
-    answer = answer(1 : ii - 1);
+%     answer = zeros(1, sum(cellfun(@length, allCallTimes)));
+%     ii = 1;
+%     while ~all(cellfun(@isempty, allCallTimes))
+%         [~, index] = find_first_start(allCallTimes);
+%         logger = allCallTimes{index};
+%         if iscell(logger)
+%         logger = logger{1};
+%         end
+%         allCallTimes{index} = [];
+%         start = logger(1);
+%         stop = logger(2);
+%         if ii > 1
+%             prevStop = answer(ii - 1);
+%             if start - prevStop <= mergeThresh * FS_env
+%                if stop > prevStop 
+%                     answer(ii - 1) = stop;
+%                end
+%             else    
+%                 answer(ii:ii+1) = [start, stop];
+%                 ii = ii + 2;
+%             end
+%         else
+%             answer(ii:ii+1) = [start, stop];
+%             ii = ii + 2;
+%         end
+%         disp(answer)
+%     end
+%     answer = answer(1 : ii - 1);
     
 end
 
