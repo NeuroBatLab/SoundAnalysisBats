@@ -15,7 +15,9 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
     mergeThresh = 5e-3; % minimum length between two calls in s
     FS_env = 1000; % Sample frequency of the envelope
     BandPassFilter = [1000 5000]; % the frequencies we care about to identiy when a call is made
-    logger_name = data_directory(end - 23 : end - 16); % I'm assuming all names of the form loggerXX
+    PathPieces = split(data_directory, filesep);
+    logger_name = PathPieces{find(contains(PathPieces,'extracted_data'))-1};
+    %logger_name = data_directory(end - 23 : end - 16); % I'm assuming all names of the form loggerXX
     disp(logger_name)
     
     %it's saying the last call occurs at 3.8731, which doesn't make sense.
@@ -25,34 +27,27 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
     % Loop through the files in the directory and find the data file. 
     % Load the raw signal and raw signal frequency, then calculate ratio of
     % raw signal frequency to what the envelope's frequency will be.
-    files = dir(data_directory);
-    found = 0;
-    for ii = 1:length(files)
-       file = files(ii);
-       if contains(file.name, "CSC0")
-           filepath = strcat(data_directory, file.name);
-           load(filepath, 'AD_count_int16', 'Estimated_channelFS_Transceiver')
-           samplingFreq = nanmean(Estimated_channelFS_Transceiver);
-           FS_ratio = round(samplingFreq / FS_env); 
-           found = 1;
-       end
-    end
+    file = dir(fullfile(data_directory, '*CSC0*'));
+    if isempty(file)
+        ME = MException('Data file not found');
+        throw(ME)
+    end  
+    filepath = fullfile(file.folder, file.name);
+    load(filepath, 'AD_count_int16', 'Estimated_channelFS_Transceiver')
+    samplingFreq = nanmean(Estimated_channelFS_Transceiver);
+    FS_ratio = round(samplingFreq / FS_env); 
     AD_count_double = double(AD_count_int16);
     clear AD_count_int16
     
-    if found == 0
-        ME = MException('Data file not found');
-        throw(ME)
-    end    
-
     % Center the signal and clear the old data from memory
     centered_piezo_signal = AD_count_double - mean(AD_count_double);
+    clear AD_count_double
     
-%     AD_count_double = AD_count_double(1.842963737022642e+08 - 10000: 1.842977237022640e+08 + 10000);
+%     centered_piezo_signal = centered_piezo_signal(1.842963737022642e+08 - 10000: 1.842977237022640e+08 + 10000);
 %     centered_piezo_signal = centered_piezo_signal(1: 1.842977237022640e+08);
     %Debug plotting
     figure(1)
-    plot((1:length(AD_count_double)), AD_count_double)
+    plot((1:length(centered_piezo_signal)), centered_piezo_signal)
 
     %Design the bandpass filter for the 1000-5000Hz range
     [z,p,k] = butter(6,BandPassFilter / (samplingFreq / 2),'bandpass');
@@ -60,10 +55,13 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
 
     % Filter the signal and compute the envelope (using the rms). Once
     % again, remove old data from memory
+    if draw_plots % keep in memory if debug figure mode
+        centered_piezo_signal_debug = centered_piezo_signal;
+    end
     signal_length = length(centered_piezo_signal);
-    piezo_envelope = zeros(1, floor(signal_length / (FS_ratio - 1)));
+    piezo_envelope = zeros(1, floor(signal_length / (FS_ratio - 1))); % -1 to make it slighlty longer than we actually expect to accomodate rounding issues
     envelope_length = 0;
-    for ii = 1:4
+    for ii = 1:4 %%% parallelize?
         tic;
         sampleStart = 1;
         sampleEnd = floor(signal_length / 4);
@@ -90,16 +88,17 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
         %Display the noise threshold
         figure(2)
         plot((1:length(piezo_envelope)), piezo_envelope, 'Color',[0,0.5,0.9])
-        line([1, length(piezo_envelope)], [noise * RMSfactor, noise * RMSfactor], 'Color','red','LineStyle','--')
+        hold on
+        line([1, length(piezo_envelope)], [noise * RMSfactor, noise * RMSfactor], 'Color','red','LineStyle','--', 'LineWidth',2)
         title(logger_name)
         hold on
     end
  
-    % Create a vector of 1s every time the data point is above the noise 
-    % threshold and 0s every time it isn't
+    % Create a logical vector: 1-> every time the data point is above the noise 
+    % threshold and 0 -> every time it isn't
     callIndicator = piezo_envelope > (RMSfactor * noise);
     
-    % Start/Stop times is any time there is a change from 1 to 0 or 0 to 1
+    % Start/Stop times is any 1ms bin there is a change from 1 to 0 or 0 to 1
     startTimes = find(diff(callIndicator) > 0);
     stopTimes = find(diff(callIndicator) < 0);
                 
@@ -126,6 +125,10 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
         ME = MException('Start and Stop times are not the same size');
         throw(ME) 
     end
+    if any(startTimes > stopTimes)
+        ME = MException('Start time should not be greater than Stop time');
+        throw(ME)
+    end
         
     % Find the call times, the requirements of which are that the call time 
     % is greater than callLength and also merge any calls that are less 
@@ -136,10 +139,6 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
         start = startTimes(ii);
         stop = stopTimes(ii);
 
-        if start > stop
-            ME = MException('Start time should not be greater than Stop time');
-            throw(ME)
-        end
 
         if stop - start >= FS_env * callLength
             callTimes{index} = [start, stop];
@@ -163,16 +162,27 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
     callTimes = callTimes(1 : index - 1);
 
     if draw_plots
+        Delay = 100; % delay to add before after each call in ms
+        DBNoise = 60; % amplitude parameter for the color scale of tyhe spectro
+        FHigh = 10000; % y axis max scale for the spectrogram
         %visually inspect that the previous step is correct
         for ii = 1:length(callTimes)
-            figure(2)
+            Fig3=figure(3);
+            clf(Fig3)
             call = callTimes{ii};
-            x_start = call(1);
-            x_stop = call(2);
-            line([x_start, x_stop], [1000,1000], 'Color','g','Marker', '+')
+            x_start = call(1)-Delay;
+            x_stop = call(2)+Delay;
+            Raw = centered_piezo_signal_debug(round(x_start/FS_env*samplingFreq):round(x_stop/FS_env*samplingFreq));
+            [~] = spec_only_bats(Raw,samplingFreq,DBNoise, FHigh);
             hold on
+            yyaxis right
+            plot(piezo_envelope(x_start:x_stop), '-k','LineWidth',2)
+            hold on
+            line([call(1)-x_start, call(2)-x_start], max(piezo_envelope(x_start:x_stop))*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
+            hold off
+            pause(1)
         end
-        hold off
+        
     end
 %     
 % %     save('CallTimes.mat', 'callTimes', 'piezo_envelope', 'noise', 'samplingFreq', 'AD_count_double', '-v7.3')

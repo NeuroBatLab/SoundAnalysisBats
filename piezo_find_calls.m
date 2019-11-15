@@ -9,23 +9,19 @@ function [] = piezo_find_calls(directory)
     FS_env = 1000; % Sample frequency of the envelope
     FS_ratio = 50; %because I'm lazy
 
-    files = dir(directory); % get all of the files in the directory
+    files = dir(fullfile(directory, '*ogger*')); % get all of the files in the directory that contain ogger
+    % keep only folders
+    files = files([files.isdir]);
 
     % Go through all of the files in the directory and call
     % piezo_find_calls_logger.m on them if they are a logger data file. 
     allCallTimes = cell(1, length(files));
-    index = 1;
     for ii = 1:length(files)
-       file = files(ii);
-       if contains(file.name, "logger")
-           filepath = strcat(directory, file.name, '/', 'extracted_data', '/');
-           callTimes = piezo_find_calls_logger(filepath); 
-           callTimes = translate_transceiver_time(filepath, callTimes, FS_ratio);
-           allCallTimes{index} = callTimes;
-           index = index + 1;
-       end
+        filepath = fullfile(directory, files(ii).name, 'extracted_data');
+        callTimes = piezo_find_calls_logger(filepath);
+        callTimes = translate_transceiver_time(filepath, callTimes, FS_ratio);
+        allCallTimes{ii} = callTimes;
     end
-    allCallTimes = allCallTimes(1: index - 1);
     
     save("allCallTimes.mat", "allCallTimes")
 
