@@ -1,4 +1,12 @@
-function [IndVocStartRaw_merge_local, IndVocStopRaw_merge_local, IndVocStartPiezo_merge_local, IndVocStopPiezo_merge_local] = who_calls(Raw_dir, Loggers_dir, Date, ExpStartTime, MergeThresh, Manual,UseOld,CheckMicChannel)
+function [IndVocStartRaw_merge_local, IndVocStopRaw_merge_local, IndVocStartPiezo_merge_local, IndVocStopPiezo_merge_local] = who_calls(Raw_dir, Loggers_dir, Date, ExpStartTime, MergeThresh, Manual,UseOld,CheckMicChannel, varargin)
+
+% optional parameter: Factor_RMS_Mic, Factor by which the RMS of the
+% band-pass filtered baseline signal is multiplied to obtained the
+% threshold of vocalization detection on Microphone
+
+pnames = {'Factor_RMS_Mic'};
+dflts  = {3};
+[Factor_RMS_Mic] = internal.stats.parseArgs(pnames,dflts,varargin{:});
 DataFile = fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime));
 if ~isfile(DataFile)
     warning('Vocalization data were not extracted by get_logger_data_voc.m')
@@ -39,7 +47,6 @@ else
     Consecutive_binsMic = 10; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
     Consecutive_binsPiezo = 15; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
     Factor_RMS_low = 5.*ones(length(AudioLogs),1); % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on piezos
-    Factor_RMS_Mic = 3; % Factor by which the RMS of the band-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on Microphone
     % Factor_AmpRatio = 1.5; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
     Factor_AmpDiff = 50; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
     DB_noise = 60; % Noise threshold for the spectrogram colormap
