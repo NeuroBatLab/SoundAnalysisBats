@@ -6,18 +6,20 @@
 % load(fullfile(Path2Data, '190623_1401_VocExtractData.mat'))
 % load(fullfile(Path2Audio, '190623_1401_VocExtractTimes.mat'))
 
-Path2Data = '/Users/ryanmoughan/Research/Debugging';
+Path2Data1 = '/Users/ryanmoughan/Research/Debugging/20190927';
+Path2Data2=Path2Data1;
+% Path2Data1 = '/Volumes/server_home/users/JulieE/JuvenileRecordings155/20190927/audiologgers';
 % Load data manually extracted
-load(fullfile(Path2Data, '20190927','190927_1014_VocExtractData_200.mat'))
-load(fullfile(Path2Data, '20190927','190927_1014_VocExtractData.mat'))
-load(fullfile(Path2Data, '20190927', '190927_1014_VocExtractTimes.mat'))
+load(fullfile(Path2Data1,'190927_1014_VocExtractData_200.mat'))
+load(fullfile(Path2Data1,'190927_1014_VocExtractData.mat'))
+% Path2Data2 = '/Volumes/server_home/users/JulieE/JuvenileRecordings155/20190927/audio';
+load(fullfile(Path2Data2,'190927_1014_VocExtractTimes.mat'))
 
 Fs_env=1000; % in Hertz, should have been saved in who_calls.m to correctly convert in time the starting and ending indices of vocalizations in IndVocStart
 FS_Piezo = 50000; % could also be retrieved from Piezo_FS
-Fs_raw = 192000;
 
-% load results of the atomatic detection
-load(fullfile(Path2Data, '20190927', 'allCallTimes.mat'))
+% load results of the automatic detection
+load(fullfile(Path2Data, 'allCallTimes.mat'))
 
 
 
@@ -31,9 +33,13 @@ AL_Id = fieldnames(Piezo_wave);
 NLoggers = length(AudioLogs);
 ManCallTimes = cell(1,NLoggers);
 ManCallSamp = cell(1,NLoggers);
+ManCallFile = cell(1,1400);
 NFiles = length(IndVocStart_all);
-
+voc_counter = 0;
 for ff=1:NFiles
+    [~,File]=fileparts(VocFilename{ff});
+    Ind_ = strfind(File, '_');
+    FileRaw = File(1:(Ind_(end)-1));
     % onset and offset of manually detected vocalization events for all
     % loggers
     IndVocStart_local = IndVocStart_all{ff};
@@ -45,12 +51,20 @@ for ff=1:NFiles
         if ~isempty(IndVocStart_local{ll})
             NewCalls = [IndVocStart_local{ll}' IndVocStop_local{ll}'] ./ Fs_env .* 10^3  + Voc_transc_time_refined(ff,1); % onset and offset time of the vocalization in ms in transceiver time
             ManCallTimes{ll} = [ManCallTimes{ll} ; NewCalls];
-            NewCallsSample = [IndVocStart_local{ll}' IndVocStop_local{ll}'] ./ Fs_env .* Fs_raw  + Voc_samp_idx(ff,1); % onset and offset time of the vocalization in microphone (raw) samples from the beginning of each individual 10min file
+            
+            
+            NewCallsSample = [IndVocStart_local{ll}' IndVocStop_local{ll}'] ./ Fs_env .* FS  + Voc_samp_idx(ff,1); % onset and offset time of the vocalization in microphone (raw) samples from the beginning of each individual 10min file
             ManCallSamp{ll} = [ManCallSamp{ll} ; NewCallsSample];
+            for voc=1:length(IndVocStart_local{ll})
+                voc_counter = voc_counter+1;
+                ManCallFile{voc_counter} = FileRaw;
+            end
         end
     end
 end
-
+% ManCallSamples = cell2mat(ManCallSamp');
+% ManCallFiles = ManCallFile(1:voc_counter);
+% save('GroundTruthData.mat','ManCallFiles','ManCallSamples')
 %% Massage the input of the automatic detection
 
 % Find the boundaries in ms in transceiver time of the section of sound that was
