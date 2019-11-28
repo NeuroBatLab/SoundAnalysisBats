@@ -14,6 +14,7 @@ load(fullfile(Path2Data, '20190927', '190927_1014_VocExtractTimes.mat'))
 
 Fs_env=1000; % in Hertz, should have been saved in who_calls.m to correctly convert in time the starting and ending indices of vocalizations in IndVocStart
 FS_Piezo = 50000; % could also be retrieved from Piezo_FS
+Fs_raw = 192000;
 
 % load results of the atomatic detection
 load(fullfile(Path2Data, '20190927', 'allCallTimes.mat'))
@@ -29,6 +30,7 @@ ManDur = 10*10*60*10^3; %in ms
 AL_Id = fieldnames(Piezo_wave);
 NLoggers = length(AudioLogs);
 ManCallTimes = cell(1,NLoggers);
+ManCallSamp = cell(1,NLoggers);
 NFiles = length(IndVocStart_all);
 
 for ff=1:NFiles
@@ -43,6 +45,8 @@ for ff=1:NFiles
         if ~isempty(IndVocStart_local{ll})
             NewCalls = [IndVocStart_local{ll}' IndVocStop_local{ll}'] ./ Fs_env .* 10^3  + Voc_transc_time_refined(ff,1); % onset and offset time of the vocalization in ms in transceiver time
             ManCallTimes{ll} = [ManCallTimes{ll} ; NewCalls];
+            NewCallsSample = [IndVocStart_local{ll}' IndVocStop_local{ll}'] ./ Fs_env .* Fs_raw  + Voc_samp_idx(ff,1); % onset and offset time of the vocalization in microphone (raw) samples from the beginning of each individual 10min file
+            ManCallSamp{ll} = [ManCallSamp{ll} ; NewCallsSample];
         end
     end
 end
