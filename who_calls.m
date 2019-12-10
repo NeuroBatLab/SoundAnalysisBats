@@ -15,7 +15,7 @@ if ~isfile(DataFile)
     warning('Vocalization data were not extracted by get_logger_data_voc.m')
 else
     load(DataFile, 'Piezo_wave', 'Piezo_FS',  'Raw_wave','FS', 'RatioRMS', 'DiffRMS','BandPassFilter', 'AudioLogs', 'RMSHigh', 'RMSLow','VocFilename');
-    load(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'MeanStdAmpRawExtract')
+    load(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'MeanStdAmpRawExtract','Voc_filename')
     %% Identify sound elements in each vocalization extract and decide of the vocalizer
     % Output corresponds to onset and offset indices of each vocal element in
     % sound section for each vocalizing logger. A cell array of length the
@@ -104,6 +104,10 @@ else
         Amp_env_LowPassLogVoc{vv} = cell(length(AudioLogs),1);
         Amp_env_HighPassLogVoc{vv} = cell(length(AudioLogs),1);
         LowPassLogVoc{vv} = cell(length(AudioLogs),1);
+        % Patch for previous error in the code
+        if isempty(Raw_wave{vv})
+            [Raw_wave{vv}, FS] = audioread(Voc_filename{vv});
+        end
         % bandpass filter the ambient mic recording
         Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave{vv});
         Amp_env_Mic{vv} = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
