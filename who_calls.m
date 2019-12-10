@@ -4,9 +4,12 @@ function [IndVocStartRaw_merge_local, IndVocStopRaw_merge_local, IndVocStartPiez
 % band-pass filtered baseline signal is multiplied to obtained the
 % threshold of vocalization detection on Microphone
 
-pnames = {'Factor_RMS_Mic'};
-dflts  = {3};
-[Factor_RMS_Mic] = internal.stats.parseArgs(pnames,dflts,varargin{:});
+pnames = {'Factor_RMS_Mic','Working_dir'};
+dflts  = {3,Loggers_dir};
+[Factor_RMS_Mic,Working_dir] = internal.stats.parseArgs(pnames,dflts,varargin{:});
+if ~exist(Working_dir,'dir')
+    mkdir(Working_dir)
+end
 DataFile = fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime));
 if ~isfile(DataFile)
     warning('Vocalization data were not extracted by get_logger_data_voc.m')
@@ -77,7 +80,10 @@ else
     IndVocStopPiezo_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording
     RMSRatio_all = cell(1,Nvoc);
     RMSDiff_all = cell(1,Nvoc);
-    
+    MicError = [0 0];% first element = number of corrections. second = number of detection (question)
+    MicErrorType = [0 0];% first element false negative (detected as noise or already detected when it is a new call), second element false positive (vice versa)
+    PiezoError = [0 0];% first element = number of corrections. second = number of detection (question)
+    PiezoErrorType = [0 0]; % first element false negative (detected as noise or hearing when it is a new call), second element false positive (vice versa)
     
     % design filters of raw ambient recording, bandpass and low pass which was
     % used for the cross correlation
@@ -86,9 +92,9 @@ else
     % [z,p,k] = butter(6,BandPassFilter(1:2)/(FS/2),'bandpass');
     % sos_raw_low = zp2sos(z,p,k);
     
-    PreviousFile = fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh));
+    PreviousFile = fullfile(Working_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh));
     if ~isempty(dir(PreviousFile)) && UseOld
-        load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv');
+        load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
     else
         vv=1;
     end
@@ -281,15 +287,19 @@ else
                             % Plot the localization of that sound extract on figure 3
                             % Duplicate the figure of the spectrogram for manual input purposes
                             F3 = figure(3);
-                            clf(F3)
-                            %                   cla
-                            [~] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
-                            title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
+%                             if ii==1
+                                clf(F3)
+                                %                   cla
+                                [~] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
+                                title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
+                                yyaxis right
+                                ylabel('Logger ID')
+                                set(gca, 'YTick', 1:ll, 'YTickLabel', [Fns_AL; 'Mic'], 'YLim', [0 (length(AudioLogs)+2)],'YDir', 'reverse')
+%                             end
                             hold on
                             yyaxis right
                             plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k:', 'LineWidth',2)
-                            ylabel('Logger ID')
-                            set(gca, 'YTick', 1:ll, 'YTickLabel', [Fns_AL; 'Mic'], 'YLim', [0 (length(AudioLogs)+2)],'YDir', 'reverse')
+                            
                             hold off
                             
                             % Decide if that call was already detected and ID
@@ -323,6 +333,10 @@ else
                             Agree = input('Do you agree? yes [], No (type anything)\n','s');
                             if ~isempty(Agree)
                                 NewCall1OldCall0_temp(ii) = input('Indicate your choice: new call (1) already known/noise (0)\n');
+                                MicError = MicError + [1 1];
+                                MicErrorType = MicErrorType + [NewCall1OldCall0_temp(ii) ~NewCall1OldCall0_temp(ii)];
+                            else
+                                MicError = MicError + [0 1];
                             end
                             
                             % update figure(3) with the decision
@@ -404,16 +418,20 @@ else
                             end
                             % Plot the localization of that sound extract on figure 3
                             % Duplicate the figure of the spectrogram for manual input purposes
+%                             if ii==1
+                                F3 = figure(3);
+                                clf(F3)
+                                %                   cla
+                                [~] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
+                                title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
+                                yyaxis right
+                                ylabel('Logger ID')
+                                set(gca, 'YTick', 1:ll, 'YTickLabel', Fns_AL, 'YLim', [0 (length(AudioLogs)+1)],'YDir', 'reverse')
+%                             end
                             F3 = figure(3);
-                            clf(F3)
-                            %                   cla
-                            [~] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
-                            title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
                             hold on
                             yyaxis right
                             plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k:', 'LineWidth',2)
-                            ylabel('Logger ID')
-                            set(gca, 'YTick', 1:ll, 'YTickLabel', Fns_AL, 'YLim', [0 (length(AudioLogs)+1)],'YDir', 'reverse')
                             hold off
                             
                             %                 IndVocStartRaw{ll}(ii) = round(IndVocStart{ll}(ii)/Fs_env*FS);
@@ -455,7 +473,12 @@ else
                             Agree = input('Do you agree? yes [], No (type anything)\n','s');
                             if ~isempty(Agree)
                                 Call1Hear0_temp(ii) = input('Indicate your choice: calling (1) hearing/noise (0)\n');
+                                PiezoError = PiezoError + [1 1];
+                                PiezoErrorType = PiezoErrorType + [Call1Hear0_temp(ii) ~Call1Hear0_temp(ii)];
+                            else
+                                PiezoError = PiezoError + [0 1];
                             end
+                            
                             
                             % update figure(3) with the decision
                             figure(3)
@@ -561,8 +584,8 @@ else
             ylabel('AL ID')
             xlabel('Time (ms)')
             [~,FileVoc]=fileparts(VocFilename{vv}); %#ok<IDISVAR,USENS>
-            print(F1,fullfile(Loggers_dir,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
-            saveas(F2,fullfile(Loggers_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
+            print(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
+            saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
             
             pause(1)
             clf(F1)
@@ -578,7 +601,19 @@ else
             RMSRatio_all{vv} = RMSRatio;
             RMSDiff_all{vv} = RMSDiff;
         end
-        save(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv');
+        save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
     end
+    if ~strcmp(Working_dir,Loggers_dir)
+        fprintf(1,'Transferring data back on the server\n')
+        [s,m,e]=copyfile(fullfile(Working_dir,'*'), Loggers_dir, 'f');
+        if ~s
+            fprintf(1,'File transfer did not occur correctly\n')
+            keyboard
+        end
+        if s  %erase local data
+            [sdel,mdel,edel]=rmdir(Working_dir, 's');
+        end
+    end
+            
 end
 end
