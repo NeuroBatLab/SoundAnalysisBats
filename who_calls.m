@@ -618,6 +618,6 @@ else
             [sdel,mdel,edel]=rmdir(Working_dir, 's');
         end
     end
-            
+    save(DataFile, 'Raw_wave','-append')      
 end
 end
