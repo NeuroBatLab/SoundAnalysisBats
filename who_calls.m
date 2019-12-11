@@ -179,9 +179,159 @@ else
             end
         end
         
-        if sum(cellfun('isempty',(Amp_env_LowPassLogVoc{vv}))) == length(AudioLogs)
-            fprintf(1,'CANNOT DETERMINE OWNERSHIP\n')
-        else
+        if sum(cellfun('isempty',(Amp_env_LowPassLogVoc{vv}))) == length(AudioLogs) % No logger datat, just isolate onset/offset of vocalizations on the microphone
+            fprintf(1,'CANNOT DETERMINE OWNERSHIP JUST SAVING ONSET/OFFSET OFF THE MICROPHONE\n')
+            % Plot the ratio of time varying RMS, the difference in time varying
+            % RMS between the high and low frequency bands and the absolute time
+            % varying RMS of the low frequency band
+            F2=figure(2);
+            clf(F2)
+            subplot(3,1,1)
+            if CheckMicChannel
+                plot(Amp_env_Mic{vv}.*10^3,'LineWidth',2, 'Color', ColorCode(ll+1,:))
+                hold on
+                plot([0 length(Amp_env_Mic{vv})], (Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
+                hold on
+            end
+            legend({'Microphone' 'voc detection threshold' 'voc detection threshold'})
+            
+            RowSize = length(AudioLogs) +2;
+            
+            IndVocStartRaw{vv} = cell(RowSize,1);
+            IndVocStartPiezo{vv} = cell(RowSize,1);
+            IndVocStopRaw{vv} = cell(RowSize,1);
+            IndVocStopPiezo{vv} = cell(RowSize,1);
+            IndVocStart = cell(RowSize,1);
+            IndVocStop = cell(RowSize,1);
+            IndVocStartRaw_merge_local = cell(RowSize,1);
+            IndVocStopRaw_merge_local = cell(RowSize,1);
+            IndVocStartPiezo_merge_local = cell(RowSize,1);
+            IndVocStopPiezo_merge_local = cell(RowSize,1);
+            
+            VocpMic = Amp_env_Mic{vv}>(Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
+            VocpMic = reshape(VocpMic,1,length(VocpMic));
+            IndVocStart{RowSize} = strfind(VocpMic, ones(1,Consecutive_binsMic)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
+            if isempty(IndVocStart{RowSize})
+                fprintf(1,'No vocalization detected on microphone\n');
+            else% Some vocalizations were detected
+                IndVocStart_diffind = find(diff(IndVocStart{RowSize})>1);
+                IndVocStart{RowSize} = [IndVocStart{RowSize}(1) IndVocStart{RowSize}(IndVocStart_diffind +1)]; % these two lines get rid of overlapping sequences that werer detected several times
+                NV = length(IndVocStart{RowSize}); % This is the number of detected potential vocalization
+                IndVocStop{RowSize} = nan(1,NV);
+                NewCall1Noise0_temp = nan(NV,1);
+                for ii=1:NV
+                    IVStop = find(VocpMic(IndVocStart{RowSize}(ii):end)==0, 1, 'first');
+                    if ~isempty(IVStop)
+                        IndVocStop{RowSize}(ii) = IndVocStart{RowSize}(ii) + IVStop -1;
+                    else
+                        IndVocStop{RowSize}(ii) = length(VocpMic);
+                    end
+                    % Plot the localization of that sound extract on figure 3
+                    % Duplicate the figure of the spectrogram for manual input purposes
+                    F3 = figure(3);
+                    %                             if ii==1
+                    clf(F3)
+                    %                   cla
+                    [~] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
+                    title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
+                    yyaxis right
+                    %                                 ylabel('Logger ID')
+                    %                                 set(gca, 'YTick', 1:RowSize, 'YTickLabel', [Fns_AL; 'Mic'], 'YLim', [0 (length(AudioLogs)+2)],'YDir', 'reverse')
+                    %                             end
+                    hold on
+                    yyaxis right
+                    plot([IndVocStart{RowSize}(ii)/Fs_env IndVocStop{RowSize}(ii)/Fs_env]*1000, [RowSize RowSize], 'k:', 'LineWidth',2)
+                    
+                    hold off
+                    
+                    % Decide if that call was already detected and ID
+                    % attributed or not by looking if there is any
+                    % overlap
+%                     OverlapOnset = nan(RowSize-1,1);
+%                     OverlapOffset = nan(RowSize-1,1);
+%                     for ll2=1:(RowSize-1)
+%                         OverlapOnset(ll2) = any((IndVocStart{ll2}<=IndVocStart{RowSize}(ii)) .* (IndVocStop{ll2}>=IndVocStart{RowSize}(ii)));
+%                         OverlapOffset(ll2) = any((IndVocStop{ll2}<=IndVocStart{RowSize}(ii)) .* (IndVocStop{ll2}>=IndVocStop{RowSize}(ii)));
+%                     end
+                    
+%                     NewCall1OldCall0_temp(ii) = ~any([OverlapOnset; OverlapOffset]);
+                    
+                    % update figure(3) with the decision
+                    figure(3)
+                    yyaxis right
+                    hold on
+                    text(IndVocStop{RowSize}(ii)/Fs_env*1000, RowSize, 'New call on Mic')
+                    hold off
+                    
+                    fprintf(1,'New call on Mic\n');
+                    Agree = input('Do you agree? yes [], No (type anything)\n','s');
+                    if ~isempty(Agree)
+                        NewCall1Noise0_temp(ii) = input('Indicate your choice: new call (1) noise (0)\n');
+                        MicError = MicError + [1 1];
+                        MicErrorType = MicErrorType + [NewCall1Noise0_temp(ii) ~NewCall1Noise0_temp(ii)];
+                    else
+                        MicError = MicError + [0 1];
+                    end
+                    
+                    % update figure(3) with the decision
+                    figure(3)
+                    yyaxis right
+                    hold on
+                    if NewCall1Noise0_temp(ii)
+                        plot([IndVocStart{RowSize}(ii)/Fs_env IndVocStop{RowSize}(ii)/Fs_env]*1000, [RowSize RowSize], 'Color',ColorCode(RowSize,:), 'LineWidth',2, 'LineStyle','-')
+                        text(IndVocStop{RowSize}(ii)/Fs_env*1000, RowSize+0.2, 'New call','Color','r','FontWeight','bold')
+                    else
+                        plot([IndVocStart{RowSize}(ii)/Fs_env IndVocStop{RowSize}(ii)/Fs_env]*1000, [RowSize RowSize], 'k-', 'LineWidth',2)
+                        text(IndVocStop{RowSize}(ii)/Fs_env*1000, RowSize+0.2, 'Noise','Color','r','FontWeight','bold')
+                    end
+                    hold off
+                    
+                end
+                
+                % Only keep vocalizations that were produced by the bat
+                % according to the high RMSRatio value
+                IndVocStart{RowSize} = IndVocStart{RowSize}(logical(NewCall1Noise0_temp));
+                IndVocStop{RowSize} = IndVocStop{RowSize}(logical(NewCall1Noise0_temp));
+                IndVocStartRaw{vv}{RowSize} = round(IndVocStart{RowSize}/Fs_env*FS);
+                IndVocStopRaw{vv}{RowSize} = round(IndVocStop{RowSize}/Fs_env*FS);
+                NV = sum(NewCall1Noise0_temp);
+                
+                if NV
+                    % Now merge detected vocalizations that are within MergeThresh
+                    Merge01 = (IndVocStart{RowSize}(2:end)-IndVocStop{RowSize}(1:(end-1)) < (MergeThresh/1000*Fs_env));
+                    NV = NV-sum(Merge01);
+                    IndVocStartRaw_merge_local{RowSize} = nan(1,NV);
+                    IndVocStopRaw_merge_local{RowSize} = nan(1,NV);
+                    IndVocStartPiezo_merge_local{RowSize} = nan(1,NV); % There is no useful piezo data for a call detected only on Microphone, it will stay Nan
+                    IndVocStopPiezo_merge_local{RowSize} = nan(1,NV);% There is no useful piezo data for a call detected only on Microphone, it will stay Nan
+                    CutInd = find(~Merge01);
+                    IndVocStartRaw_merge_local{RowSize}(1) = round(IndVocStart{RowSize}(1)/Fs_env*FS);
+                    IndVocStopRaw_merge_local{RowSize}(end) = round(IndVocStop{RowSize}(end)/Fs_env*FS);
+                    for cc=1:length(CutInd)
+                        IndVocStopRaw_merge_local{RowSize}(cc) = round(IndVocStop{RowSize}( CutInd(cc))/Fs_env*FS);
+                        IndVocStartRaw_merge_local{RowSize}(cc+1) = round(IndVocStart{RowSize}(CutInd(cc)+1)/Fs_env*FS);
+                    end
+                    
+                    % Now plot the onset/offset of each extract on the
+                    % spectrograms of the microphone
+                    figure(1)
+                    for ii=1:NV
+                        subplot(length(AudioLogs)+2,1,1)
+                        hold on
+                        yyaxis right
+                        YLim = get(gca, 'YLim');
+                        plot([IndVocStartRaw_merge_local{RowSize}(ii) IndVocStopRaw_merge_local{RowSize}(ii)]/FS*1000, [YLim(2)*4/5 YLim(2)*4/5], 'k-', 'LineWidth',2)
+                        subplot(length(AudioLogs)+2,1,length(AudioLogs)+2)
+                        hold on
+                        plot([IndVocStartRaw_merge_local{RowSize}(ii) IndVocStopRaw_merge_local{RowSize}(ii)]/FS*1000, [RowSize RowSize], 'Color',ColorCode(RowSize,:), 'LineWidth',2, 'LineStyle','-')
+                        hold off
+                    end
+                    
+                end
+            end
+            
+            
+        else % There is some data on the logger, extract the id of the vocalizing bat
             % Treat the case where some approximations of the calculations led to
             % slight diffreent sizes of running RMS
             Short = min(cellfun('length',Amp_env_LowPassLogVoc{vv}));
@@ -297,8 +447,8 @@ else
                                 [~] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
                                 title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
                                 yyaxis right
-                                ylabel('Logger ID')
-                                set(gca, 'YTick', 1:ll, 'YTickLabel', [Fns_AL; 'Mic'], 'YLim', [0 (length(AudioLogs)+2)],'YDir', 'reverse')
+%                                 ylabel('Logger ID')
+%                                 set(gca, 'YTick', 1:ll, 'YTickLabel', [Fns_AL; 'Mic'], 'YLim', [0 (length(AudioLogs)+2)],'YDir', 'reverse')
 %                             end
                             hold on
                             yyaxis right
@@ -429,8 +579,8 @@ else
                                 [~] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
                                 title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
                                 yyaxis right
-                                ylabel('Logger ID')
-                                set(gca, 'YTick', 1:ll, 'YTickLabel', Fns_AL, 'YLim', [0 (length(AudioLogs)+1)],'YDir', 'reverse')
+%                                 ylabel('Logger ID')
+%                                 set(gca, 'YTick', 1:ll, 'YTickLabel', Fns_AL, 'YLim', [0 (length(AudioLogs)+1)],'YDir', 'reverse')
 %                             end
                             F3 = figure(3);
                             hold on
