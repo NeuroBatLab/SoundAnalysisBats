@@ -4,9 +4,9 @@ function [IndVocStartRaw_merge_local, IndVocStopRaw_merge_local, IndVocStartPiez
 % band-pass filtered baseline signal is multiplied to obtained the
 % threshold of vocalization detection on Microphone
 
-pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic'};
-dflts  = {3,Loggers_dir,0};
-[Factor_RMS_Mic,Working_dir,Force_Save_onoffsets_mic] = internal.stats.parseArgs(pnames,dflts,varargin{:});
+pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic','SaveFileType'};
+dflts  = {3,Loggers_dir,0,'pdf'};
+[Factor_RMS_Mic,Working_dir,Force_Save_onoffsets_mic,SaveFileType] = internal.stats.parseArgs(pnames,dflts,varargin{:});
 if ~exist(Working_dir,'dir')
     mkdir(Working_dir)
 end
@@ -220,6 +220,7 @@ else
                     NV = length(IndVocStart{RowSize}); % This is the number of detected potential vocalization
                     IndVocStop{RowSize} = nan(1,NV);
                     NewCall1Noise0_temp = nan(NV,1);
+                    NewCall1Noise0_man = nan(NV,1);
                     for ii=1:NV
                         IVStop = find(VocpMic(IndVocStart{RowSize}(ii):end)==0, 1, 'first');
                         if ~isempty(IVStop)
@@ -264,10 +265,11 @@ else
                         text(IndVocStop{RowSize}(ii)/Fs_env*1000, RowSize, 'New call on Mic')
                         hold off
                         
-                        fprintf(1,'New call on Mic\n');
-                        Agree = input('Do you agree? yes [], No (type anything)\n','s');
-                        if ~isempty(Agree)
-                            NewCall1Noise0_temp(ii) = input('Indicate your choice: new call (1) noise (0)\n');
+                        fprintf(1,'Computer guess: New call on Mic\n');
+                        NewCall1Noise0_man(ii) = input('Indicate your choice: new call (1) noise (0)\n');
+                        Agree = NewCall1Noise0_man(ii) == NewCall1Noise0_temp(ii);
+                        if ~Agree
+                            NewCall1Noise0_temp(ii) = NewCall1Noise0_man(ii);
                             MicError = MicError + [1 1];
                             MicErrorType = MicErrorType + [NewCall1Noise0_temp(ii) ~NewCall1Noise0_temp(ii)];
                         else
@@ -330,6 +332,17 @@ else
                         
                     end
                 end
+                [~,FileVoc]=fileparts(VocFilename{vv});
+                if strcmp(SaveFileType,'pdf')
+                    print(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
+                    saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
+                elseif strcmp(SaveFileType,'fig')
+                    saveas(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.fig', FileVoc, MergeThresh)))
+                    saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.fig', FileVoc, MergeThresh)))
+                end
+                pause(1)
+                clf(F1)
+                clf(F2)
                 
             end
         else % There is some data on the logger, extract the id of the vocalizing bat
@@ -432,6 +445,7 @@ else
                         NV = length(IndVocStart{ll}); % This is the number of detected potential vocalization
                         IndVocStop{ll} = nan(1,NV);
                         NewCall1OldCall0_temp = nan(NV,1);
+                        NewCall1OldCall0_man = nan(NV,1);
                         for ii=1:NV
                             IVStop = find(VocpMic(IndVocStart{ll}(ii):end)==0, 1, 'first');
                             if ~isempty(IVStop)
@@ -474,20 +488,21 @@ else
                             yyaxis right
                             hold on
                             if NewCall1OldCall0_temp(ii)
-                                text(IndVocStop{ll}(ii)/Fs_env*1000, ll, 'New call')
+                                text(IndVocStop{ll}(ii)/Fs_env*1000, ll, 'New call on Mic')
                             else
                                 text(IndVocStop{ll}(ii)/Fs_env*1000, ll, 'Call already attributed')
                             end
                             hold off
                             
                             if NewCall1OldCall0_temp(ii)
-                                fprintf(1,'New call\n');
+                                fprintf(1,'Computer guess: New call on Mic\n');
                             else
-                                fprintf(1,'Call already attributed\n');
+                                fprintf(1,'Computer guess: Call already attributed\n');
                             end
-                            Agree = input('Do you agree? yes [], No (type anything)\n','s');
-                            if ~isempty(Agree)
-                                NewCall1OldCall0_temp(ii) = input('Indicate your choice: new call (1) already known/noise (0)\n');
+                            NewCall1OldCall0_man(ii) = input('Indicate your choice: new call on Mic (1) already known/noise (0)\n');
+                            Agree = NewCall1OldCall0_man(ii)==NewCall1OldCall0_temp(ii);
+                            if ~Agree
+                                NewCall1OldCall0_temp(ii) = NewCall1OldCall0_man(ii);
                                 MicError = MicError + [1 1];
                                 MicErrorType = MicErrorType + [NewCall1OldCall0_temp(ii) ~NewCall1OldCall0_temp(ii)];
                             else
@@ -500,7 +515,7 @@ else
                             hold on
                             if NewCall1OldCall0_temp(ii)
                                 plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-                                text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, 'New call','Color','r','FontWeight','bold')
+                                text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, 'New call on Mic','Color','r','FontWeight','bold')
                             else
                                 plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k-', 'LineWidth',2)
                                 text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, 'Call already attributed/noise','Color','r','FontWeight','bold')
@@ -564,6 +579,7 @@ else
                         RMSRatio{ll} = nan(NV,1);
                         RMSDiff{ll} = nan(NV,1);
                         Call1Hear0_temp = nan(NV,1);
+                        Call1Hear0_man = nan(NV,1);
                         for ii=1:NV
                             IVStop = find(Vocp(ll,IndVocStart{ll}(ii):end)==0, 1, 'first');
                             if ~isempty(IVStop)
@@ -621,13 +637,14 @@ else
                             hold off
                             
                             if Call1Hear0_temp(ii)
-                                fprintf('%s calling\n',Fns_AL{ll});
+                                fprintf('Computer guess: %s calling\n',Fns_AL{ll});
                             else
-                                fprintf('%s hearing/noise\n',Fns_AL{ll});
+                                fprintf('Computer guess: %s hearing/noise\n',Fns_AL{ll});
                             end
-                            Agree = input('Do you agree? yes [], No (type anything)\n','s');
-                            if ~isempty(Agree)
-                                Call1Hear0_temp(ii) = input('Indicate your choice: calling (1) hearing/noise (0)\n');
+                            Call1Hear0_man(ii) = input('Indicate your choice: calling (1) hearing/noise (0)\n');
+                            Agree = Call1Hear0_temp(ii)== Call1Hear0_man(ii);
+                            if ~Agree
+                                Call1Hear0_temp(ii) = Call1Hear0_man(ii);
                                 PiezoError = PiezoError + [1 1];
                                 PiezoErrorType = PiezoErrorType + [Call1Hear0_temp(ii) ~Call1Hear0_temp(ii)];
                             else
@@ -739,8 +756,13 @@ else
             ylabel('AL ID')
             xlabel('Time (ms)')
             [~,FileVoc]=fileparts(VocFilename{vv}); %#ok<IDISVAR,USENS>
-            print(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
-            saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
+            if strcmp(SaveFileType,'pdf')
+                print(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
+                saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
+            elseif strcmp(SaveFileType,'fig')
+                saveas(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.fig', FileVoc, MergeThresh)))
+                saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.fig', FileVoc, MergeThresh)))
+            end
             
             pause(1)
             clf(F1)
