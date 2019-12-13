@@ -70,10 +70,19 @@ else
     Fns_AL = fieldnames(Piezo_wave);
     IndVocStart_all = cell(1,Nvoc);
     IndVocStop_all = cell(1,Nvoc);
-    IndVocStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the raw recording before merge
+    IndNoiseStart_all = cell(1,Nvoc);
+    IndNoiseStop_all = cell(1,Nvoc);
+    IndVocStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc)
+    % a cell array of the size the number of loggers + 1 in case only one bat without a logger
+    % or +2 incase no identification possible but you want to keep onset/offset of each voc and
+    % for each logger the index onset of when the animal start vocalizing in the raw recording before merge
     IndVocStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge
     IndVocStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording before merge
     IndVocStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording before merge
+    IndNoiseStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the raw recording before merge
+    IndNoiseStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge
+    IndNoiseStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording before merge
+    IndNoiseStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording before merge
     IndVocStartRaw_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the raw recording
     IndVocStopRaw_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording
     IndVocStartPiezo_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording
@@ -199,11 +208,13 @@ else
                 RowSize = length(AudioLogs) +2;
                 
                 IndVocStartRaw{vv} = cell(RowSize,1);
-                IndVocStartPiezo{vv} = cell(RowSize,1);
                 IndVocStopRaw{vv} = cell(RowSize,1);
-                IndVocStopPiezo{vv} = cell(RowSize,1);
                 IndVocStart = cell(RowSize,1);
                 IndVocStop = cell(RowSize,1);
+                IndNoiseStartRaw{vv} = cell(RowSize,1);
+                IndNoiseStopRaw{vv} = cell(RowSize,1);
+                IndNoiseStart = cell(RowSize,1);
+                IndNoiseStop = cell(RowSize,1);
                 IndVocStartRaw_merge_local = cell(RowSize,1);
                 IndVocStopRaw_merge_local = cell(RowSize,1);
                 IndVocStartPiezo_merge_local = cell(RowSize,1);
@@ -291,12 +302,16 @@ else
                         
                     end
                     
-                    % Only keep vocalizations that were produced by the bat
-                    % according to the high RMSRatio value
+                    % Stash noise and only keep vocalizations
+                    IndNoiseStart{RowSize} = IndVocStart{RowSize}(~logical(NewCall1Noise0_temp));
+                    IndNoiseStop{RowSize} = IndVocStop{RowSize}(~logical(NewCall1Noise0_temp));
+                    IndNoiseStartRaw{vv}{RowSize} = round(IndNoiseStart{RowSize}/Fs_env*FS);
+                    IndNoiseStopRaw{vv}{RowSize} = round(IndNoiseStop{RowSize}/Fs_env*FS);
                     IndVocStart{RowSize} = IndVocStart{RowSize}(logical(NewCall1Noise0_temp));
                     IndVocStop{RowSize} = IndVocStop{RowSize}(logical(NewCall1Noise0_temp));
                     IndVocStartRaw{vv}{RowSize} = round(IndVocStart{RowSize}/Fs_env*FS);
                     IndVocStopRaw{vv}{RowSize} = round(IndVocStop{RowSize}/Fs_env*FS);
+                    
                     NV = sum(NewCall1Noise0_temp);
                     
                     if NV
@@ -425,6 +440,12 @@ else
             IndVocStopPiezo{vv} = cell(RowSize,1);
             IndVocStart = cell(RowSize,1);
             IndVocStop = cell(RowSize,1);
+            IndNoiseStartRaw{vv} = cell(RowSize,1);
+            IndNoiseStartPiezo{vv} = cell(RowSize,1);
+            IndNoiseStopRaw{vv} = cell(RowSize,1);
+            IndNoiseStopPiezo{vv} = cell(RowSize,1);
+            IndNoiseStart = cell(RowSize,1);
+            IndNoiseStop = cell(RowSize,1);
             IndVocStartRaw_merge_local = cell(RowSize,1);
             IndVocStopRaw_merge_local = cell(RowSize,1);
             IndVocStartPiezo_merge_local = cell(RowSize,1);
@@ -524,8 +545,12 @@ else
                             
                         end
                         
-                        % Only keep vocalizations that were produced by the bat
-                        % according to the high RMSRatio value
+                        % Stash noise and Only keep vocalizations that were
+                        % not detected on piezos
+                        IndNoiseStart{ll} = IndVocStart{ll}(~logical(NewCall1OldCall0_temp));
+                        IndNoiseStop{ll} = IndVocStop{ll}(~logical(NewCall1OldCall0_temp));
+                        IndNoiseStartRaw{vv}{ll} = round(IndNoiseStart{ll}/Fs_env*FS);
+                        IndNoiseStopRaw{vv}{ll} = round(IndNoiseStop{ll}/Fs_env*FS);
                         IndVocStart{ll} = IndVocStart{ll}(logical(NewCall1OldCall0_temp));
                         IndVocStop{ll} = IndVocStop{ll}(logical(NewCall1OldCall0_temp));
                         IndVocStartRaw{vv}{ll} = round(IndVocStart{ll}/Fs_env*FS);
@@ -565,7 +590,7 @@ else
                             
                         end
                     end
-                elseif ll<=length(AudioLogs)
+                elseif ll<=length(AudioLogs) % We are looking at an actual logger!
                     Vocp(ll,:) = Amp_env_LowPassLogVoc_MAT(ll,:)>(Factor_RMS_low(ll) * RMSLow.(Fns_AL{ll})(1)); % Time points above amplitude threshold on the low-passed logger signal
                     IndVocStart{ll} = strfind(Vocp(ll,:), ones(1,Consecutive_binsPiezo)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
                     if isempty(IndVocStart{ll})
@@ -684,8 +709,14 @@ else
                             
                         end
                         
-                        % Only keep vocalizations that were produced by the bat
+                        % Stash noise and Only keep vocalizations that were produced by the bat
                         % according to the high RMSRatio value
+                        IndNoiseStart{ll} = IndVocStart{ll}(~logical(Call1Hear0_temp));
+                        IndNoiseStop{ll} = IndVocStop{ll}(~logical(Call1Hear0_temp));
+                        IndNoiseStartRaw{vv}{ll} = round(IndNoiseStart{ll}/Fs_env*FS);
+                        IndNoiseStartPiezo{vv}{ll} = round(IndNoiseStart{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+                        IndNoiseStopRaw{vv}{ll} = round(IndNoiseStop{ll}/Fs_env*FS);
+                        IndNoiseStopPiezo{vv}{ll} = round(IndNoiseStop{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
                         IndVocStart{ll} = IndVocStart{ll}(logical(Call1Hear0_temp));
                         IndVocStop{ll} = IndVocStop{ll}(logical(Call1Hear0_temp));
                         IndVocStartRaw{vv}{ll} = round(IndVocStart{ll}/Fs_env*FS);
@@ -771,6 +802,8 @@ else
             % Gather Vocalization production data:
             IndVocStart_all{vv} = IndVocStart;
             IndVocStop_all{vv} = IndVocStop;
+            IndNoiseStart_all{vv} = IndNoiseStart;
+            IndNoiseStop_all{vv} = IndNoiseStop;
             IndVocStartRaw_merged{vv} = IndVocStartRaw_merge_local;
             IndVocStopRaw_merged{vv} = IndVocStopRaw_merge_local;
             IndVocStartPiezo_merged{vv} = IndVocStartPiezo_merge_local;
@@ -778,7 +811,7 @@ else
             RMSRatio_all{vv} = RMSRatio;
             RMSDiff_all{vv} = RMSDiff;
         end
-        save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+        save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
     end
     if ~strcmp(Working_dir,Loggers_dir)
         fprintf(1,'Transferring data back on the server\n')
