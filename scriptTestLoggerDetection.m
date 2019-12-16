@@ -6,13 +6,13 @@
 % load(fullfile(Path2Data, '190623_1401_VocExtractData.mat'))
 % load(fullfile(Path2Audio, '190623_1401_VocExtractTimes.mat'))
 
-Path2Data1 = '/Users/ryanmoughan/Research/Debugging/20190927';
-Path2Data2=Path2Data1;
-% Path2Data1 = '/Volumes/server_home/users/JulieE/JuvenileRecordings155/20190927/audiologgers';
+% Path2Data1 = '/Users/ryanmoughan/Research/Debugging/20190927';
+% Path2Data2=Path2Data1;
+Path2Data1 = '/Volumes/server_home/users/JulieE/JuvenileRecordings155/20190927/audiologgers';
 % Load data manually extracted
 load(fullfile(Path2Data1,'190927_1014_VocExtractData_200.mat'))
 load(fullfile(Path2Data1,'190927_1014_VocExtractData.mat'))
-% Path2Data2 = '/Volumes/server_home/users/JulieE/JuvenileRecordings155/20190927/audio';
+Path2Data2 = '/Volumes/server_home/users/JulieE/JuvenileRecordings155/20190927/audio';
 load(fullfile(Path2Data2,'190927_1014_VocExtractTimes.mat'))
 
 Fs_env=1000; % in Hertz, should have been saved in who_calls.m to correctly convert in time the starting and ending indices of vocalizations in IndVocStart

@@ -10,11 +10,13 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
     
     % Setting up variables that will be used later
     draw_plots = true;
+    NChuncks =4; % Number of chuncks in which the data should be divided such as to perform the parallel computation of the envelope
+    Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
     RMSfactor = 2; % how much greater the call's envelope needs to be than the noise. Subject to change implementation
     callLength = 0.007; % minimum length of a call in s
     mergeThresh = 5e-3; % minimum length between two calls in s
     FS_env = 1000; % Sample frequency of the envelope
-    BandPassFilter = [1000 5000]; % the frequencies we care about to identiy when a call is made
+    BandPassFilter = [1000 5000]; % the frequencies we care about to identify when a call is made
     PathPieces = split(data_directory, filesep);
     logger_name = PathPieces{find(contains(PathPieces,'extracted_data'))-1};
     %logger_name = data_directory(end - 23 : end - 16); % I'm assuming all names of the form loggerXX
@@ -34,8 +36,8 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
     end  
     filepath = fullfile(file.folder, file.name);
     load(filepath, 'AD_count_int16', 'Estimated_channelFS_Transceiver')
-    samplingFreq = nanmean(Estimated_channelFS_Transceiver);
-    FS_ratio = round(samplingFreq / FS_env); 
+    SamplingFreq = nanmean(Estimated_channelFS_Transceiver);
+    FS_ratio = round(SamplingFreq / FS_env); 
     AD_count_double = double(AD_count_int16);
     clear AD_count_int16
     
@@ -45,12 +47,14 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
     
 %     centered_piezo_signal = centered_piezo_signal(1.842963737022642e+08 - 10000: 1.842977237022640e+08 + 10000);
 %     centered_piezo_signal = centered_piezo_signal(1: 1.842977237022640e+08);
-    %Debug plotting
-    figure(1)
-    plot((1:length(centered_piezo_signal)), centered_piezo_signal)
+    if draw_plots
+        %Debug plotting
+        figure(1)
+        plot((1:length(centered_piezo_signal)), centered_piezo_signal)
+    end
 
     %Design the bandpass filter for the 1000-5000Hz range
-    [z,p,k] = butter(6,BandPassFilter / (samplingFreq / 2),'bandpass');
+    [z,p,k] = butter(6,BandPassFilter / (SamplingFreq / 2),'bandpass');
     sos_low = zp2sos(z,p,k);    
 
     % Filter the signal and compute the envelope (using the rms). Once
@@ -58,26 +62,26 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
     if draw_plots % keep in memory if debug figure mode
         centered_piezo_signal_debug = centered_piezo_signal;
     end
-    signal_length = length(centered_piezo_signal);
-    piezo_envelope = zeros(1, floor(signal_length / (FS_ratio - 1))); % -1 to make it slighlty longer than we actually expect to accomodate rounding issues
-    envelope_length = 0;
-    for ii = 1:4 %%% parallelize?
-        tic;
-        sampleStart = 1;
-        sampleEnd = floor(signal_length / 4);
-        if ii == 4
-            sampleEnd = length(centered_piezo_signal);
-        end
-        sample = centered_piezo_signal(sampleStart:sampleEnd);
-        centered_piezo_signal(sampleStart: sampleEnd) = [];
-        filtered_piezo_sample = filtfilt(sos_low, 1, sample);
-        filtered_sample_envelope = envelope(filtered_piezo_sample, 1e-3 * 50000, 'rms');
-        filtered_sample_envelope = resample(filtered_sample_envelope, 1, FS_ratio);
-        piezo_envelope((envelope_length + 1) : (envelope_length + length(filtered_sample_envelope))) = filtered_sample_envelope;
-        envelope_length = envelope_length + length(filtered_sample_envelope);
-        toc;
+    
+    Signal_length = length(centered_piezo_signal);
+    piezo_envelope = cell(1,NChuncks); % 
+    piezo_centered_signal = cell(1,NChuncks); % 
+    Chuncks = [1:round(Signal_length/NChuncks):Signal_length Signal_length];
+    for ii = 1:NChuncks
+        piezo_centered_signal{ii} = centered_piezo_signal(Chuncks(ii):(Chuncks(ii)+1));
     end
-    piezo_envelope = piezo_envelope(1:envelope_length);
+        
+    EnvCalcStart = tic;
+    parfor ii = 1:NChuncks %%% parallelize
+        filtered_piezo_sample = filtfilt(sos_low, 1, piezo_centered_signal{ii});
+%         filtered_sample_envelope = envelope(filtered_piezo_sample, 1e-3 * 50000, 'rms');
+%         piezo_envelope{ii} = resample(filtered_sample_envelope, 1, FS_ratio);
+        piezo_envelope{ii} = running_rms(filtered_piezo_sample,SamplingFreq, Fhigh_power,FS_env);
+    end
+    toc
+    EnvLength = sum(cellfun('length',piezo_envelope));
+    piezo_envelope = reshape([piezo_envelope{:}],1,EnvLength)';
+    EnvCalcStop = toc(EnvCalcStart);
     clear centered_piezo_signal
     
     %Find the noise for the given logger
@@ -163,7 +167,7 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
 
     if draw_plots
         Delay = 100; % delay to add before after each call in ms
-        DBNoise = 60; % amplitude parameter for the color scale of tyhe spectro
+        DBNoise = 60; % amplitude parameter for the color scale of the spectro
         FHigh = 10000; % y axis max scale for the spectrogram
         %visually inspect that the previous step is correct
         for ii = 1:length(callTimes)
@@ -172,8 +176,8 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
             call = callTimes{ii};
             x_start = call(1)-Delay;
             x_stop = call(2)+Delay;
-            Raw = centered_piezo_signal_debug(round(x_start/FS_env*samplingFreq):round(x_stop/FS_env*samplingFreq));
-            [~] = spec_only_bats(Raw,samplingFreq,DBNoise, FHigh);
+            Raw = centered_piezo_signal_debug(round(x_start/FS_env*SamplingFreq):round(x_stop/FS_env*SamplingFreq));
+            [~] = spec_only_bats(Raw,SamplingFreq,DBNoise, FHigh);
             hold on
             yyaxis right
             plot(piezo_envelope(x_start:x_stop), '-k','LineWidth',2)
