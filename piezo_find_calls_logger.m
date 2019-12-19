@@ -1,17 +1,16 @@
-function [callTimes] = piezo_find_calls_logger(data_directory)
+function [SoundEvent_LoggerSamp] = piezo_find_calls_logger(data_directory)
     % Takes in the directory for the individidual logger data
-    % LOGGER_DIRECTORY and outputs CALLTIMES, the start/stop times of potential
-    % calls. Note that CallTIMES is currently a cell of vectors where each
-    % vector represents a call and the first element of the vector is the 
-    % start of the call and the second element of the vector is the end of
-    % the call. This function should be used in combination with
+    % LOGGER_DIRECTORY and outputs SoundEvent_LoggerSamp, the start/stop indices of potential
+    % calls in the raw input data. Note that SoundEvent_LoggerSamp is a matrix where each
+    % row represents a sound event with the first column corresponding to onsets and
+    % the second column to offsets. This function should be used in combination with
     % piezo_find_calls.m, which will call this function on all loggers for 
     % a recording session. 
     
-    % Setting up variables that will be used later
+    %% Setting up variables that will be used later
     draw_plots = true;
-    NChuncks =4; % Number of chuncks in which the data should be divided such as to perform the parallel computation of the envelope
-    Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
+    DurChunck = 10; % duration of each chunck in min. This duration ensures that there is no significant time drift between the envelope calculation and the original sound
+    Fhigh_power =75; % Frequency upper bound for calculating the envelope (time running RMS)
     RMSfactor = 2; % how much greater the call's envelope needs to be than the noise. Subject to change implementation
     callLength = 0.007; % minimum length of a call in s
     mergeThresh = 5e-3; % minimum length between two calls in s
@@ -19,20 +18,17 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
     BandPassFilter = [1000 5000]; % the frequencies we care about to identify when a call is made
     PathPieces = split(data_directory, filesep);
     logger_name = PathPieces{find(contains(PathPieces,'extracted_data'))-1};
-    %logger_name = data_directory(end - 23 : end - 16); % I'm assuming all names of the form loggerXX
     disp(logger_name)
     
     %it's saying the last call occurs at 3.8731, which doesn't make sense.
     %Check via graph
     
    
-    % Loop through the files in the directory and find the data file. 
-    % Load the raw signal and raw signal frequency, then calculate ratio of
+    %% Load the raw signal and raw signal frequency, then calculate ratio of
     % raw signal frequency to what the envelope's frequency will be.
     file = dir(fullfile(data_directory, '*CSC0*'));
     if isempty(file)
-        ME = MException('Data file not found');
-        throw(ME)
+        error('Data file not found');
     end  
     filepath = fullfile(file.folder, file.name);
     load(filepath, 'AD_count_int16', 'Estimated_channelFS_Transceiver')
@@ -41,153 +37,174 @@ function [callTimes] = piezo_find_calls_logger(data_directory)
     AD_count_double = double(AD_count_int16);
     clear AD_count_int16
     
-    % Center the signal and clear the old data from memory
+    %% Center the signal and clear the old data from memory
     centered_piezo_signal = AD_count_double - mean(AD_count_double);
     clear AD_count_double
     
 %     centered_piezo_signal = centered_piezo_signal(1.842963737022642e+08 - 10000: 1.842977237022640e+08 + 10000);
 %     centered_piezo_signal = centered_piezo_signal(1: 1.842977237022640e+08);
-    if draw_plots
-        %Debug plotting
-        figure(1)
-        plot((1:length(centered_piezo_signal)), centered_piezo_signal)
-    end
+%     if draw_plots
+%         %Debug plotting
+%         figure(1)
+%         plot((1:length(centered_piezo_signal)), centered_piezo_signal)
+%     end
 
-    %Design the bandpass filter for the 1000-5000Hz range
+    %% Design the bandpass filter for the 1000-5000Hz range
     [z,p,k] = butter(6,BandPassFilter / (SamplingFreq / 2),'bandpass');
     sos_low = zp2sos(z,p,k);    
 
-    % Filter the signal and compute the envelope (using the rms). Once
-    % again, remove old data from memory
-    if draw_plots % keep in memory if debug figure mode
-        centered_piezo_signal_debug = centered_piezo_signal;
+    
+    %% Cut the signal into chuncks of same short duration
+    Signal_length = length(centered_piezo_signal);
+    NumSampleChunck = round(DurChunck*60*SamplingFreq);
+    Chuncks = [1:NumSampleChunck:Signal_length Signal_length];
+    NChuncks = length(Chuncks)-1;
+    piezo_centered_signal = cell(1,NChuncks); % 
+    
+    for ii = 1:NChuncks
+        piezo_centered_signal{ii} = centered_piezo_signal(Chuncks(ii):(Chuncks(ii+1)));
     end
     
-    Signal_length = length(centered_piezo_signal);
-    piezo_envelope = cell(1,NChuncks); % 
-    piezo_centered_signal = cell(1,NChuncks); % 
-    Chuncks = [1:round(Signal_length/NChuncks):Signal_length Signal_length];
-    for ii = 1:NChuncks
-        piezo_centered_signal{ii} = centered_piezo_signal(Chuncks(ii):(Chuncks(ii)+1));
-    end
-        
+    %% Calculate the amplitude envelope independantly on every chunck
+    piezo_envelope = cell(1,NChuncks); %
+    piezo_envelope2 = cell(1,NChuncks); %
     EnvCalcStart = tic;
     parfor ii = 1:NChuncks %%% parallelize
+        fprintf(1,'Start Envelope chunck %d/%d\n', ii, NChuncks)
+        LocalStart = tic;
         filtered_piezo_sample = filtfilt(sos_low, 1, piezo_centered_signal{ii});
-%         filtered_sample_envelope = envelope(filtered_piezo_sample, 1e-3 * 50000, 'rms');
-%         piezo_envelope{ii} = resample(filtered_sample_envelope, 1, FS_ratio);
+        filtered_sample_envelope = envelope(filtered_piezo_sample, round(1e-3 * SamplingFreq), 'rms');
+        piezo_envelope2{ii} = resample(filtered_sample_envelope, 1, FS_ratio);
         piezo_envelope{ii} = running_rms(filtered_piezo_sample,SamplingFreq, Fhigh_power,FS_env);
+        fprintf(1,'Done Envelope chunck %d/%d in %.1fs\n', ii, NChuncks, toc(LocalStart))
     end
-    toc
-    EnvLength = sum(cellfun('length',piezo_envelope));
-    piezo_envelope = reshape([piezo_envelope{:}],1,EnvLength)';
     EnvCalcStop = toc(EnvCalcStart);
+    fprintf(1,'Done Calculating Envelope in %.1fs\n', EnvCalcStop)
     clear centered_piezo_signal
     
-    %Find the noise for the given logger
-    noise = getAverageNoise(piezo_envelope, FS_env, 50);
+    %% Find the noise for the given logger taking into account all the
+    % recording
+    EnvLength = sum(cellfun('length',piezo_envelope));
+    piezo_envelope_All = reshape([piezo_envelope{:}],1,EnvLength)';
+    noise = getAverageNoise(piezo_envelope_All, FS_env, 50);
     disp(['Done with calculating noise: ', num2str(noise)])
     
     if draw_plots
         %Display the noise threshold
         figure(2)
-        plot((1:length(piezo_envelope)), piezo_envelope, 'Color',[0,0.5,0.9])
+        plot((1:length(piezo_envelope_All)), piezo_envelope_All, 'Color',[0,0.5,0.9])
         hold on
-        line([1, length(piezo_envelope)], [noise * RMSfactor, noise * RMSfactor], 'Color','red','LineStyle','--', 'LineWidth',2)
+        line([1, length(piezo_envelope_All)], [noise * RMSfactor, noise * RMSfactor], 'Color','red','LineStyle','--', 'LineWidth',2)
         title(logger_name)
         hold on
     end
  
-    % Create a logical vector: 1-> every time the data point is above the noise 
+    %% Detect sound events: Loop through chuncks and Create a logical vector:
+    % 1-> every time the data point is above the noise 
     % threshold and 0 -> every time it isn't
-    callIndicator = piezo_envelope > (RMSfactor * noise);
+    callTimes = cell(NChuncks,1);
+    for ii = 1:NChuncks %%% parallelize
+        fprintf(1,'Find sound events in chunck %d/%d\n', ii, NChuncks)
+        callIndicator = piezo_envelope{ii} > (RMSfactor * noise);
+        
+        % Start/Stop times is any 1ms bin there is a change from 1 to 0 or 0 to 1
+        startTimes = find(diff(callIndicator) > 0);
+        stopTimes = find(diff(callIndicator) < 0);
+        
+        % Check edge case 1
+        if stopTimes(1) < startTimes(1)
+            startTimes = [1, startTimes];
+        end
+        
+        % Check edge case 2
+        if startTimes(end) > stopTimes(end)
+            stopTimes = [stopTimes, length(piezo_envelope{ii})];
+        end
+        
+%         if draw_plots
+%             %visually inspect that the previous step is correct
+%             figure(2)
+%             x_values = [startTimes stopTimes];
+%             y_values = repmat((100),1,size(x_values,1));
+%             scatter(x_values, y_values)
+%             hold on
+%         end
+        
+        if length(startTimes) ~= length(stopTimes)
+            error('Start and Stop times are not the same size');
+        end
+        if any(startTimes > stopTimes)
+            error('Start time should not be greater than Stop time');
+        end
+        
+        % Find the potential call times, the requirements of which are that the duration of the sound event above threshold
+        % is greater than callLength and also merge any calls that are less
+        % than mergethresh apart
+        LongSoundEvents = (stopTimes-startTimes)>= FS_env .* callLength;
+        callTimes{ii} = [startTimes(LongSoundEvents)' stopTimes(LongSoundEvents)'];
+    end
     
-    % Start/Stop times is any 1ms bin there is a change from 1 to 0 or 0 to 1
-    startTimes = find(diff(callIndicator) > 0);
-    stopTimes = find(diff(callIndicator) < 0);
-                
-    % Check edge case 1
-    if stopTimes(1) < startTimes(1)
-        startTimes = [1, startTimes];
-    end
-        
-    % Check edge case 2
-    if startTimes(end) > stopTimes(end)
-        stopTimes = [stopTimes, length(piezo_envelope)];
-    end
-        
-    if draw_plots
-        %visually inspect that the previous step is correct
-        figure(2)
-        x_values = [startTimes, stopTimes];
-        y_values = repmat((100),1,length(x_values));
-        scatter(x_values, y_values) 
-        hold on
-    end
-
-    if length(startTimes) ~= length(stopTimes)
-        ME = MException('Start and Stop times are not the same size');
-        throw(ME) 
-    end
-    if any(startTimes > stopTimes)
-        ME = MException('Start time should not be greater than Stop time');
-        throw(ME)
-    end
-        
-    % Find the call times, the requirements of which are that the call time 
-    % is greater than callLength and also merge any calls that are less 
-    % than mergethresh apart
-    callTimes = cell(1, length(startTimes));
-    index = 1;
-    for ii = 1:length(startTimes)
-        start = startTimes(ii);
-        stop = stopTimes(ii);
-
-
-        if stop - start >= FS_env * callLength
-            callTimes{index} = [start, stop];
-            index = index + 1;
-%             if index ~= 1
-%                 %check to see if we can merge with last call 
-%                 %just this start - previous stop < mergethresh * FS_env
-%                 previous_call = callTimes{index - 1};
-%                 if start - previous_call(2) <= mergeThresh * FS_env
-%                     callTimes{end} = [previous_call(1), stop];
-%                 else
-%                     callTimes{index} = [start, stop];
-%                     index = index + 1;
-%                 end
-%             else
-%                 callTimes{index} = [start, stop];
-%                 index = index + 1;
-%             end
-        end     
-    end
-    callTimes = callTimes(1 : index - 1);
-
+    
+    %% Check that the detection is working properly within each chunck
+    TotalNumSoundEvent = sum(cellfun(@numel,callTimes))/2;
     if draw_plots
         Delay = 100; % delay to add before after each call in ms
         DBNoise = 60; % amplitude parameter for the color scale of the spectro
         FHigh = 10000; % y axis max scale for the spectrogram
         %visually inspect that the previous step is correct
-        for ii = 1:length(callTimes)
-            Fig3=figure(3);
-            clf(Fig3)
-            call = callTimes{ii};
-            x_start = call(1)-Delay;
-            x_stop = call(2)+Delay;
-            Raw = centered_piezo_signal_debug(round(x_start/FS_env*SamplingFreq):round(x_stop/FS_env*SamplingFreq));
-            [~] = spec_only_bats(Raw,SamplingFreq,DBNoise, FHigh);
-            hold on
-            yyaxis right
-            plot(piezo_envelope(x_start:x_stop), '-k','LineWidth',2)
-            hold on
-            line([call(1)-x_start, call(2)-x_start], max(piezo_envelope(x_start:x_stop))*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
-            hold off
-            pause(1)
+        for ct = 1:length(callTimes)
+            for ii=1:50:size(callTimes{ct},1)
+                Fig3=figure(3);
+                clf(Fig3)
+                call = callTimes{ct}(ii,:);
+                x_start = call(1)-Delay;
+                x_stop = call(2)+Delay;
+                Raw = piezo_centered_signal{ct}(round(x_start/FS_env*SamplingFreq):round(x_stop/FS_env*SamplingFreq));
+                [~] = spec_only_bats(Raw,SamplingFreq,DBNoise, FHigh);
+                caxis('manual');
+                caxis([2 70]);
+                ylim([-500 10000])
+                hold on
+                yyaxis right
+                plot(piezo_envelope{ct}(x_start:x_stop), '-k','LineWidth',2)
+                hold on
+                plot(piezo_envelope2{ct}(x_start:x_stop), ':r','LineWidth',2)
+                hold on
+                %             line([call(1)-x_start, call(2)-x_start], max(piezo_envelope(x_start:x_stop))*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
+                line([call(1)-x_start, call(2)-x_start], -5*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
+                ylim([-10 300])
+                hold off
+                title(sprintf('detection %d/%d',sum(cellfun(@numel,callTimes(1:(ct-1))))/2+ii,TotalNumSoundEvent))
+                pause(1)
+            end
         end
         
     end
+    
+    %% Calculate the best estimate of the onset/offset of each sound event...
+    % in the original data centered_piezo_signal or AD_countint16
+    Length_raw_chuncks = [0 cellfun('length',piezo_centered_signal)];
+    SoundEvent_LoggerSamp_local = cell(length(callTimes),1);
+    for ct = 1:length(callTimes)
+        SoundEvent_LoggerSamp_local{ct} = (round(callTimes{ct}/FS_env*SamplingFreq) + sum(Length_raw_chuncks(1:ct)))';
+    end
+    SoundEvent_LoggerSamp_local = reshape([SoundEvent_LoggerSamp_local{:}],2,TotalNumSoundEvent)';
+    
+     %% Merge sound events that are separated by less than mergethresh
+     %find which successive events we can merge
+     Events2Merge = [0; (SoundEvent_LoggerSamp_local(2:end,1)-SoundEvent_LoggerSamp_local(1:end-1,2))<= (mergeThresh * SamplingFreq)];
+     FirstEvents2Merge = find([diff(Events2Merge); 0]==1); % onset of each sequence of events that should be merged
+     LastEvents2Merge = find([diff(Events2Merge); 0]==-1);% offset of each sequence of events that should be merged
+     Events2keep = strfind([Events2Merge' 0],[0 0]); % events that should be kept as they are
+     if length(FirstEvents2Merge)~=length(LastEvents2Merge)
+         error('Problem in the detection of sequences of sound events to merge')
+     end
+     SoundEvent_LoggerSamp = [SoundEvent_LoggerSamp_local(Events2keep,:) ; [SoundEvent_LoggerSamp_local(FirstEvents2Merge,1) SoundEvent_LoggerSamp_local(LastEvents2Merge,2)]];
+     % reorder in increasing samp value
+     [~,IndOrd]=sort(SoundEvent_LoggerSamp(:,1));
+     SoundEvent_LoggerSamp = SoundEvent_LoggerSamp(IndOrd,:);
+     
+%% SAVE
 %     
 % %     save('CallTimes.mat', 'callTimes', 'piezo_envelope', 'noise', 'samplingFreq', 'AD_count_double', '-v7.3')
 %     
