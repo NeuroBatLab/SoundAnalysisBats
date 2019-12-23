@@ -128,7 +128,7 @@ else
         clf(F1)
         ColorCode = [get(groot,'DefaultAxesColorOrder');1 1 1; 0 1 1; 1 1 0];
         subplot(length(AudioLogs)+2,1,1)
-        [~] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
+        [Raw_Spec.to, Raw_Spec.fo, Raw_Spec.logB] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
         hold on
         yyaxis right
         plot((1:length(Amp_env_Mic{vv}))/Fs_env*1000, Amp_env_Mic{vv}, 'r-', 'LineWidth',2)
@@ -242,10 +242,20 @@ else
                         % Plot the localization of that sound extract on figure 3
                         % Duplicate the figure of the spectrogram for manual input purposes
                         F3 = figure(3);
-                        %                             if ii==1
                         clf(F3)
-                        %                   cla
-                        [~] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
+                        maxB = max(max(Raw_Spec.logB));
+                        minB = maxB-DB_noise;            
+                        imagesc(Raw_Spec.to*1000,Raw_Spec.fo,logB);          % to is in seconds
+                        axis xy;
+                        caxis('manual');
+                        caxis([minB maxB]); 
+                        cmap = spec_cmap();
+                        colormap(cmap);
+                        v_axis = axis; 
+                        v_axis(3)=0; 
+                        v_axis(4)=FHigh_spec;
+                        axis(v_axis);                                
+                        xlabel('time (ms)'), ylabel('Frequency');
                         title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
                         yyaxis right
                         %                                 ylabel('Logger ID')
@@ -254,7 +264,6 @@ else
                         hold on
                         yyaxis right
                         plot([IndVocStart{RowSize}(ii)/Fs_env IndVocStop{RowSize}(ii)/Fs_env]*1000, [RowSize RowSize], 'k:', 'LineWidth',2)
-                        
                         hold off
                         
                         % Decide if that call was already detected and ID
@@ -479,8 +488,19 @@ else
                             F3 = figure(3);
                             %                             if ii==1
                             clf(F3)
-                            %                   cla
-                            [~] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
+                            maxB = max(max(Raw_Spec.logB));
+                            minB = maxB-DB_noise;
+                            imagesc(Raw_Spec.to*1000,Raw_Spec.fo,logB);          % to is in seconds
+                            axis xy;
+                            caxis('manual');
+                            caxis([minB maxB]);
+                            cmap = spec_cmap();
+                            colormap(cmap);
+                            v_axis = axis;
+                            v_axis(3)=0;
+                            v_axis(4)=FHigh_spec;
+                            axis(v_axis);
+                            xlabel('time (ms)'), ylabel('Frequency');
                             title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
                             yyaxis right
                             %                                 ylabel('Logger ID')
@@ -617,8 +637,19 @@ else
                             %                             if ii==1
                             F3 = figure(3);
                             clf(F3)
-                            %                   cla
-                            [~] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
+                            maxB = max(max(Raw_Spec.logB));
+                            minB = maxB-DB_noise;
+                            imagesc(Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
+                            axis xy;
+                            caxis('manual');
+                            caxis([minB maxB]);
+                            cmap = spec_cmap();
+                            colormap(cmap);
+                            v_axis = axis;
+                            v_axis(3)=0;
+                            v_axis(4)=FHigh_spec;
+                            axis(v_axis);
+                            xlabel('time (ms)'), ylabel('Frequency');
                             title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
                             yyaxis right
                             %                                 ylabel('Logger ID')
