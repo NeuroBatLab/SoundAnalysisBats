@@ -16,7 +16,14 @@ if ~isfile(Data1)
     warning('No vocalization data extracted by who_calls.m or get_logger_data_voc.m')
 else
     DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_*.mat', Date, ExpStartTime)));
-    load(fullfile(DataFile.folder, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
+    if length(DataFile)>1
+        warning('2 potential data files where found')
+        DataFile
+        warning('we work with the fierst one %s',DataFile(1).name)
+        load(fullfile(DataFile(1).folder, DataFile(1).name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
+    else
+        load(fullfile(DataFile(1).folder, DataFile(1).name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
+    end
     load(Data1, 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename');
     
     
@@ -156,7 +163,11 @@ else
         end
     end
     % save the values!
-    save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames','-append');
+    if length(DataFile)>1
+        save(fullfile(DataFile(1).folder, DataFile(1).name), 'BioSoundCalls','BioSoundFilenames','-append');
+    else
+        save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames','-append');
+    end
 end
 
 %% Internal functions
