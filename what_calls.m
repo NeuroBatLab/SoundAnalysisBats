@@ -60,6 +60,9 @@ else
     %% Loop through calls, save them as wav files and run biosound
     Ncall = nan(NV,1);
     
+    % Turn off warning notifications for python 2 struct conversion
+    warning('off', 'MATLAB:structOnObject')
+    
     NVocFile = 0;
     for vv=1:NV
         [~,FileVoc]=fileparts(VocFilename{VocInd(vv)});
@@ -168,6 +171,8 @@ else
     else
         save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames','-append');
     end
+    % Turn off warning notifications for python 2 struct conversion
+    warning('on', 'MATLAB:structOnObject')
 end
 
 %% Internal functions
