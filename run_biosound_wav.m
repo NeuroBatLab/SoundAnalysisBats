@@ -31,6 +31,8 @@ else
     NV = length(WaveFiles);
     BioSoundFilenames = cell(NV,1);
     BioSoundCalls = cell(NV,1);
+    BatID = cell(NV,1);
+    Condition = cell(NV,1);
     BioSoundUniqParam = nan(NV,22);
     BioSoundParamNames = {'stdtime' 'meantime' 'skewtime' 'entropytime'...
         'kurtosistime' 'AmpPeriodF' 'AmpPeriodP' 'rms' 'maxAmp' 'stdspect'...
@@ -44,14 +46,21 @@ else
     %% Loop through calls, save them as wav files and run biosound
     for vv=1:NV
         fprintf(1,'%d/%d Vocalization\n',vv,NV)
-        
+        % load the file
         [WL, FS] = audioread(fullfile(WaveFiles(vv).folder, WaveFiles(vv).name));
+        % filter and center the data
         FiltWL = filtfilt(sos_high_raw,1,WL);
         FiltWL = FiltWL-mean(FiltWL);
+        %parse out info
         BioSoundFilenames{vv} = fullfile(WaveFiles(vv).folder, WaveFiles(vv).name);
+        Ind_ = strfind(WaveFiles(vv).name,'_');
+        BatID{vv} = WaveFiles(vv).name((Ind_(1)-5):(Ind_(1)-1));
+        Condition{vv} = WaveFiles(vv).name(1:(Ind_(1)-9));
+        
+        % run biosound
         BioSoundCalls{vv} = runBiosound(FiltWL, FS, F_high_Raw);
         
-        % Feed data into a Matrix
+        % Feed biosound data into a Matrix
         % temporal parameters (calculated on the envelope)
         BioSoundUniqParam(vv,1) = BioSoundCalls{vv}.stdtime;
         BioSoundUniqParam(vv,2) = BioSoundCalls{vv}.meantime;
@@ -111,7 +120,7 @@ else
     warning('on', 'MATLAB:structOnObject')
 
     % save the values!
-    save(fullfile(OutputDir, 'BioSoundMatrix.mat'), 'BioSoundCalls','BioSoundFilenames','BioSoundUniqParam','BioSoundParamNames');
+    save(fullfile(OutputDir, 'BioSoundMatrix.mat'), 'BioSoundCalls','BioSoundFilenames','BioSoundUniqParam','BioSoundParamNames', 'BatID','Condition');
     
 end
 end
