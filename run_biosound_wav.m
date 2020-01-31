@@ -1,4 +1,12 @@
-function run_biosound_wav(InputDir)
+function run_biosound_wav(InputDir,SaveBiosoundperFile, SaveFig)
+
+if nargin<3
+    SaveFig=0;
+end
+if nargin<2
+    SaveBiosoundperFile = 0;
+end
+
 % Hard coded parameters for the calculation of the spectrum in biosound
 F_high_Raw = 50000;
 
@@ -10,6 +18,9 @@ ManualPause=0;
 py.importlib.import_module('soundsig')
 
 % Load data
+% WaveFiles1 = dir(fullfile(InputDir, 'Kanamycin*.wav'));
+% WaveFiles2 = dir(fullfile(InputDir, 'Saline-Deaf*.wav'));
+% WaveFiles = [WaveFiles1; WaveFiles2];
 WaveFiles = dir(fullfile(InputDir, '*.wav'));
 if isempty(WaveFiles)
     warning('**** No vocalization in %s ****\n',InputDir)
@@ -30,10 +41,11 @@ else
     % Number of vocalization cuts for preallocation of space
     NV = length(WaveFiles);
     BioSoundFilenames = cell(NV,1);
-    BioSoundCalls = cell(NV,1);
     BatID = cell(NV,1);
     Condition = cell(NV,1);
-    BioSoundUniqParam = nan(NV,22);
+    if ~SaveBiosoundperFile
+        BioSoundUniqParam = nan(NV,22);
+    end
     BioSoundParamNames = {'stdtime' 'meantime' 'skewtime' 'entropytime'...
         'kurtosistime' 'AmpPeriodF' 'AmpPeriodP' 'rms' 'maxAmp' 'stdspect'...
         'meanspect' 'skewspect' 'entropyspect' 'kurtosisspect' 'q1' 'q2' 'q3'...
@@ -58,70 +70,77 @@ else
         Condition{vv} = WaveFiles(vv).name(1:(Ind_(1)-9));
         
         % run biosound
-        BioSoundCalls{vv} = runBiosound(FiltWL, FS, F_high_Raw);
+        BioSoundCall = runBiosound(FiltWL, FS, F_high_Raw);
         
-        % Feed biosound data into a Matrix
-        % temporal parameters (calculated on the envelope)
-        BioSoundUniqParam(vv,1) = BioSoundCalls{vv}.stdtime;
-        BioSoundUniqParam(vv,2) = BioSoundCalls{vv}.meantime;
-        BioSoundUniqParam(vv,3) = BioSoundCalls{vv}.skewtime;
-        BioSoundUniqParam(vv,4) = BioSoundCalls{vv}.entropytime;
-        BioSoundUniqParam(vv,5) = BioSoundCalls{vv}.kurtosistime;
-        if ~isempty(BioSoundCalls{vv}.AmpPeriodF)
-            BioSoundUniqParam(vv,6) = BioSoundCalls{vv}.AmpPeriodF;
-            BioSoundUniqParam(vv,7) = BioSoundCalls{vv}.AmpPeriodP;
+        if ~SaveBiosoundperFile
+            % Feed biosound data into a Matrix
+            % temporal parameters (calculated on the envelope)
+            BioSoundUniqParam(vv,1) = BioSoundCall.stdtime;
+            BioSoundUniqParam(vv,2) = BioSoundCall.meantime;
+            BioSoundUniqParam(vv,3) = BioSoundCall.skewtime;
+            BioSoundUniqParam(vv,4) = BioSoundCall.entropytime;
+            BioSoundUniqParam(vv,5) = BioSoundCall.kurtosistime;
+            if ~isempty(BioSoundCall.AmpPeriodF)
+                BioSoundUniqParam(vv,6) = BioSoundCall.AmpPeriodF;
+                BioSoundUniqParam(vv,7) = BioSoundCall.AmpPeriodP;
+            end
+
+            % Amplitude parameters calculated on the envelope
+             BioSoundUniqParam(vv,8) = BioSoundCall.rms;
+              BioSoundUniqParam(vv,9) = BioSoundCall.maxAmp;
+
+            % Spectral parameters calculated on the spectrum
+            BioSoundUniqParam(vv,10) = BioSoundCall.stdspect;
+            BioSoundUniqParam(vv,11) = BioSoundCall.meanspect;
+            BioSoundUniqParam(vv,12) = BioSoundCall.skewspect;
+            BioSoundUniqParam(vv,13) = BioSoundCall.entropyspect;
+            BioSoundUniqParam(vv,14) = BioSoundCall.kurtosisspect;
+            BioSoundUniqParam(vv,15) = BioSoundCall.q1;
+            BioSoundUniqParam(vv,16) = BioSoundCall.q2;
+            BioSoundUniqParam(vv,17) = BioSoundCall.q3;
+
+            % Fundamental parameters
+            if ~isempty(BioSoundCall.fund)
+                BioSoundUniqParam(vv,18) = BioSoundCall.fund;
+            end
+            if ~isempty(BioSoundCall.cvfund)
+                BioSoundUniqParam(vv,19) = BioSoundCall.cvfund;
+            end
+            if ~isempty(BioSoundCall.minfund)
+                BioSoundUniqParam(vv,20) = BioSoundCall.minfund;
+            end
+            if ~isempty(BioSoundCall.maxfund)
+                BioSoundUniqParam(vv,21) = BioSoundCall.maxfund;
+            end
+            if ~isempty(BioSoundCall.meansal)
+                BioSoundUniqParam(vv,22) = BioSoundCall.meansal;
+            end
         end
-         
-        % Amplitude parameters calculated on the envelope
-         BioSoundUniqParam(vv,8) = BioSoundCalls{vv}.rms;
-          BioSoundUniqParam(vv,9) = BioSoundCalls{vv}.maxAmp;
-        
-        % Spectral parameters calculated on the spectrum
-        BioSoundUniqParam(vv,10) = BioSoundCalls{vv}.stdspect;
-        BioSoundUniqParam(vv,11) = BioSoundCalls{vv}.meanspect;
-        BioSoundUniqParam(vv,12) = BioSoundCalls{vv}.skewspect;
-        BioSoundUniqParam(vv,13) = BioSoundCalls{vv}.entropyspect;
-        BioSoundUniqParam(vv,14) = BioSoundCalls{vv}.kurtosisspect;
-        BioSoundUniqParam(vv,15) = BioSoundCalls{vv}.q1;
-        BioSoundUniqParam(vv,16) = BioSoundCalls{vv}.q2;
-        BioSoundUniqParam(vv,17) = BioSoundCalls{vv}.q3;
-        
-        % Fundamental parameters
-        if ~isempty(BioSoundCalls{vv}.fund)
-            BioSoundUniqParam(vv,18) = BioSoundCalls{vv}.fund;
-        end
-        if ~isempty(BioSoundCalls{vv}.cvfund)
-            BioSoundUniqParam(vv,19) = BioSoundCalls{vv}.cvfund;
-        end
-        if ~isempty(BioSoundCalls{vv}.minfund)
-            BioSoundUniqParam(vv,20) = BioSoundCalls{vv}.minfund;
-        end
-        if ~isempty(BioSoundCalls{vv}.maxfund)
-            BioSoundUniqParam(vv,21) = BioSoundCalls{vv}.maxfund;
-        end
-        if ~isempty(BioSoundCalls{vv}.meansal)
-            BioSoundUniqParam(vv,22) = BioSoundCalls{vv}.meansal;
-        end
-          
         
         % Plot figures of biosound results for Microphone data
         Fig1=figure(1);
         clf
         title(sprintf('%d/%d Vocalization',vv,NV))
-        plotBiosound(BioSoundCalls{vv,1}, F_high_Raw)
+        plotBiosound(BioSoundCall, F_high_Raw)
         % Play the sound
         if ManualPause
             AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS);
             play(AP)
         end
-        print(Fig1,fullfile(OutputDir,sprintf('%s_biosound.pdf', WaveFiles(vv).name)),'-dpdf','-fillpage')
+        if SaveFig
+            print(Fig1,fullfile(OutputDir,sprintf('%s_biosound.pdf', WaveFiles(vv).name)),'-dpdf','-fillpage')
+        end
+        if SaveBiosoundperFile
+            save(fullfile(OutputDir,sprintf('%s_biosound.mat', WaveFiles(vv).name)),'BioSoundCall')
+        end
     end
     % Turn back on warnings regarding Pyton to structure conversion
     warning('on', 'MATLAB:structOnObject')
 
-    % save the values!
-    save(fullfile(OutputDir, 'BioSoundMatrix.mat'), 'BioSoundCalls','BioSoundFilenames','BioSoundUniqParam','BioSoundParamNames', 'BatID','Condition');
-    
+    if ~SaveBiosoundperFile
+        % save all the values as a matrix!
+        save(fullfile(OutputDir, 'BioSoundMatrix.mat'),'BioSoundFilenames','BioSoundUniqParam','BioSoundParamNames', 'BatID','Condition');
+    end
 end
 end
 

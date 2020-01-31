@@ -81,7 +81,7 @@ else
                     % Extract the sound of the microphone that
                     % correspond to the data
                     IndOn = IndVocStartRaw_merged{VocInd(vv)}{ll}(nn);
-                    IndOff = IndVocStopRaw_merged{VocInd(vv)}{ll}(nn);
+                    IndOff = min(length(Raw_wave{VocInd(vv)}),IndVocStopRaw_merged{VocInd(vv)}{ll}(nn)); % we take the min here as sometimes the rounding procedures gets numbers outisde of wave length
                     WL = Raw_wave{VocInd(vv)}(IndOn:IndOff);
                     FiltWL = filtfilt(sos_high_raw,1,WL);
                     FiltWL = FiltWL-mean(FiltWL);
@@ -272,6 +272,8 @@ end
         BiosoundObj.wf = double(BiosoundObj.wf);
         BiosoundObj.wt = double(BiosoundObj.wt);
         BiosoundObj.mps = double(BiosoundObj.mps);
+        BiosoundObj = rmfield(BiosoundObj,'emitter');
+        BiosoundObj.hashid = double(BiosoundObj.hashid);
     end
 
     function plotBiosound(BiosoundObj, F_high, FormantPlot)
