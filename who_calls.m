@@ -245,7 +245,7 @@ else
                         clf(F3)
                         maxB = max(max(Raw_Spec.logB));
                         minB = maxB-DB_noise;            
-                        imagesc(Raw_Spec.to*1000,Raw_Spec.fo,logB);          % to is in seconds
+                        imagesc(Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
                         axis xy;
                         caxis('manual');
                         caxis([minB maxB]); 
@@ -490,7 +490,7 @@ else
                             clf(F3)
                             maxB = max(max(Raw_Spec.logB));
                             minB = maxB-DB_noise;
-                            imagesc(Raw_Spec.to*1000,Raw_Spec.fo,logB);          % to is in seconds
+                            imagesc(Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
                             axis xy;
                             caxis('manual');
                             caxis([minB maxB]);
