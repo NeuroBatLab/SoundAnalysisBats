@@ -54,8 +54,27 @@ else
         end
     end
     
-    BioSoundFilenames = cell(VocCall,2);
-    BioSoundCalls = cell(VocCall,2);
+    try
+        load(fullfile(DataFile(1).folder, DataFile(1).name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv');
+        if exist('BioSoumdCalls','var')
+            PrevData = input('Do you want to use previous data?');
+        else
+            fprintf(1, 'No previous data, starting from scratch');
+            PrevData = 0;
+        end
+    catch
+        fprintf(1, 'No previous data, starting from scratch');
+        PrevData = 0;
+    end
+    if ~PrevData
+        BioSoundFilenames = cell(VocCall,2);
+        BioSoundCalls = cell(VocCall,2);
+        Firstcall = 1;
+        NVocFile = 0;
+    else
+        Firstcall=vv;
+        NVocFile = NVocFile-1;
+    end
     
     %% Loop through calls, save them as wav files and run biosound
     Ncall = nan(NV,1);
@@ -63,8 +82,8 @@ else
     % Turn off warning notifications for python 2 struct conversion
     warning('off', 'MATLAB:structOnObject')
     
-    NVocFile = 0;
-    for vv=1:NV
+    
+    for vv=Firstcall:NV
         [~,FileVoc]=fileparts(VocFilename{VocInd(vv)});
         for ll=1:length(IndVocStartRaw_merged{VocInd(vv)})
             % Logger number
@@ -164,12 +183,13 @@ else
                 end
             end
         end
-    end
-    % save the values!
-    if length(DataFile)>1
-        save(fullfile(DataFile(1).folder, DataFile(1).name), 'BioSoundCalls','BioSoundFilenames','-append');
-    else
-        save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames','-append');
+        
+        % save the values!
+        if length(DataFile)>1
+            save(fullfile(DataFile(1).folder, DataFile(1).name), 'BioSoundCalls','BioSoundFilenames','NVocFile','-append');
+        else
+            save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','-append');
+        end
     end
     % Turn off warning notifications for python 2 struct conversion
     warning('on', 'MATLAB:structOnObject')
