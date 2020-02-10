@@ -65,9 +65,11 @@ else
         FiltWL = FiltWL-mean(FiltWL);
         %parse out info
         BioSoundFilenames{vv} = fullfile(WaveFiles(vv).folder, WaveFiles(vv).name);
-        Ind_ = strfind(WaveFiles(vv).name,'_');
-        BatID{vv} = WaveFiles(vv).name((Ind_(1)-5):(Ind_(1)-1));
-        Condition{vv} = WaveFiles(vv).name(1:(Ind_(1)-9));
+        %Ind_ = strfind(WaveFiles(vv).name,'_');
+        %BatID{vv} = WaveFiles(vv).name((Ind_(1)-5):(Ind_(1)-1));
+        %Condition{vv} = WaveFiles(vv).name(1:(Ind_(1)-9));
+        BatID{vv} = WaveFiles(vv).name((end-8):(end-4));
+        Condition{vv} = WaveFiles(vv).name(1:5);
         
         % run biosound
         BioSoundCall = runBiosound(FiltWL, FS, F_high_Raw);
