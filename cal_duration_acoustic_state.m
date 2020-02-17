@@ -12,7 +12,7 @@ function cal_duration_acoustic_state(BioSoundPath)
 % 7. DAS is the interval around i, where euclidian distance in unit of MAD<2
 
 %% List the data
-AllBioS = dir(fullfile(BioSoundPath, '*.mat'));
+AllBioS = dir(fullfile(BioSoundPath,'*.mat'));
 NFiles = length(AllBioS);
 
 %% Calculate median and MAD for all time varying features
@@ -24,6 +24,7 @@ AllAmp =cell(1,NFiles);
 AllSpecMean = cell(1,NFiles);
 
 for ff=1:NFiles
+    fprintf('Calculating Median MAD: File %d/%d\n',ff, NFiles);
     load(fullfile(AllBioS(ff).folder,AllBioS(ff).name),'BioSoundCall')
     AllSal{ff} = BioSoundCall.sal;
     AllSpecMeanSlope{ff} = diff(BioSoundCall.SpectralMean);
@@ -53,13 +54,15 @@ MADSpecMean = median(abs(AllSpecMean - MedianSpecMean),'omitnan');
 
 %% Loop again through files correct input values and calculate DAS
 for ff=1:NFiles
+    fprintf('Calculating DAS: File %d/%d\n',ff, NFiles);
     % load the data for that bat/file
     load(fullfile(AllBioS(ff).folder,AllBioS(ff).name),'BioSoundCall')
     % correct values by median and MAD
     Sal = (BioSoundCall.sal(1:end-1)-MedianSal)/MADSal;
+    Sal(isnan(Sal)) = 0;
     SpecMeanSlope = (diff(BioSoundCall.SpectralMean) - MedianSpecMeanSlope)/MADSpecMeanSlope;
     AmpSlope = (diff(BioSoundCall.amp) - MedianAmpSlope)/MADAmpSlope;
-    Amp = (BioSoundCall.amp(1:end-1)-MeadianAmp)/MADAmp;
+    Amp = (BioSoundCall.amp(1:end-1)-MedianAmp)/MADAmp;
     SpecMean = (BioSoundCall.SpectralMean(1:end-1) - MedianSpecMean)/MADSpecMean;
     % Now iterate through time point and calculate DAS
     NP = length(Sal);
@@ -69,7 +72,7 @@ for ff=1:NFiles
         % distance >2
         for  ifuture=1:NP-pp
             ED = ((Sal(pp)-Sal(pp+ifuture))^2)^0.5 + ((SpecMean(pp)-SpecMean(pp+ifuture))^2)^0.5 + ((SpecMeanSlope(pp)-SpecMeanSlope(pp+ifuture))^2)^0.5 +((Amp(pp)-Amp(pp+ifuture))^2)^0.5 + ((AmpSlope(pp)-AmpSlope(pp+ifuture))^2)^0.5;
-            if ED<2
+            if ED>2
                 break
             end
         end
@@ -78,9 +81,15 @@ for ff=1:NFiles
         % distance >2
         for  ipast=1:pp-1
             ED = ((Sal(pp)-Sal(pp-ipast))^2)^0.5 + ((SpecMean(pp)-SpecMean(pp-ipast))^2)^0.5 + ((SpecMeanSlope(pp)-SpecMeanSlope(pp-ipast))^2)^0.5 +((Amp(pp)-Amp(pp-ipast))^2)^0.5 + ((AmpSlope(pp)-AmpSlope(pp-ipast))^2)^0.5;
-            if ED<2
+            if ED>2
                 break
             end
+        end
+        if isempty(ifuture)
+            ifuture =0;
+        end
+        if isempty(ipast)
+            ipast = 0;
         end
         DAS(pp) = ipast + ifuture -2;
     end

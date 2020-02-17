@@ -19,11 +19,20 @@ else
     if length(DataFile)>1
         warning('2 potential data files where found')
         DataFile
-        warning('we work with the fierst one %s',DataFile(1).name)
-        load(fullfile(DataFile(1).folder, DataFile(1).name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
-    else
-        load(fullfile(DataFile(1).folder, DataFile(1).name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
+        warning('we work with the first one %s',DataFile(1).name)
     end
+    % bringing the file back on the local computer (we're going to write
+    % pretty often to it)
+    WorkDir = ['~' filesep 'WorkingDirectory'];
+    fprintf(1,'Transferring data from the server %s\n on the local computer %s\n', DataFile(1).folder, WorkDir);
+    mkdir(WorkDir)
+    [s,m,e]=copyfile(fullfile(DataFile(1).folder, DataFile(1).name), WorkDir, 'f');
+    if ~s
+        m %#ok<NOPRT>
+        e %#ok<NOPRT>
+        error('File transfer did not occur correctly for %s\n', fullfile(DataFile(1).folder, DataFile(1).name));
+    end
+    load(fullfile(WorkDir, DataFile(1).name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
     load(Data1, 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename');
     
     
@@ -55,7 +64,7 @@ else
     end
     
     try
-        load(fullfile(DataFile(1).folder, DataFile(1).name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv');
+        load(fullfile(WorkDir, DataFile(1).name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv');
         if exist('BioSoumdCalls','var')
             PrevData = input('Do you want to use previous data?');
         else
@@ -186,13 +195,53 @@ else
         
         % save the values!
         if length(DataFile)>1
-            save(fullfile(DataFile(1).folder, DataFile(1).name), 'BioSoundCalls','BioSoundFilenames','NVocFile','-append');
+            save(fullfile(WorkDir, DataFile(1).name), 'BioSoundCalls','BioSoundFilenames','NVocFile','-append');
         else
-            save(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','-append');
+            save(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','-append');
         end
     end
     % Turn off warning notifications for python 2 struct conversion
     warning('on', 'MATLAB:structOnObject')
+    % Transfer data bacn on the server
+    fprintf(1,'Transferring data from the local computer %s\n back on the server %s\n', WorkDir, DataFile(1).folder);
+    [s,m,e]=copyfile(fullfile(WorkDir, DataFile(1).name), DataFile(1).folder, 'f');
+    if ~s
+        TicTransfer = tic;
+        while toc(TicTransfer)<30*60
+            [s,m,e]=copyfile(fullfile(WorkDir, DataFile(1).name), DataFile(1).folder, 'f');
+            if s
+                return
+            end
+        end
+        if ~s
+            s %#ok<NOPRT>
+            m %#ok<NOPRT>
+            e %#ok<NOPRT>
+            error('File transfer did not occur correctly for %s\n Although we tried for 30min\n', DataFile(1).folder);
+        else
+            fprintf('Extracted data transfered back on server in:\n%s\n',  DataFile(1).folder);
+        end
+    else
+        fprintf('Extracted data transfered back on server in:\n%s\n',  DataFile(1).folder);
+    end
+    if s  %erase local data
+        [sdel,mdel,edel]=rmdir(WorkDir, 's');
+        if ~sdel
+            TicErase = tic;
+            while toc(TicErase)<30*60
+                [sdel,mdel,edel]=rmdir(WorkDir, 's');
+                if sdel
+                    return
+                end
+            end
+        end
+        if ~sdel
+            sdel %#ok<NOPRT>
+            mdel %#ok<NOPRT>
+            edel %#ok<NOPRT>
+            error('File erase did not occur correctly for %s\n Although we tried for 30min\n', WorkDir);
+        end
+    end
 end
 
 %% Internal functions
