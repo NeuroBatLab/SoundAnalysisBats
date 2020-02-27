@@ -109,6 +109,7 @@ else
     end
     %% Loop through vocalizations sequences and calculate amplitude envelopes
     for vv=vv:Nvoc
+        fprintf(1,'Voc sequence %d/%d\n',vv,Nvoc);
         %% First calculate the time varying RMS of the ambient microphone
         Amp_env_LowPassLogVoc{vv} = cell(length(AudioLogs),1);
         Amp_env_HighPassLogVoc{vv} = cell(length(AudioLogs),1);
@@ -139,8 +140,8 @@ else
         
         if Manual
             pause(0.1)
-            Player= audioplayer((Raw_wave{vv} - mean(Raw_wave{vv}))/std(Raw_wave{vv}), FS); %#ok<TNMLP>
-            play(Player)
+            PlayerMic= audioplayer((Raw_wave{vv} - mean(Raw_wave{vv}))/std(Raw_wave{vv}), FS); %#ok<TNMLP>
+            play(PlayerMic)
             pause(length(Raw_wave{vv})/FS +1)
         end
         %% Loop through the loggers and calculate envelopes
@@ -187,7 +188,7 @@ else
                 end
             end
         end
-        
+        ManCall = input('Did you hear vocalizations? yes (1) No (0)');
         if sum(cellfun('isempty',(Amp_env_LowPassLogVoc{vv}))) == length(AudioLogs) % No logger datat, just isolate onset/offset of vocalizations on the microphone
             if ~Force_Save_onoffsets_mic
                 fprintf(1,'CANNOT DETERMINE OWNERSHIP NO DETECTION OF ONSET/OFFSET\nSet Force_Save_onoffsets_mic to 1 to force saving data\n')
@@ -225,13 +226,17 @@ else
                 IndVocStart{RowSize} = strfind(VocpMic, ones(1,Consecutive_binsMic)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
                 if isempty(IndVocStart{RowSize})
                     fprintf(1,'No vocalization detected on microphone\n');
-                else% Some vocalizations were detected
+                else% Some vocalizations are automatically detected
                     IndVocStart_diffind = find(diff(IndVocStart{RowSize})>1);
                     IndVocStart{RowSize} = [IndVocStart{RowSize}(1) IndVocStart{RowSize}(IndVocStart_diffind +1)]; % these two lines get rid of overlapping sequences that werer detected several times
                     NV = length(IndVocStart{RowSize}); % This is the number of detected potential vocalization
                     IndVocStop{RowSize} = nan(1,NV);
                     NewCall1Noise0_temp = nan(NV,1);
-                    NewCall1Noise0_man = nan(NV,1);
+                    if ManCall
+                        NewCall1Noise0_man = nan(NV,1);
+                    else
+                        NewCall1Noise0_man = zeros(NV,1);
+                    end
                     for ii=1:NV
                         IVStop = find(VocpMic(IndVocStart{RowSize}(ii):end)==0, 1, 'first');
                         if ~isempty(IVStop)
@@ -285,8 +290,17 @@ else
                         text(IndVocStop{RowSize}(ii)/Fs_env*1000, RowSize, 'New call on Mic')
                         hold off
                         
-                        fprintf(1,'Computer guess: New call on Mic\n');
-                        NewCall1Noise0_man(ii) = input('Indicate your choice: new call (1) noise (0)\n');
+                        fprintf(1,'Computer guess for that sound element: New call on Mic\n');
+                        if ManCall
+                            NewCall1Noise0_man(ii) = input('Indicate your choice: new call (1) noise (0) listen again to mic(any other number)\n');
+                            while NewCallNoise0_man(ii)~=0 && NewCallNoise0_man(ii)~=1
+                                play(PlayerMic)
+                                pause(length(Raw_wave{vv})/FS +1)
+                                NewCall1Noise0_man(ii) = input('Indicate your choice: new call (1) noise (0) listen again to mic(any other number)\n');
+                            end
+                        else
+                            fprintf(1,'Manual input enforced: Noise (0)\n');
+                        end
                         Agree = NewCall1Noise0_man(ii) == NewCall1Noise0_temp(ii);
                         if ~Agree
                             NewCall1Noise0_temp(ii) = NewCall1Noise0_man(ii);
@@ -357,14 +371,21 @@ else
                     end
                 end
                 [~,FileVoc]=fileparts(VocFilename{vv});
+                fprintf(1,'saving figures...\n')
                 if strcmp(SaveFileType,'pdf')
                     print(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
-                    saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
+                    if ManCall % Only save the RMS figure if there was a vocalization
+                        saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
+                    end
                 elseif strcmp(SaveFileType,'fig')
                     saveas(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.fig', FileVoc, MergeThresh)))
-                    saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.fig', FileVoc, MergeThresh)))
+                    if ManCall % Only save the RMS figure if there was a vocalization
+                        saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.fig', FileVoc, MergeThresh)))
+                    end
                 end
-                pause(1)
+                if ManCall
+                    pause(1)
+                end
                 clf(F1)
                 clf(F2)
                 
@@ -475,7 +496,11 @@ else
                         NV = length(IndVocStart{ll}); % This is the number of detected potential vocalization
                         IndVocStop{ll} = nan(1,NV);
                         NewCall1OldCall0_temp = nan(NV,1);
-                        NewCall1OldCall0_man = nan(NV,1);
+                        if ManCall
+                            NewCall1OldCall0_man = nan(NV,1);
+                        else
+                            NewCall1OldCall0_man = zeros(NV,1);
+                        end
                         for ii=1:NV
                             IVStop = find(VocpMic(IndVocStart{ll}(ii):end)==0, 1, 'first');
                             if ~isempty(IVStop)
@@ -536,11 +561,22 @@ else
                             hold off
                             
                             if NewCall1OldCall0_temp(ii)
-                                fprintf(1,'Computer guess: New call on Mic\n');
+                                fprintf(1,'Computer guess for that sound element: New call on Mic\n');
                             else
-                                fprintf(1,'Computer guess: Call already attributed\n');
+                                fprintf(1,'Computer guess for that sound element: Call already attributed\n');
                             end
-                            NewCall1OldCall0_man(ii) = input('Indicate your choice: new call on Mic (1) already known/noise (0)\n');
+                            if ManCall
+                                NewCall1OldCall0_man(ii) = input('Indicate your choice: new call on Mic (1) already known/noise (0) listen to Mic again(any other number)\n');
+                                while NewCall1OldCall0_man(ii)~=0 && NewCall1OldCall0_man(ii)~=1
+                                    PlayerMic= audioplayer((Raw_wave{vv} - mean(Raw_wave{vv}))/std(Raw_wave{vv}), FS); %#ok<TNMLP>
+                                    play(PlayerMic)
+                                    pause(length(Raw_wave{vv})/FS +1)
+                                    NewCall1OldCall0_man(ii) = input('Indicate your choice: new call (1) noise (0) listen to mic again(any other number)\n');
+                                end
+                            else
+                                fprintf(1,'Manual input enforced: Noise (0)\n');
+                            end
+                            
                             Agree = NewCall1OldCall0_man(ii)==NewCall1OldCall0_temp(ii);
                             if ~Agree
                                 NewCall1OldCall0_temp(ii) = NewCall1OldCall0_man(ii);
@@ -624,7 +660,11 @@ else
                         RMSRatio{ll} = nan(NV,1);
                         RMSDiff{ll} = nan(NV,1);
                         Call1Hear0_temp = nan(NV,1);
-                        Call1Hear0_man = nan(NV,1);
+                        if ManCall
+                            Call1Hear0_man = nan(NV,1);
+                        else
+                            Call1Hear0_man = zeros(NV,1);
+                        end
                         for ii=1:NV
                             IVStop = find(Vocp(ll,IndVocStart{ll}(ii):end)==0, 1, 'first');
                             if ~isempty(IVStop)
@@ -693,11 +733,21 @@ else
                             hold off
                             
                             if Call1Hear0_temp(ii)
-                                fprintf('Computer guess: %s calling\n',Fns_AL{ll});
+                                fprintf('Computer guess for that sound element: %s calling\n',Fns_AL{ll});
                             else
-                                fprintf('Computer guess: %s hearing/noise\n',Fns_AL{ll});
+                                fprintf('Computer guess for that sound element: %s hearing/noise\n',Fns_AL{ll});
                             end
-                            Call1Hear0_man(ii) = input('Indicate your choice: calling (1) hearing/noise (0)\n');
+                            if ManCall
+                                Call1Hear0_man(ii) = input('Indicate your choice: calling (1) hearing/noise (0) Play again to that logger recording (any other number)\n');
+                                while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
+                                    Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                                    play(Player)
+                                    pause(length(Raw_wave{vv})/FS +1)
+                                    Call1Hear0_man(ii) = input('Indicate your choice: new call (1) noise (0) listen again to that logger recording (any other number)\n');
+                                end
+                            else
+                                fprintf(1,'Manual input enforced: Noise (0)\n');
+                            end
                             Agree = Call1Hear0_temp(ii)== Call1Hear0_man(ii);
                             if ~Agree
                                 Call1Hear0_temp(ii) = Call1Hear0_man(ii);
@@ -818,15 +868,21 @@ else
             ylabel('AL ID')
             xlabel('Time (ms)')
             [~,FileVoc]=fileparts(VocFilename{vv}); %#ok<IDISVAR,USENS>
+            fprintf(1,'saving figures...\n')
             if strcmp(SaveFileType,'pdf')
                 print(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
-                saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
+                if ManCall % Only save the RMS figure if there was a vocalization
+                    saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
+                end
             elseif strcmp(SaveFileType,'fig')
                 saveas(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.fig', FileVoc, MergeThresh)))
-                saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.fig', FileVoc, MergeThresh)))
+                if ManCall % Only save the RMS figure if there was a vocalization
+                    saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.fig', FileVoc, MergeThresh)))
+                end
             end
-            
-            pause(1)
+            if ManCall
+                pause(1)
+            end
             clf(F1)
             clf(F2)
             
@@ -842,6 +898,7 @@ else
             RMSRatio_all{vv} = RMSRatio;
             RMSDiff_all{vv} = RMSDiff;
         end
+        fprintf(1,'saving data...\n')
         save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
     end
     if ~strcmp(Working_dir,Loggers_dir)
