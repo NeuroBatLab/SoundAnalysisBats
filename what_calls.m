@@ -219,10 +219,10 @@ else
             e %#ok<NOPRT>
             error('File transfer did not occur correctly for %s\n Although we tried for 30min\n', DataFile(1).folder);
         else
-            fprintf('Extracted data transfered back on server in:\n%s\n',  DataFile(1).folder);
+            fprintf('Data transfered back on server in:\n%s\n',  DataFile(1).folder);
         end
     else
-        fprintf('Extracted data transfered back on server in:\n%s\n',  DataFile(1).folder);
+        fprintf('Data transfered back on server in:\n%s\n',  DataFile(1).folder);
     end
     if s  %erase local data
         [sdel,mdel,edel]=rmdir(WorkDir, 's');
