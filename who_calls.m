@@ -571,7 +571,7 @@ else
                                     PlayerMic= audioplayer((Raw_wave{vv} - mean(Raw_wave{vv}))/std(Raw_wave{vv}), FS); %#ok<TNMLP>
                                     play(PlayerMic)
                                     pause(length(Raw_wave{vv})/FS +1)
-                                    NewCall1OldCall0_man(ii) = input('Indicate your choice: new call (1) noise (0) listen to mic again(any other number)\n');
+                                    NewCall1OldCall0_man(ii) = input('Indicate your choice: new call on Mic (1) already known/noise (0) listen to mic again(any other number)\n');
                                 end
                             else
                                 fprintf(1,'Manual input enforced: Noise (0)\n');
@@ -738,12 +738,12 @@ else
                                 fprintf('Computer guess for that sound element: %s hearing/noise\n',Fns_AL{ll});
                             end
                             if ManCall
-                                Call1Hear0_man(ii) = input('Indicate your choice: calling (1) hearing/noise (0) Play again to that logger recording (any other number)\n');
+                                Call1Hear0_man(ii) = input('Indicate your choice: calling (1) hearing/noise (0) Listen again to that logger recording (any other number)\n');
                                 while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
                                     Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                     play(Player)
                                     pause(length(Raw_wave{vv})/FS +1)
-                                    Call1Hear0_man(ii) = input('Indicate your choice: new call (1) noise (0) listen again to that logger recording (any other number)\n');
+                                    Call1Hear0_man(ii) = input('Indicate your choice: calling (1) hearing/noise (0) listen again to that logger recording (any other number)\n');
                                 end
                             else
                                 fprintf(1,'Manual input enforced: Noise (0)\n');
