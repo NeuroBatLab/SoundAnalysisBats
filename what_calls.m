@@ -23,7 +23,7 @@ else
     end
     % bringing the file back on the local computer (we're going to write
     % pretty often to it)
-    WorkDir = ['~' filesep 'WorkingDirectory'];
+    WorkDir = ['~' filesep 'WorkingDirectoryWhat'];
     fprintf(1,'Transferring data from the server %s\n on the local computer %s\n', DataFile(1).folder, WorkDir);
     mkdir(WorkDir)
     [s,m,e]=copyfile(fullfile(DataFile(1).folder, DataFile(1).name), WorkDir, 'f');
@@ -65,7 +65,7 @@ else
     
     try
         load(fullfile(WorkDir, DataFile(1).name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv');
-        if exist('BioSoumdCalls','var')
+        if exist('BioSoundCalls','var')
             PrevData = input('Do you want to use previous data?');
         else
             fprintf(1, 'No previous data, starting from scratch');
@@ -110,6 +110,9 @@ else
                     % correspond to the data
                     IndOn = IndVocStartRaw_merged{VocInd(vv)}{ll}(nn);
                     IndOff = min(length(Raw_wave{VocInd(vv)}),IndVocStopRaw_merged{VocInd(vv)}{ll}(nn)); % we take the min here as sometimes the rounding procedures gets numbers outisde of wave length
+                    if IndOn>=IndOff
+                        keyboard
+                    end
                     WL = Raw_wave{VocInd(vv)}(IndOn:IndOff);
                     FiltWL = filtfilt(sos_high_raw,1,WL);
                     FiltWL = FiltWL-mean(FiltWL);
@@ -133,6 +136,9 @@ else
                     % correspond to the data
                     IndOn = IndVocStartPiezo_merged{VocInd(vv)}{ll}(nn);
                     IndOff = IndVocStopPiezo_merged{VocInd(vv)}{ll}(nn);
+                    if IndOn>=IndOff
+                        keyboard
+                    end
                     WL = Piezo_wave.(Fns_AL{ll}){VocInd(vv)}(IndOn:min(IndOff, length(Piezo_wave.(Fns_AL{ll}){VocInd(vv)})));
                     WL = WL - mean(WL); % center the piezo data around 0
                     if any(abs(WL)>=1)
@@ -161,7 +167,7 @@ else
                     clf
                     title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
                     plotCallDynamic(BioSoundCalls{NVocFile,1}, BioSoundCalls{NVocFile,2})
-                    print(Fig3,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Dyn.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
+%                     print(Fig3,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Dyn.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
                     
                     
                     % Guess for the call category
