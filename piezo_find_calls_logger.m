@@ -1,4 +1,4 @@
-function [SoundEvent_LoggerSamp, SoundEvent_TranscTime_ms, CallEnvInd_merge, CallEnvInd] = piezo_find_calls_logger(Data_directory)
+function [SoundEvent_LoggerSamp, SoundEvent_TranscTime_ms, Piezo_envelope_All, CallEnvInd_merge, CallEnvInd] = piezo_find_calls_logger(Data_directory)
 % Takes in the directory for the individidual logger data
 % LOGGER_DIRECTORY and outputs SoundEvent_LoggerSamp, the start/stop indices of potential
 % calls in the raw input data. Note that SoundEvent_LoggerSamp is a matrix where each
@@ -12,10 +12,11 @@ draw_plots = false;
 
 DurChunck = 10; % duration (in min) of each chunck treated in the function. This duration ensures that there is no significant time drift between the envelope calculation and the original sound
 FS_env = 1000; % Sample frequency of the envelope
+EnvWin = 5; % duration of the sliding window for the envelope calculation
 BandPassFilter = [1000 5000]; % the frequencies we care about to identify when a call is made
 
 % Call detection parameters
-RMSfactor = 2; % how much greater the call's envelope needs to be than the noise. Subject to change implementation
+RMSfactor = 3; % how much greater the call's envelope needs to be than the noise. Subject to change implementation
 CallLength = 0.007; % minimum length of a call in s
 MergeThresh = 50e-3; % minimum length between two calls in s (50ms)
 
@@ -69,7 +70,7 @@ parfor ii = 1:NChuncks %%% parallelize
     fprintf(1,'Start Envelope chunck %d/%d\n', ii, NChuncks)
     LocalStart = tic;
     Filtered_piezo_sample = filtfilt(Sos_low, 1, Piezo_centered_signal{ii});
-    Filtered_sample_envelope = envelope(Filtered_piezo_sample, round(1e-3 * SamplingFreq), 'rms');
+    Filtered_sample_envelope = envelope(Filtered_piezo_sample, round(EnvWin*10^(-3) * SamplingFreq), 'rms');
     Piezo_envelope{ii} = resample(Filtered_sample_envelope, FS_env, SamplingFreq);
     % check the error by resample and randomly eliminate the corresponding
     % number of points in the envelope to suppress cumulative error of
@@ -202,11 +203,12 @@ end
 %% Check that the detection is working properly
 TotalNumSoundEvent = size(CallEnvInd,1);
 if draw_plots
+    Step=1;
     Delay = 100; % delay to add before after each call in ms
     DBNoise = 60; % amplitude parameter for the color scale of the spectro
     FHigh = 10000; % y axis max scale for the spectrogram
     %visually inspect that the previous step is correct
-    for ii=1:50:size(CallEnvInd,1)
+    for ii=1:Step:size(CallEnvInd,1)
             Fig3=figure(3);
             clf(Fig3)
             Call = CallEnvInd(ii,:);
@@ -223,7 +225,8 @@ if draw_plots
             yyaxis right
             plot(Piezo_envelope_All(x_start:x_stop), '-k','LineWidth',2)
             hold on
-            hline((RMSfactor * Noise))
+            HL = hline((RMSfactor * Noise));
+            HL.LineWidth=2;
             hold on
             %             line([call(1)-x_start, call(2)-x_start], max(piezo_envelope(x_start:x_stop))*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
             line([Call(1)-x_start, Call(2)-x_start], -5*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
@@ -276,8 +279,9 @@ if draw_plots
     Delay = 100; % delay to add before after each call in ms
     DBNoise = 60; % amplitude parameter for the color scale of the spectro
     FHigh = 10000; % y axis max scale for the spectrogram
+    Step = 1;
     %visually inspect that the previous step is correct
-    for ii=1:50:size(CallEnvInd_merge,1)
+    for ii=1:Step:size(CallEnvInd_merge,1)
             Fig4=figure(4);
             clf(Fig4)
             Call = CallEnvInd_merge(ii,:);
@@ -292,6 +296,9 @@ if draw_plots
             hold on
             yyaxis right
             plot(Piezo_envelope_All(x_start:x_stop), '-k','LineWidth',2)
+            hold on
+            HL = hline((RMSfactor * Noise));
+            HL.LineWidth=2;
             hold on
             %             line([call(1)-x_start, call(2)-x_start], max(piezo_envelope(x_start:x_stop))*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
             line([Call(1)-x_start, Call(2)-x_start], -5*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
