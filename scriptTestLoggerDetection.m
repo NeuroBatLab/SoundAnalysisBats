@@ -5,7 +5,7 @@
 % load(fullfile(Path2Data, '190623_1401_VocExtractData_200.mat'))
 % load(fullfile(Path2Data, '190623_1401_VocExtractData.mat'))
 % load(fullfile(Path2Audio, '190623_1401_VocExtractTimes.mat'))
-
+addpath(genpath('/Users/elie/Documents/CODE/SoundAnalysisBats'))
 
 %% Load data manually extracted
 Path2Data1 = '/Volumes/Julie4T/JuvenileRecordings151/20190927/audiologgers';
@@ -18,6 +18,9 @@ load(fullfile(Path2Data2,'190927_1014_VocExtractTimes.mat'))
 
 Fs_env=1000; % in Hertz, should have been saved in who_calls.m to correctly convert in time the starting and ending indices of vocalizations in IndVocStart
 FS_Piezo = 50000; % could also be retrieved from Piezo_FS
+
+%% Load the data saved of that script
+% load(fullfile(Path2Data1, 'SoundEvent.mat'))
 
 %% Run the automatic detection
 AllLoggers = dir(fullfile(Path2Data1, '*ogger*'));
@@ -165,7 +168,7 @@ end
 
 %% Let's loop in the dataset of manually extracted calls and see how many correct hits we get in the automatic detection
 FS_env = 1000; %Sampling Frequency of the envelope as calculated by piezo_find_calls_logger
-Delay = 200; %in ms error/delay between auto and man detection and Delay to add before each detected call in ms
+Delay = 100; %in ms error/delay between auto and man detection and Delay to add before each detected call in ms
 AL_AutoId = fieldnames(SoundEvent_TranscTime_ms); % Names of the audioLoggers
 MissedAutoDetection = cell(NLoggers,1);
 TotManCall = 0;
@@ -173,8 +176,9 @@ CorrectAutoDetection01 = struct();
 
 for ll=1:NLoggers
     MissedAutoDetection{ll} = [];
+    ll_auto = contains(AL_AutoId, AL_ManId{ll});
     %% Load the raw signal
-    Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
+    Data_directory = fullfile(AllLoggers(ll).folder,AL_ManId{ll}, 'extracted_data');
     File = dir(fullfile(Data_directory, '*CSC0*'));
     if isempty(File)
         error('Data file not found');
@@ -193,7 +197,6 @@ for ll=1:NLoggers
     for vv=1:size(ManCallTranscTime_ms{ll},1)
         fprintf(1, '*** %s vocalization %d/%d ****\n', AL_ManId{ll}, vv,size(ManCallTranscTime_ms{ll},1))
         OnOffVoc = ManCallTranscTime_ms{ll}(vv,:);
-        ll_auto = contains(AL_AutoId, AL_ManId{ll});
         Idx_OnsetAuto = find((SoundEvent_TranscTime_ms.(sprintf(AL_AutoId{ll_auto}))(:,1)>(OnOffVoc(1)-Delay)) .* (SoundEvent_TranscTime_ms.(sprintf(AL_AutoId{ll_auto}))(:,1)<(OnOffVoc(2)+Delay))>0);
         Idx_OffsetAuto = find((SoundEvent_TranscTime_ms.(sprintf(AL_AutoId{ll_auto}))(:,2)>(OnOffVoc(1)-Delay)) .* (SoundEvent_TranscTime_ms.(sprintf(AL_AutoId{ll_auto}))(:,2)<(OnOffVoc(2)+Delay))>0);
         
@@ -221,7 +224,7 @@ for ll=1:NLoggers
             ylim([-500 10000])
             hold on
             
-            yyaxis right
+            yyaxis right %% There is always a problem in the plot for allignment of the envelope that I attribute to the average sample frequency estimate... Teh onset/offset detection is correctly alligned though!
             x_start_env = round((ManCallLogSamp{ll}(vv,1)/SamplingFreq{ll}-Delay*10^(-3))*FS_env);
 %             x_start_env = round(x_start/SamplingFreq{ll}*FS_env);
             x_stop_env = round((ManCallLogSamp{ll}(vv,2)/SamplingFreq{ll}+Delay*10^(-3))*FS_env);
@@ -304,12 +307,365 @@ for ll=1:NLoggers
 end
 
 
+%% Now loop through the detected elements and calculate biosound
+Buffer = 10;% time in ms to add before after each sound element such atht it's longer than the 23ms required for biosound to calculate fundamental and saliency parameters
+F_High = 10000;
+BioSoundUniqParam = nan(21553,23);
+ee_count = 0;
+BioSoundParamNames = {'stdtime' 'meantime' 'skewtime' 'entropytime'...
+        'kurtosistime' 'AmpPeriodF' 'AmpPeriodP' 'rms' 'maxAmp' 'stdspect'...
+        'meanspect' 'skewspect' 'entropyspect' 'kurtosisspect' 'q1' 'q2' 'q3'...
+        'fund' 'cvfund' 'minfund' 'maxfund' 'meansal' '01correct'};
+        
+    
+% Turn off warnings regarding Pyton to structure conversion
+warning('off', 'MATLAB:structOnObject')
+
+AL_AutoId = fieldnames(SoundEvent_TranscTime_ms); % Names of the audioLoggers
+AL_ManId = fieldnames(Piezo_wave); % Names of the audioLoggers
+BiosoundFolder = cell(NLoggers,1);
+Data_out = fullfile(AllLoggers(ll).folder, 'BiosoundEvents');
+if ~exist(Data_out, 'dir')
+    mkdir(Data_out)
+end
+for ll=1:NLoggers
+    ll_auto = contains(AL_AutoId, AL_ManId{ll});
+    fprintf(1, '*** %s %d/%d ****\n',AL_ManId{ll}, ll, NLoggers)
+    % Load the raw signal
+    Data_directory = fullfile(AllLoggers(ll).folder,AL_ManId{ll}, 'extracted_data');
+    File = dir(fullfile(Data_directory, '*CSC0*'));
+    if isempty(File)
+        error('Data file not found');
+    end
+    Filepath = fullfile(File.folder, File.name);
+    load(Filepath, 'AD_count_int16', 'Indices_of_first_and_last_samples','Estimated_channelFS_Transceiver')
+    AD_count_double = double(AD_count_int16);
+    clear AD_count_int16
+    % Center the signal and clear the old data from memory
+    Centered_piezo_signal = AD_count_double - mean(AD_count_double);
+    clear AD_count_double
+    
+    % Loop through sound events
+    TotEv = size(SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto})),1);
+    for ee=1:TotEv
+        ee_count = ee_count+1;
+        if rem(ee,100)==0
+            fprintf(1, 'Event %d/%d\n', ee,TotEv)
+        end
+        
+        % find the sampling Frequency
+        FileIdx = find((Indices_of_first_and_last_samples(:,1)<OnInd) .* (Indices_of_first_and_last_samples(:,2)>OffInd));
+        if isempty(FileIdx) || (length(FileIdx)~=1) || FileIdx>length(Estimated_channelFS_Transceiver)
+            FS_local = round(nanmean(Estimated_channelFS_Transceiver));
+        else
+            FS_local = round(Estimated_channelFS_Transceiver(FileIdx));
+        end
+        
+        % extract the sound with Buffer ms before after the sound
+        OnInd = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,1) - round(FS_local*Buffer*10^-3);
+        OffInd = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,2) + round(FS_local*Buffer*10^-3);
+        Sound = Centered_piezo_signal(OnInd : OffInd);
+        Sound = Sound - mean(Sound);
+        
+        BioSoundCall=runBiosound(Sound, FS_local, F_High);
+        
+        % Feed biosound data into a Matrix
+            % temporal parameters (calculated on the envelope)
+            BioSoundUniqParam(ee_count,1) = BioSoundCall.stdtime;
+            BioSoundUniqParam(ee_count,2) = BioSoundCall.meantime;
+            BioSoundUniqParam(ee_count,3) = BioSoundCall.skewtime;
+            BioSoundUniqParam(ee_count,4) = BioSoundCall.entropytime;
+            BioSoundUniqParam(ee_count,5) = BioSoundCall.kurtosistime;
+            if ~isempty(BioSoundCall.AmpPeriodF)
+                BioSoundUniqParam(ee_count,6) = BioSoundCall.AmpPeriodF;
+                BioSoundUniqParam(ee_count,7) = BioSoundCall.AmpPeriodP;
+            end
+
+            % Amplitude parameters calculated on the envelope
+             BioSoundUniqParam(ee_count,8) = BioSoundCall.rms;
+              BioSoundUniqParam(ee_count,9) = BioSoundCall.maxAmp;
+
+            % Spectral parameters calculated on the spectrum
+            BioSoundUniqParam(ee_count,10) = BioSoundCall.stdspect;
+            BioSoundUniqParam(ee_count,11) = BioSoundCall.meanspect;
+            BioSoundUniqParam(ee_count,12) = BioSoundCall.skewspect;
+            BioSoundUniqParam(ee_count,13) = BioSoundCall.entropyspect;
+            BioSoundUniqParam(ee_count,14) = BioSoundCall.kurtosisspect;
+            BioSoundUniqParam(ee_count,15) = BioSoundCall.q1;
+            BioSoundUniqParam(ee_count,16) = BioSoundCall.q2;
+            BioSoundUniqParam(ee_count,17) = BioSoundCall.q3;
+
+            % Fundamental parameters
+            if ~isempty(BioSoundCall.fund)
+                BioSoundUniqParam(ee_count,18) = BioSoundCall.fund;
+            end
+            if ~isempty(BioSoundCall.cvfund)
+                BioSoundUniqParam(ee_count,19) = BioSoundCall.cvfund;
+            end
+            if ~isempty(BioSoundCall.minfund)
+                BioSoundUniqParam(ee_count,20) = BioSoundCall.minfund;
+            end
+            if ~isempty(BioSoundCall.maxfund)
+                BioSoundUniqParam(ee_count,21) = BioSoundCall.maxfund;
+            end
+            if ~isempty(BioSoundCall.meansal)
+                BioSoundUniqParam(ee_count,22) = BioSoundCall.meansal;
+            end
+            BioSoundUniqParam(ee_count,23) = CorrectAutoDetection01.(sprintf(AL_AutoId{ll_auto}))(ee);
+        
+%         audiowrite(fullfile(Data_out, sprintf('Sound_%s_%d_%d_%d_%d.wav', (sprintf(AL_AutoId{ll_auto})), ee, OnInd, OffInd,CorrectAutoDetection01.(sprintf(AL_AutoId{ll_auto}))(ee) )),Sound, FS_local);
+    end
+end
+% Turn back on warnings regarding Pyton to structure conversion
+warning('on', 'MATLAB:structOnObject')
+save(fullfile(Path2Data1, 'SoundEvent.mat'),'BioSoundUniqParam', 'BioSoundParamNames','AL_AutoId','AL_ManId', 'MissedAutoDetection','TotManCall','CorrectAutoDetection01','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile','-append')
+
+%% Draw some scatters of the parameters
+NParam = size(BioSoundUniqParam,2);
+for pp=1:(NParam-1)
+    figure();
+    histogram(BioSoundUniqParam(~BioSoundUniqParam(:,23),pp), 'Normalization', 'probability')
+    hold on
+    histogram(BioSoundUniqParam(logical(BioSoundUniqParam(:,23)),pp), 'Normalization', 'probability')
+    legend('Noise','Vocalizations')
+    title(BioSoundParamNames{pp})
+    hold off
+end
+
+figure()
+scatter(BioSoundUniqParam(:,22),BioSoundUniqParam(:,11),10, [BioSoundUniqParam(:,23) zeros(ee_count,1) ones(ee_count,1)],'filled', 'MarkerFaceAlpha',0.5)
+xlabel(BioSoundParamNames{22})
+ylabel(BioSoundParamNames{11})
+
+figure()
+scatter(BioSoundUniqParam(:,15),BioSoundUniqParam(:,16),10, [BioSoundUniqParam(:,23) zeros(ee_count,1) ones(ee_count,1)],'filled', 'MarkerFaceAlpha',0.5)
+xlabel(BioSoundParamNames{15})
+ylabel(BioSoundParamNames{16})
+
+figure()
+scatter(BioSoundUniqParam(:,15),BioSoundUniqParam(:,17),10, [BioSoundUniqParam(:,23) zeros(ee_count,1) ones(ee_count,1)],'filled', 'MarkerFaceAlpha',0.5)
+xlabel(BioSoundParamNames{15})
+ylabel(BioSoundParamNames{17})
+
+figure()
+scatter(BioSoundUniqParam(:,14),BioSoundUniqParam(:,12),10, [BioSoundUniqParam(:,23) zeros(ee_count,1) ones(ee_count,1)],'filled', 'MarkerFaceAlpha',0.5)
+xlabel(BioSoundParamNames{14})
+ylabel(BioSoundParamNames{12})
+
+figure()
+scatter(BioSoundUniqParam(:,11),BioSoundUniqParam(:,9),10, [BioSoundUniqParam(:,23) zeros(ee_count,1) ones(ee_count,1)],'filled', 'MarkerFaceAlpha',0.5)
+xlabel(BioSoundParamNames{11})
+ylabel(BioSoundParamNames{9})
+
+figure()
+scatter(BioSoundUniqParam(:,8),BioSoundUniqParam(:,4),10, [BioSoundUniqParam(:,23) zeros(ee_count,1) ones(ee_count,1)],'filled', 'MarkerFaceAlpha',0.5)
+xlabel(BioSoundParamNames{8})
+ylabel(BioSoundParamNames{4})
+
+MinSal = 0.1; %Param 22
+Q1Max=5000;% Param 15, loose 2 voc: 607, 623
+Q2Max = 5000; % Param 16, loose 3: 607 623 682
+KurtSpectMax = 400; % Param 14
+SkewSpectMax = 8; % Param12, %loose 3 voc: 428, 538, 604
+MaxMaxAmp = 5000; % Param 9
+MaxMeanSpect = 5000; % Param 11
+MinEntropyTime = 0.8; % Param 4 Loose 1 voc: 377
+MaxRMS = 1500; % Param 8, loose 1 voc: 682
+
+NoiseRows = logical( (BioSoundUniqParam(:,22)<MinSal) + (BioSoundUniqParam(:,15)>Q1Max) + (BioSoundUniqParam(:,16)>Q2Max) + (BioSoundUniqParam(:,14)>KurtSpectMax) + (BioSoundUniqParam(:,12)>SkewSpectMax) + (BioSoundUniqParam(:,9)>MaxMaxAmp) + (BioSoundUniqParam(:,11)>MaxMeanSpect) + (BioSoundUniqParam(:,4)< MinEntropyTime) + (BioSoundUniqParam(:,8)> MaxRMS));
+fprintf(1,'%% False positive before/after restrictions on acoustic parameters: %.1f %%  and %.1f %% \n', sum(~BioSoundUniqParam(:,23))/ee_count*100, sum(~BioSoundUniqParam(~NoiseRows,23))/sum(~NoiseRows)*100)
 
 
-%Call I'm looking at: 4.053667319626574e10   4.053670019626574e10 of logger 10
-%closest file index is 23, corresponds to 184549377 index and
-%4.054173326222046e10 start
-%difference of starts is -5.060065954715014e+03 ms. (off by 40 ms in loop??)
-%then the index difference should be -2.530032977357507e+05
-%and the call should be at 1.842963737022642e+08 which will be
-%3.685927474045284e+06 on the graph
+%% Machine learning approach
+UsefulParams = [22 15 16 17 14 12 9 11 4 8 10];
+% Try a support vector machine classifier (linear) Binary SVM
+SVMModel = fitcsvm(BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,23),'Standardize',true,'KernelFunction','RBF',...
+    'KernelScale','auto','Prior','Uniform');
+% Cross-validate the SVM classifier. By default, the software uses 10-fold cross-validation.
+CVSVMModel = crossval(SVMModel);
+%Estimate the out-of-sample misclassification rate.
+classLoss = kfoldLoss(CVSVMModel) % 10.3% error in cross-validation
+
+
+% Binary Kernel classification (non-linear)
+CVMdl = fitckernel(BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,23),'CrossVal','on','Prior','Uniform')
+%CVMdl is a ClassificationPartitionedKernel model. Because fitckernel implements 10-fold cross-validation, CVMdl contains 10 ClassificationKernel models that the software trains on training-fold (in-fold) observations.
+%Estimate the cross-validated classification error.
+kfoldLoss(CVMdl) % 50.4% error!
+
+
+% Let's try to predict data using a Binary SVM
+oosInds = unique(randi(ee_count,[round(ee_count/10) 1]));   % Out-of-sample indices
+isInds = setdiff(1:ee_count, oosInds);   % In-sample indices
+X_train = BioSoundUniqParam(isInds,UsefulParams);
+Y_train = BioSoundUniqParam(isInds,23);
+X_test = BioSoundUniqParam(oosInds,UsefulParams);
+Y_test = BioSoundUniqParam(oosInds,23);
+%Train an SVM classifier. Standardize the data . Conserve memory by reducing the size of the trained SVM classifier.
+SVMModel = fitcsvm(X_train,Y_train,'Standardize',true,'KernelFunction','RBF',...
+    'KernelScale','auto','Prior','Uniform');
+CompactSVMModel = compact(SVMModel);
+whos('SVMModel','CompactSVMModel')
+
+% The CompactClassificationSVM classifier (CompactSVMModel) uses less space than the ClassificationSVM classifier (SVMModel) because SVMModel stores the data.
+% Estimate the optimal score-to-posterior-probability transformation function.
+CompactSVMModel = fitPosterior(CompactSVMModel,...
+    X_train,Y_train)
+
+%The optimal score transformation function (CompactSVMModel.ScoreTransform)
+%is a sigmoid  function because the classes are inseparable.
+% Predict the out-of-sample labels and class posterior probabilities. Because true labels are available, compare them with the predicted labels.
+[labels,PostProbs] = predict(CompactSVMModel,X_test);
+figure();
+scatter(PostProbs(:,1), PostProbs(:,2), 40, [Y_test zeros(size(Y_test)) zeros(size(Y_test))], 'filled')
+hold on
+scatter(PostProbs(:,1), PostProbs(:,2), 42, [labels zeros(size(Y_test)) zeros(size(Y_test))])
+hold off
+xlabel(sprintf('Posterior probability class %d', CompactSVMModel.ClassNames(1)))
+ylabel(sprintf('Posterior probability class %d', CompactSVMModel.ClassNames(2)))
+
+fprintf(1,'Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', sum(~labels.*Y_test)/length(labels)*100, sum(~labels.*Y_test), length(labels)) % 2.5 %
+fprintf(1,'Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', sum(labels.*~Y_test)/length(labels)*100, sum(labels.*~Y_test), length(labels)) % 0.5%
+ 
+% Now choose a less restrictive label attribution -> any sound with a
+% probability of being a vocalization (class 1) above 0.1 is labeled 
+ProbaThresh = [0:0.001:0.04 0.05:0.05:0.5];
+PercMissVoc = nan(length(ProbaThresh),1);
+PercFalseDetect = nan(length(ProbaThresh),1);
+for pp=1:length(ProbaThresh)
+    NewLabels = PostProbs(:,2)>=ProbaThresh(pp);
+%     PercMissVoc(pp) = sum(~NewLabels.*Y_test)/length(NewLabels)*100;
+    PercMissVoc(pp) = sum(~NewLabels.*Y_test)/sum(Y_test)*100;
+%     PercFalseDetect(pp) = sum(NewLabels.*~Y_test)/length(NewLabels)*100;
+    PercFalseDetect(pp) = sum(NewLabels.*~Y_test)/sum(~Y_test)*100;
+end
+figure()
+plot(ProbaThresh, PercMissVoc,'r','LineWidth',2)
+hold on
+plot(ProbaThresh, PercFalseDetect, 'k','LineWidth',2)
+hold off
+xlabel('Threshold on Posterior probability of class 1 (vocalization)')
+ylabel('Percentage of error')
+legend('Missed Vocalizations', 'False Detection')
+% fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', ProbaThresh(4), PercMissVoc(4), round(length(labels)*PercMissVoc(4)/100), length(labels)) 
+fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', ProbaThresh(4), PercMissVoc(4), round(sum(Y_test)*PercMissVoc(4)/100), sum(Y_test))% 1.4-1.6%
+% fprintf(1,'With Threshold set at %f Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', ProbaThresh(4), PercFalseDetect(4), round(length(labels)*PercFalseDetect(4)/100), length(labels)) %1.4 - 1.9%
+ fprintf(1,'With Threshold set at %f Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', ProbaThresh(4), PercFalseDetect(4), round(sum(~Y_test)*PercFalseDetect(4)/100), sum(~Y_test))
+ fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', ProbaThresh(3), PercMissVoc(3), round(sum(Y_test)*PercMissVoc(3)/100), sum(Y_test))% 1.4-1.6%
+ fprintf(1,'With Threshold set at %f Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', ProbaThresh(3), PercFalseDetect(3), round(sum(~Y_test)*PercFalseDetect(3)/100), sum(~Y_test))
+ fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', ProbaThresh(2), PercMissVoc(2), round(sum(Y_test)*PercMissVoc(2)/100), sum(Y_test))% 1.4-1.6%
+ fprintf(1,'With Threshold set at %f Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', ProbaThresh(2), PercFalseDetect(2), round(sum(~Y_test)*PercFalseDetect(2)/100), sum(~Y_test))
+ % If threshold posterior probability set at 0.03, then false positive
+ % brought down to 2-10% and % of missed vocalizations brought down to 1.7
+
+%% Internal functions
+function BiosoundObj = runBiosound(Y, FS, F_high)
+        % Hard coded parameters for biosound
+        % spectrogram parameters
+        Spec_sample_rate = 1000; % sampling rate Hz
+        Freq_spacing = 50; % width of the frequency window for the FFT Hz
+        Min_freq = 300; % high pass filter before FFT Hz
+        Max_freq = 50000; % Low pass filter before FFT Hz
+        % temporal enveloppe parameters
+        Cutoff_freq = 150; % Hz
+        Amp_sample_rate = 1000; % Hz
+        if nargin<3
+            % Spectrum parameters
+            F_high = 50000; % frequency of Low-pass filter Hz
+        end
+        % Fundamental parameters
+        MaxFund = 4000;
+        MinFund = 300;
+        LowFc = 100; %100
+        HighFc = 18000;% 15000
+        MinSaliency = 0.6;
+        DebugFigFundest = 0;
+        MinFormantFreq = 2000;
+        MaxFormantBW = 1000; %500
+        WindowFormant = 0.1;
+        Method= 'Stack';
+        
+        % create the biosound object
+        BiosoundObj = py.soundsig.sound.BioSound(py.numpy.array(Y),pyargs('fs',FS));
+        % methods(BiosoundFi, '-full') % this command plot all the methods with the available arguments
+        
+        % Calculate the RMS (lhs std(varargin))
+        BiosoundObj.rms = BiosoundObj.sound.std();
+        
+        % calculate the amplitude enveloppe
+        ampenv(BiosoundObj, Cutoff_freq,Amp_sample_rate);
+        
+        % Calculate the periodicity of the amplitude envelope
+        SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
+        [P,F] = pspectrum(SoundAmp,1000);
+        [PKS,LOCS]=findpeaks(P);
+        AmpPeriodF = F(LOCS(PKS == max(PKS))); % Frequency in hertz of the max peak
+        AmpPeriodP = max(PKS)/mean(SoundAmp.^2); % Proportion of power in the max peak of the spectrum
+        
+        % calculate the spectrum (lhs spectrum(self, f_high, pyargs))
+        spectrum(BiosoundObj, F_high)
+        % calculate the spectrogram (lhs spectroCalc(self, spec_sample_rate,
+        % freq_spacing, min_freq, max_freq, pyargs))
+        try % For very short sound, the Freq_spacing is too small, doubling if error
+            spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing, Min_freq,Max_freq)
+        catch
+            try 
+                spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing.*2, Min_freq,Max_freq)
+            catch
+                warning('Impossible to calculate spectrogram')
+                BiosoundObj.spectro = nan;
+            end
+        end
+        
+        % Calculate time varying spectralmean and spectral max
+        Spectro = double(BiosoundObj.spectro);
+        if ~isnan(Spectro)
+            Fo = double(BiosoundObj.fo);
+            TPoints = size(Spectro,2);
+            SpectralMean = nan(1,TPoints);
+            %         SpectralMax = nan(1,TPoints);
+            for tt=1:TPoints
+                %             SpectralMax(tt) = Fo(Spectro(:,tt)==max(Spectro(:,tt)));
+                PSDSpec = Spectro(:,tt)./(sum(Spectro(:,tt)));
+                SpectralMean(tt) = sum(PSDSpec' .* Fo);
+            end
+        else
+            SpectralMean = nan;
+        end
+        
+        % calculate the fundamental and related values (lhs fundest(self, maxFund,
+        % minFund, lowFc, highFc, minSaliency, debugFig, pyargs)
+        fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
+        
+        % convert biosound to a strcuture
+        BiosoundObj = struct(BiosoundObj);
+        % Add some fields
+        BiosoundObj.AmpPeriodF = AmpPeriodF;
+        BiosoundObj.AmpPeriodP = AmpPeriodP;
+        BiosoundObj.SpectralMean = SpectralMean;
+        %         BiosoundObj.SpectralMax = SpectralMax;
+        % convert all nmpy arrays to double to be able to save as matfiles
+        BiosoundObj.amp = SoundAmp;
+        BiosoundObj.tAmp = double(BiosoundObj.tAmp);
+        BiosoundObj.spectro = double(BiosoundObj.spectro);
+        BiosoundObj.to = double(BiosoundObj.to);
+        BiosoundObj.fo = double(BiosoundObj.fo);
+        BiosoundObj.F1 = double(BiosoundObj.F1);
+        BiosoundObj.F2 = double(BiosoundObj.F2);
+        BiosoundObj.F3 = double(BiosoundObj.F3);
+        BiosoundObj.fpsd = double(BiosoundObj.fpsd);
+        BiosoundObj.psd = double(BiosoundObj.psd);
+        BiosoundObj.sal = double(BiosoundObj.sal);
+        BiosoundObj.f0 = double(BiosoundObj.f0);
+        BiosoundObj.f0_2 = double(BiosoundObj.f0_2);
+        BiosoundObj.fund = double(BiosoundObj.fund);
+        BiosoundObj.cvfund = double(BiosoundObj.cvfund);
+        BiosoundObj.fund2 = double(BiosoundObj.fund2);
+        BiosoundObj.minfund = double(BiosoundObj.minfund);
+        BiosoundObj.maxfund = double(BiosoundObj.maxfund);
+        BiosoundObj.sound = double(BiosoundObj.sound);
+        BiosoundObj.wf = double(BiosoundObj.wf);
+        BiosoundObj.wt = double(BiosoundObj.wt);
+        BiosoundObj.mps = double(BiosoundObj.mps);
+    end
+    

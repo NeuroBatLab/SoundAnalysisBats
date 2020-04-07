@@ -1,14 +1,20 @@
-function run_biosound_wav(InputDir,SaveBiosoundperFile, SaveFig)
+function run_biosound_wav(InputDir,F_high_Raw,PlotFormant, SaveBiosoundperFile, SaveFig)
 
-if nargin<3
+if nargin<5
     SaveFig=0;
 end
-if nargin<2
+if nargin<4
     SaveBiosoundperFile = 0;
 end
 
-% Hard coded parameters for the calculation of the spectrum in biosound
-F_high_Raw = 50000;
+if nargin<3
+    PlotFormant=1;
+end
+
+if nargin<2
+    % Hard coded parameters for the calculation of the spectrum in biosound
+    F_high_Raw = 50000;
+end
 
 % Set to 1 if you want to manually pause after each vocalization and listen
 % to them
@@ -123,7 +129,7 @@ else
         Fig1=figure(1);
         clf
         title(sprintf('%d/%d Vocalization',vv,NV))
-        plotBiosound(BioSoundCall, F_high_Raw)
+        plotBiosound(BioSoundCall, F_high_Raw,PlotFormant)
         % Play the sound
         if ManualPause
             AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS);
