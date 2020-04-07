@@ -1,13 +1,13 @@
-% BaseDataDir = 'X:\users\JulieE\DeafSalineGroup151\';
-% BaseCodeDir = 'C:\Users\Eva\Documents\GitHub\';
-% Path2RecordingTable = 'C:\Users\Eva\GoogleDrive\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
-% TTLFolder = 'C:\Users\Eva\GoogleDrive\JuvenileRecordings';
+BaseDataDir = 'X:\users\JulieE\DeafSalineGroup151\';
+BaseCodeDir = 'C:\Users\Eva\Documents\GitHub\';
+Path2RecordingTable = 'C:\Users\Eva\GoogleDrive\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
+TTLFolder = 'C:\Users\Eva\GoogleDrive\JuvenileRecordings';
 
-BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';
-BaseCodeDir = '/Users/elie/Documents/CODE';
-%Path2RecordingTable = '/Users/elie/Google Drive/JuvenileRecordings/DeafRecordingsNWAF155_Log.xlsx';
-Path2RecordingTable = '/Users/elie/Google Drive/JuvenileRecordings/JuvenileRecordingsNWAF155_Log.xlsx';
-TTLFolder = '/Users/elie/Documents/zero_playback_12h';
+% BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';
+% BaseCodeDir = '/Users/elie/Documents/CODE';
+% %Path2RecordingTable = '/Users/elie/Google Drive/JuvenileRecordings/DeafRecordingsNWAF155_Log.xlsx';
+% Path2RecordingTable = '/Users/elie/Google Drive/JuvenileRecordings/JuvenileRecordingsNWAF155_Log.xlsx';
+% TTLFolder = '/Users/elie/Documents/zero_playback_12h';
 
 addpath(genpath(fullfile(BaseCodeDir,'LMC')))
 addpath(genpath(fullfile(BaseCodeDir, 'LoggerDataProcessing')))
