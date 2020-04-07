@@ -15,7 +15,9 @@ maxAmp = max(Amp_env);
 
 if length(Amp_env)~=fix(length(Filtered_SoundIn)*FS_env/FS)
     warning('Issue is envelope calculation, the envelope is not the expected length\n')
-    keyboard
+    if abs(length(Amp_env)-fix(length(Filtered_SoundIn)*FS_env/FS))>1
+        keyboard
+    end
 end
 
 % Calculate the momentum of the temporal envelope

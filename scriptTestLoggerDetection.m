@@ -308,18 +308,21 @@ end
 
 
 %% Now loop through the detected elements and calculate biosound
-Buffer = 10;% time in ms to add before after each sound element such atht it's longer than the 23ms required for biosound to calculate fundamental and saliency parameters
-F_High = 10000;
-BioSoundUniqParam = nan(21553,23);
+Buffer = 30;% time in ms to add before after each sound element such atht it's longer than the 23ms required for biosound to calculate fundamental and saliency parameters
+F_High = 5000;
+F_low = 100;
+F_highSpec = 15000;
+% BioSoundUniqParam = nan(21553,23);
+BioSoundUniqParam = nan(21553,17);
 ee_count = 0;
-BioSoundParamNames = {'stdtime' 'meantime' 'skewtime' 'entropytime'...
-        'kurtosistime' 'AmpPeriodF' 'AmpPeriodP' 'rms' 'maxAmp' 'stdspect'...
-        'meanspect' 'skewspect' 'entropyspect' 'kurtosisspect' 'q1' 'q2' 'q3'...
-        'fund' 'cvfund' 'minfund' 'maxfund' 'meansal' '01correct'};
+% BioSoundParamNames = {'stdtime' 'meantime' 'skewtime' 'entropytime'...
+%         'kurtosistime' 'AmpPeriodF' 'AmpPeriodP' 'rms' 'maxAmp' 'stdspect'...
+%         'meanspect' 'skewspect' 'entropyspect' 'kurtosisspect' 'q1' 'q2' 'q3'...
+%         'fund' 'cvfund' 'minfund' 'maxfund' 'meansal' '01correct'};
         
     
 % Turn off warnings regarding Pyton to structure conversion
-warning('off', 'MATLAB:structOnObject')
+% warning('off', 'MATLAB:structOnObject')
 
 AL_AutoId = fieldnames(SoundEvent_TranscTime_ms); % Names of the audioLoggers
 AL_ManId = fieldnames(Piezo_wave); % Names of the audioLoggers
@@ -367,66 +370,69 @@ for ll=1:NLoggers
         Sound = Centered_piezo_signal(OnInd : OffInd);
         Sound = Sound - mean(Sound);
         
-        BioSoundCall=runBiosound(Sound, FS_local, F_High);
+%         BioSoundCall=runBiosound(Sound, FS_local, F_High);
+%         
+%         % Feed biosound data into a Matrix
+%             % temporal parameters (calculated on the envelope)
+%             BioSoundUniqParam(ee_count,1) = BioSoundCall.stdtime;
+%             BioSoundUniqParam(ee_count,2) = BioSoundCall.meantime;
+%             BioSoundUniqParam(ee_count,3) = BioSoundCall.skewtime;
+%             BioSoundUniqParam(ee_count,4) = BioSoundCall.entropytime;
+%             BioSoundUniqParam(ee_count,5) = BioSoundCall.kurtosistime;
+%             if ~isempty(BioSoundCall.AmpPeriodF)
+%                 BioSoundUniqParam(ee_count,6) = BioSoundCall.AmpPeriodF;
+%                 BioSoundUniqParam(ee_count,7) = BioSoundCall.AmpPeriodP;
+%             end
+% 
+%             % Amplitude parameters calculated on the envelope
+%              BioSoundUniqParam(ee_count,8) = BioSoundCall.rms;
+%               BioSoundUniqParam(ee_count,9) = BioSoundCall.maxAmp;
+% 
+%             % Spectral parameters calculated on the spectrum
+%             BioSoundUniqParam(ee_count,10) = BioSoundCall.stdspect;
+%             BioSoundUniqParam(ee_count,11) = BioSoundCall.meanspect;
+%             BioSoundUniqParam(ee_count,12) = BioSoundCall.skewspect;
+%             BioSoundUniqParam(ee_count,13) = BioSoundCall.entropyspect;
+%             BioSoundUniqParam(ee_count,14) = BioSoundCall.kurtosisspect;
+%             BioSoundUniqParam(ee_count,15) = BioSoundCall.q1;
+%             BioSoundUniqParam(ee_count,16) = BioSoundCall.q2;
+%             BioSoundUniqParam(ee_count,17) = BioSoundCall.q3;
+% 
+%             % Fundamental parameters
+%             if ~isempty(BioSoundCall.fund)
+%                 BioSoundUniqParam(ee_count,18) = BioSoundCall.fund;
+%             end
+%             if ~isempty(BioSoundCall.cvfund)
+%                 BioSoundUniqParam(ee_count,19) = BioSoundCall.cvfund;
+%             end
+%             if ~isempty(BioSoundCall.minfund)
+%                 BioSoundUniqParam(ee_count,20) = BioSoundCall.minfund;
+%             end
+%             if ~isempty(BioSoundCall.maxfund)
+%                 BioSoundUniqParam(ee_count,21) = BioSoundCall.maxfund;
+%             end
+%             if ~isempty(BioSoundCall.meansal)
+%                 BioSoundUniqParam(ee_count,22) = BioSoundCall.meansal;
+%             end
+%             BioSoundUniqParam(ee_count,23) = CorrectAutoDetection01.(sprintf(AL_AutoId{ll_auto}))(ee);
         
-        % Feed biosound data into a Matrix
-            % temporal parameters (calculated on the envelope)
-            BioSoundUniqParam(ee_count,1) = BioSoundCall.stdtime;
-            BioSoundUniqParam(ee_count,2) = BioSoundCall.meantime;
-            BioSoundUniqParam(ee_count,3) = BioSoundCall.skewtime;
-            BioSoundUniqParam(ee_count,4) = BioSoundCall.entropytime;
-            BioSoundUniqParam(ee_count,5) = BioSoundCall.kurtosistime;
-            if ~isempty(BioSoundCall.AmpPeriodF)
-                BioSoundUniqParam(ee_count,6) = BioSoundCall.AmpPeriodF;
-                BioSoundUniqParam(ee_count,7) = BioSoundCall.AmpPeriodP;
-            end
-
-            % Amplitude parameters calculated on the envelope
-             BioSoundUniqParam(ee_count,8) = BioSoundCall.rms;
-              BioSoundUniqParam(ee_count,9) = BioSoundCall.maxAmp;
-
-            % Spectral parameters calculated on the spectrum
-            BioSoundUniqParam(ee_count,10) = BioSoundCall.stdspect;
-            BioSoundUniqParam(ee_count,11) = BioSoundCall.meanspect;
-            BioSoundUniqParam(ee_count,12) = BioSoundCall.skewspect;
-            BioSoundUniqParam(ee_count,13) = BioSoundCall.entropyspect;
-            BioSoundUniqParam(ee_count,14) = BioSoundCall.kurtosisspect;
-            BioSoundUniqParam(ee_count,15) = BioSoundCall.q1;
-            BioSoundUniqParam(ee_count,16) = BioSoundCall.q2;
-            BioSoundUniqParam(ee_count,17) = BioSoundCall.q3;
-
-            % Fundamental parameters
-            if ~isempty(BioSoundCall.fund)
-                BioSoundUniqParam(ee_count,18) = BioSoundCall.fund;
-            end
-            if ~isempty(BioSoundCall.cvfund)
-                BioSoundUniqParam(ee_count,19) = BioSoundCall.cvfund;
-            end
-            if ~isempty(BioSoundCall.minfund)
-                BioSoundUniqParam(ee_count,20) = BioSoundCall.minfund;
-            end
-            if ~isempty(BioSoundCall.maxfund)
-                BioSoundUniqParam(ee_count,21) = BioSoundCall.maxfund;
-            end
-            if ~isempty(BioSoundCall.meansal)
-                BioSoundUniqParam(ee_count,22) = BioSoundCall.meansal;
-            end
-            BioSoundUniqParam(ee_count,23) = CorrectAutoDetection01.(sprintf(AL_AutoId{ll_auto}))(ee);
-        
+          [BioSoundUniqParam(ee_count,1:16),AcounsticFeatureNames] = run_acoustic_features(Sound, FS_local, F_High, F_low, F_highSpec);
+          BioSoundUniqParam(ee_count,17) = CorrectAutoDetection01.(sprintf(AL_AutoId{ll_auto}))(ee);
 %         audiowrite(fullfile(Data_out, sprintf('Sound_%s_%d_%d_%d_%d.wav', (sprintf(AL_AutoId{ll_auto})), ee, OnInd, OffInd,CorrectAutoDetection01.(sprintf(AL_AutoId{ll_auto}))(ee) )),Sound, FS_local);
     end
 end
 % Turn back on warnings regarding Pyton to structure conversion
 warning('on', 'MATLAB:structOnObject')
-save(fullfile(Path2Data1, 'SoundEvent.mat'),'BioSoundUniqParam', 'BioSoundParamNames','AL_AutoId','AL_ManId', 'MissedAutoDetection','TotManCall','CorrectAutoDetection01','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile','-append')
-
+%save(fullfile(Path2Data1, 'SoundEvent.mat'),'BioSoundUniqParam', 'BioSoundParamNames','AL_AutoId','AL_ManId', 'MissedAutoDetection','TotManCall','CorrectAutoDetection01','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile','-append')
+save(fullfile(Path2Data1, 'SoundEvent2.mat'),'BioSoundUniqParam', 'AcounsticFeatureNames','AL_AutoId','AL_ManId', 'MissedAutoDetection','TotManCall','CorrectAutoDetection01','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile')
+BioSoundParamNames = AcounsticFeatureNames;
 %% Draw some scatters of the parameters
 NParam = size(BioSoundUniqParam,2);
 for pp=1:(NParam-1)
     figure();
-    histogram(BioSoundUniqParam(~BioSoundUniqParam(:,23),pp), 'Normalization', 'probability')
+    histogram(BioSoundUniqParam(~BioSoundUniqParam(:,17),pp), 'Normalization', 'probability')
     hold on
-    histogram(BioSoundUniqParam(logical(BioSoundUniqParam(:,23)),pp), 'Normalization', 'probability')
+    histogram(BioSoundUniqParam(logical(BioSoundUniqParam(:,17)),pp), 'Normalization', 'probability')
     legend('Noise','Vocalizations')
     title(BioSoundParamNames{pp})
     hold off
@@ -477,18 +483,19 @@ fprintf(1,'%% False positive before/after restrictions on acoustic parameters: %
 
 
 %% Machine learning approach
-UsefulParams = [22 15 16 17 14 12 9 11 4 8 10];
+% UsefulParams = [22 15 16 17 14 12 9 11 4 8 10];
+UsefulParams = 1:16;
 % Try a support vector machine classifier (linear) Binary SVM
-SVMModel = fitcsvm(BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,23),'Standardize',true,'KernelFunction','RBF',...
+SVMModel = fitcsvm(BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,17),'Standardize',true,'KernelFunction','RBF',...
     'KernelScale','auto','Prior','Uniform');
 % Cross-validate the SVM classifier. By default, the software uses 10-fold cross-validation.
 CVSVMModel = crossval(SVMModel);
 %Estimate the out-of-sample misclassification rate.
-classLoss = kfoldLoss(CVSVMModel) % 10.3% error in cross-validation
+classLoss = kfoldLoss(CVSVMModel) % 9.8%-10.8% error in cross-validation
 
 
 % Binary Kernel classification (non-linear)
-CVMdl = fitckernel(BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,23),'CrossVal','on','Prior','Uniform')
+CVMdl = fitckernel(BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,17),'CrossVal','on','Prior','Uniform')
 %CVMdl is a ClassificationPartitionedKernel model. Because fitckernel implements 10-fold cross-validation, CVMdl contains 10 ClassificationKernel models that the software trains on training-fold (in-fold) observations.
 %Estimate the cross-validated classification error.
 kfoldLoss(CVMdl) % 50.4% error!
@@ -498,9 +505,9 @@ kfoldLoss(CVMdl) % 50.4% error!
 oosInds = unique(randi(ee_count,[round(ee_count/10) 1]));   % Out-of-sample indices
 isInds = setdiff(1:ee_count, oosInds);   % In-sample indices
 X_train = BioSoundUniqParam(isInds,UsefulParams);
-Y_train = BioSoundUniqParam(isInds,23);
+Y_train = BioSoundUniqParam(isInds,17);
 X_test = BioSoundUniqParam(oosInds,UsefulParams);
-Y_test = BioSoundUniqParam(oosInds,23);
+Y_test = BioSoundUniqParam(oosInds,17);
 %Train an SVM classifier. Standardize the data . Conserve memory by reducing the size of the trained SVM classifier.
 SVMModel = fitcsvm(X_train,Y_train,'Standardize',true,'KernelFunction','RBF',...
     'KernelScale','auto','Prior','Uniform');
@@ -558,6 +565,23 @@ fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected
  % If threshold posterior probability set at 0.03, then false positive
  % brought down to 2-10% and % of missed vocalizations brought down to 1.7
 
+ %% Save the SVM model for use/prediction with other recordings
+ UsefulParams = 1:16;
+% Try a support vector machine classifier (linear) Binary SVM
+SVMModel = fitcsvm(BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,17),'Standardize',true,'KernelFunction','RBF',...
+    'KernelScale','auto','Prior','Uniform');
+% Cross-validate the SVM classifier. By default, the software uses 10-fold cross-validation.
+CVSVMModel = crossval(SVMModel);
+%Estimate the out-of-sample misclassification rate.
+classLoss = kfoldLoss(CVSVMModel)
+CompactSVMModel = compact(SVMModel);
+whos('SVMModel','CompactSVMModel')
+
+% The CompactClassificationSVM classifier (CompactSVMModel) uses less space than the ClassificationSVM classifier (SVMModel) because SVMModel stores the data.
+% Estimate the optimal score-to-posterior-probability transformation function.
+CompactSVMModel = fitPosterior(CompactSVMModel,...
+    BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,17)) 
+save('/Users/elie/Documents/CODE/SoundAnalysisBats/SVMModelNoiseVoc.mat', 'CompactSVMModel')
 %% Internal functions
 function BiosoundObj = runBiosound(Y, FS, F_high)
         % Hard coded parameters for biosound

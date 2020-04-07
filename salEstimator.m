@@ -1,5 +1,5 @@
-function [sal,t] = salEstimator(FilteredSoundIn, FS, LowFc, HighFc, minFund, maxFund)
-DebugFig=1;
+function [sal,t] = salEstimator(SoundIn_filtered, FS, minFund, maxFund)
+DebugFig=0;
 % Estimates the pitch
 % saliency (sal) 
 % soundIn is the sound pressure waveform.
@@ -13,12 +13,7 @@ if nargin<6
     maxFund = 4000;      % Maximum fundamental frequency expected
 end
 
-if nargin<3
-    LowFc = 100;         % Low frequency cut-off for band-passing the signal prior to auto-correlation.
-end
-if nargin<4
-    HighFc = 18000;       % High frequency cut-off 18000 for microphone bat data, 10000 for logger data
-end
+
 DBNOISE = 60;         % dB in Noise for the log compression in the spectrogram calculation - values below will be set to zero.
 f_high=10000;         % Upper frequency bound to get average amplitude in spectrogram
 fband = 100;            % Size of each frequency band in spectrogram, also determine time resolution

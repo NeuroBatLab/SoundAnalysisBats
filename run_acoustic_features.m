@@ -20,7 +20,8 @@ sos_band = zp2sos(z,p,k);
 Sound_filtered = filtfilt(sos_band,1,Sound);
 
 % Calculate pitch saliency
-[Sal,Sal_t] = salEstimator(Sound_filtered, FS, F_low, F_high);
+[Sal,~] = salEstimator(Sound_filtered, FS);
+MeanSal = nanmean(Sal);
 
 % Temporal enveloppe features
 Cutoff_freq = 150; % Hz
@@ -35,7 +36,7 @@ Sound_filtered = filtfilt(sos_band,1,Sound);
 
         
 % Return values in a vector
-AcousticFeatureValues = [Sal, Sal_t, MaxAmp, RMS, MeanTime, StdTime, KurtosisTime, SkewTime, EntropyTime, QuartileSpec(1), QuartileSpec(2), QuartileSpec(3), MeanSpec, StdSpec, KurtosisSpec, SkewSpec, EntropySpec];
-AcounsticFeatureNames = {'Saliency' 'SaliencyT' 'MaxAmp' 'RMS' 'MeanTime' 'StdTime' 'KurtosisTime' 'SkewTime' 'EntropyTime' 'Q1' 'Q2' 'Q3' 'MeanSpec' 'StdSpec' 'KurtosisSpec' 'SkewSpec' 'EntropySpec'};
+AcousticFeatureValues = [MeanSal, MaxAmp, RMS, MeanTime, StdTime, KurtosisTime, SkewTime, EntropyTime, QuartileSpec(1), QuartileSpec(2), QuartileSpec(3), MeanSpec, StdSpec, KurtosisSpec, SkewSpec, EntropySpec];
+AcounsticFeatureNames = {'MeanSaliency' 'MaxAmp' 'RMS' 'MeanTime' 'StdTime' 'KurtosisTime' 'SkewTime' 'EntropyTime' 'Q1' 'Q2' 'Q3' 'MeanSpec' 'StdSpec' 'KurtosisSpec' 'SkewSpec' 'EntropySpec'};
 end
 
