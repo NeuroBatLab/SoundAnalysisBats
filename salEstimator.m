@@ -1,31 +1,35 @@
-function [sal,t] = salEstimator(SoundIn, FS)
+function [sal,t] = salEstimator(FilteredSoundIn, FS, LowFc, HighFc, minFund, maxFund)
+DebugFig=1;
 % Estimates the pitch
 % saliency (sal) 
 % soundIn is the sound pressure waveform.
 % FS is the sampling rate
 
 % Some user parameters (should be part of the function at some time)
-maxFund = 10000;      % Maximum fundamental frequency
-minFund = 100;       % Minimum fundamental frequency
-LowFc = 100;         % Low frequency cut-off for band-passing the signal prior to auto-correlation.
-HighFc = 24000;       % High frequency cut-off
+if nargin<5
+    minFund = 300;       % Minimum fundamental frequency expected
+end
+if nargin<6
+    maxFund = 4000;      % Maximum fundamental frequency expected
+end
+
+if nargin<3
+    LowFc = 100;         % Low frequency cut-off for band-passing the signal prior to auto-correlation.
+end
+if nargin<4
+    HighFc = 18000;       % High frequency cut-off 18000 for microphone bat data, 10000 for logger data
+end
 DBNOISE = 60;         % dB in Noise for the log compression in the spectrogram calculation - values below will be set to zero.
-f_high=20000;         % Upper frequency bound to get average amplitude in spectrogram
+f_high=10000;         % Upper frequency bound to get average amplitude in spectrogram
 fband = 100;            % Size of each frequency band in spectrogram, also determine time resolution
 
-% Band-pass filtering signal prior to auto-correlation
-[z,p,k] = butter(6,[LowFc HighFc]/(FS/2),'bandpass');
-sos_band = zp2sos(z,p,k);
-soundIn_filtered = filtfilt(sos_band,1,SoundIn);
 
-% Calculate and plot the spectrogram    
-figure(9)
-[ ~] = spec_only_bats(soundIn_filtered, FS, DBNOISE, f_high, fband);
+
 
 
 % Initializations and useful variables
-soundLen = length(SoundIn);
-t = (0:1:floor(length(SoundIn)/FS*10^3))*10^-3; % getting a value per ms, note that t is in seconds
+soundLen = length(SoundIn_filtered);
+t = (0:1:floor(soundLen/FS*10^3))*10^-3; % getting a value per ms, note that t is in seconds
 nt=length(t);
 soundRMS = zeros(1,nt);
 fund = zeros(1,nt);
@@ -63,7 +67,7 @@ for it = 1:nt
         windend = winLen;
     end
     
-    soundWin = SoundIn(tstart:tend).*w(winstart:windend)';
+    soundWin = SoundIn_filtered(tstart:tend).*w(winstart:windend)';
     soundRMS(it) = std(soundWin);
     
 end
@@ -99,7 +103,7 @@ for it = 1:nt
         windend = winLen;
     end
     
-    soundWin = SoundIn(tstart:tend).*w(winstart:windend)';
+    soundWin = SoundIn_filtered(tstart:tend).*w(winstart:windend)';
     
     [autoCorr, lags] = xcorr(soundWin, maxlags, 'unbiased');
     ind0 = find(lags == 0);
@@ -126,17 +130,19 @@ for it = 1:nt
  
 end
 
-figure(9)
-hold on
-yyaxis left
-plot(t*10^3, fund, 'k-', 'LineWidth',2)
-hold on
-yyaxis right
-plot(t*10^3,sal, 'r--', 'LineWidth',2)
-ylabel('Pitch Saliency')
-ylim([0 1])
-hold off
-pause()
+if DebugFig
+    % Calculate and plot the spectrogram    
+    figure()
+    [ ~] = spec_only_bats(SoundIn_filtered, FS, DBNOISE, f_high, fband);
+    % plot the pitch saliency on top
+    hold on
+    yyaxis right
+    plot(t*10^3,sal, 'r--', 'LineWidth',2)
+    ylabel('Pitch Saliency')
+    ylim([0 1])
+    hold off
+    pause()
+end
 
 
 end

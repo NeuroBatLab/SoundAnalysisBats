@@ -60,7 +60,9 @@ end
 
 % Sort vocalization from noise using an SVM approach on acoustic parameters
 Buffer = 10;% time in ms to add before after each sound element such atht it's longer than the 23ms required for biosound to calculate fundamental and saliency parameters
-F_High = 10000;
+F_high = 5000; % frequency low pass on the logger detected sounds for calculating temporal acoustic features and Saliency
+F_low = 100;% frequency high pass n the logger detected sounds
+F_highSpec = 15000;% frequency low pass on the logger detected sounds for calculating spectral parameters
 TotEvents = sum(Nevents);
 AcousticParams = nan(TotEvents,11);
 LoggerID_unmerged = cell(TotEvents,1);
@@ -108,7 +110,7 @@ for ll=1:NL
         Sound = Centered_piezo_signal(OnIndBuff : OffIndBuff);
         Sound = Sound - mean(Sound);
         
-       AcousticParams(ee_count,:) = run_acoustic_features(Sound, FS_logger_voc_unmerged(ee), F_High);
+       AcousticParams(ee_count,:) = run_acoustic_features(Sound, FS_logger_voc_unmerged(ee), F_high, F_low, F_highSpec);
        LoggerID_unmerged{ee_count} = ALField_Id{ll};
        Voc_loggerSamp_Idx_unmerged(ee_count,:) = [OnInd OffInd];
        Voc_transc_time_unmerged(ee_count,:) = SoundEvent_TranscTime_ms.(sprintf(ALField_Id{ll}))(ee,:);
