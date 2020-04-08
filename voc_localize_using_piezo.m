@@ -50,9 +50,11 @@ AllLoggers = AllLoggers(DirFlags);
 % crossings on the envelope
 NL = length(AllLoggers);
 Nevents = nan(NL,1);
+SoundEvent_LoggerSamp = struct();
+SoundEvent_TranscTime_ms = struct();
 for ll=1:NL
     Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
-    [SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),SoundEvent_TranscTime_ms.(sprintf('L%s',AllLoggers(ll).name(2:end))),LoggerEnvelopeAll.(sprintf('L%s',AllLoggers(ll).name(2:end))),SoundEvent_EnvSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),~] = piezo_find_calls_logger(Data_directory);
+    [SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),SoundEvent_TranscTime_ms.(sprintf('L%s',AllLoggers(ll).name(2:end))),~,~,~] = piezo_find_calls_logger(Data_directory);
     Nevents = size(SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),1);
 end
 

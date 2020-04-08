@@ -1,7 +1,7 @@
 BaseDataDir = 'X:\users\JulieE\DeafSalineGroup151\';
 BaseCodeDir = 'C:\Users\Eva\Documents\GitHub\';
-Path2RecordingTable = 'C:\Users\Eva\GoogleDrive\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
-TTLFolder = 'C:\Users\Eva\GoogleDrive\JuvenileRecordings';
+Path2RecordingTable = 'C:\Users\Eva\Google Drive\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
+TTLFolder = 'C:\Users\Eva\Google Drive\JuvenileRecordings';
 
 % BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';
 % BaseCodeDir = '/Users/elie/Documents/CODE';
@@ -271,6 +271,7 @@ if isempty(TTL_dir) || ForceAllign
     elseif contains(Path2RecordingTable, 'JuvenileRecordings')
         align_soundmexAudio_2_logger(AudioDataPath, Logger_dir, ExpStartTime,'TTL_pulse_generator','Avisoft','Method','risefall', 'Session_strings', {'rec only start', 'rec only stop'}, 'TTLFolder',TTLFolder);
     end
+    close all
 else
     fprintf(1,'\n*** ALREADY DONE: Alligning TTL pulses for the free session ***\n');
 end
@@ -278,7 +279,7 @@ end
 fprintf(1,'*** Check the clock drift correction of the logger ***\n')
 LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
 Check = zeros(length(LoggersDir)+1,1);
-for ll=length(LoggersDir)
+for ll=1:length(LoggersDir)
     FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
     %                 fprintf(1, 'Go in %s\n',fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'piezo',Date,'audiologgers','loggerxx','extracted_data'))
     %                 fprintf(1,'Open CD_correction0\n')
@@ -287,7 +288,7 @@ for ll=length(LoggersDir)
     close(FigCD)
 end
 fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
-AllignmentPath = fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'bataudio',sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, Time));
+AllignmentPath = fullfile(AudioDataPath,sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, ExpStartTime));
 FigAP = open(AllignmentPath);
 %                 fprintf(1, 'Go in %s\n',fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'bataudio'))
 %                 fprintf(1,'Search for %s_%s_CD_correction_audio_piezo\n', Date, Time)
