@@ -74,7 +74,7 @@ ee_count=0;
 for ll=1:NL
     fprintf(1, '*** %s %d/%d ****\n',ALField_Id{ll}, ll, NL)
     % Load the raw signal
-    Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).file, 'extracted_data');
+    Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
     File = dir(fullfile(Data_directory, '*CSC0*'));
     if isempty(File)
         error('Data file not found');
