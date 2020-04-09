@@ -1,6 +1,6 @@
 BaseDataDir = 'Z:\JulieE\DeafSalineGroup151\';
 BaseCodeDir = 'C:\Users\Batman\Documents\Code\';
-Path2RecordingTable = 'C:\Users\Batman\GoogleDriveNeuroBatGroup\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
+Path2RecordingTable = 'C:\Users\Batman\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
 TTLFolder = 'C:\Users\Batman\GoogleDriveNeuroBatGroup\JuvenileRecordings';
 
 % BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';

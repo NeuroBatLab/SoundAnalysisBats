@@ -59,7 +59,7 @@ for ll=1:NL
 end
 
 % Sort vocalization from noise using an SVM approach on acoustic parameters
-Buffer = 10;% time in ms to add before after each sound element such atht it's longer than the 23ms required for biosound to calculate fundamental and saliency parameters
+Buffer = 30;% time in ms to add before after each sound element such atht it's longer than the 23ms required for biosound to calculate fundamental and saliency parameters and longer than 60ms for running RMS to calculate the envelope
 F_high = 5000; % frequency low pass on the logger detected sounds for calculating temporal acoustic features and Saliency
 F_low = 100;% frequency high pass n the logger detected sounds
 F_highSpec = 15000;% frequency low pass on the logger detected sounds for calculating spectral parameters
