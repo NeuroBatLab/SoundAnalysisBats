@@ -129,7 +129,8 @@ Voc_loggerSamp_Idx_unmerged = Voc_loggerSamp_Idx_unmerged(logical(Labels),:);
 Voc_transc_time_unmerged = Voc_transc_time_unmerged(logical(Labels),:);
 FS_logger_voc_unmerged = FS_logger_voc_unmerged(logical(Labels),:);
 
-[Voc_transc_time_unmerged, OrdInd] = sort(Voc_transc_time_unmerged(:,1));
+[~, OrdInd] = sort(Voc_transc_time_unmerged(:,1));
+Voc_transc_time_unmerged = Voc_transc_time_unmerged(OrdInd,:);
 LoggerID_unmerged = LoggerID_unmerged(OrdInd);
 Voc_loggerSamp_Idx_unmerged = Voc_loggerSamp_Idx_unmerged(OrdInd,:);
 FS_logger_voc_unmerged = FS_logger_voc_unmerged(OrdInd,:);
