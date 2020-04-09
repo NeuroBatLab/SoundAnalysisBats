@@ -56,7 +56,7 @@ for ll=1:NL
     fprintf(1,'Envelope calculations %s, %d/%d\n',AllLoggers(ll).name, ll, NL)
     Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
     [SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),SoundEvent_TranscTime_ms.(sprintf('L%s',AllLoggers(ll).name(2:end))),~,~,~] = piezo_find_calls_logger(Data_directory);
-    Nevents = size(SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),1);
+    Nevents(ll) = size(SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),1);
 end
 
 % Sort vocalization from noise using an SVM approach on acoustic parameters
