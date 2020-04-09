@@ -64,15 +64,13 @@ Buffer = 30;% time in ms to add before after each sound element such atht it's l
 F_high = 5000; % frequency low pass on the logger detected sounds for calculating temporal acoustic features and Saliency
 F_low = 100;% frequency high pass n the logger detected sounds
 F_highSpec = 15000;% frequency low pass on the logger detected sounds for calculating spectral parameters
-TotEvents = sum(Nevents);
-AcousticParams = nan(TotEvents,16);
-LoggerID_unmerged = cell(TotEvents,1);
-FS_logger_voc_unmerged = nan(TotEvents,1);
-Voc_loggerSamp_Idx_unmerged = nan(TotEvents,2);
-Voc_transc_time_unmerged = nan(TotEvents,2);
+AcousticParams = cell(1,NL);
+LoggerID_unmerged = cell(1,NL);
+FS_logger_voc_unmerged = cell(1,NL);
+Voc_loggerSamp_Idx_unmerged = cell(1,NL);
+Voc_transc_time_unmerged = cell(1,NL);
 ALField_Id = fieldnames(SoundEvent_TranscTime_ms); % Names of the audioLoggers
-ee_count=0;
-for ll=1:NL
+parfor ll=1:NL
     fprintf(1, '*** Sort Voc from Noise %s %d/%d ****\n',ALField_Id{ll}, ll, NL)
     % Load the raw signal
     Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
@@ -81,16 +79,17 @@ for ll=1:NL
         error('Data file not found');
     end
     Filepath = fullfile(File.folder, File.name);
-    load(Filepath, 'AD_count_int16', 'Indices_of_first_and_last_samples','Estimated_channelFS_Transceiver')
-    AD_count_double = double(AD_count_int16);
-    clear AD_count_int16
+    Data=load(Filepath, 'AD_count_int16', 'Indices_of_first_and_last_samples','Estimated_channelFS_Transceiver');
     % Center the signal and clear the old data from memory
-    Centered_piezo_signal = AD_count_double - mean(AD_count_double);
-    clear AD_count_double
+    Centered_piezo_signal = double(Data.AD_count_int16) - mean(double(Data.AD_count_int16));
+    Data.AD_count_int16 = [];
+    FS_logger_voc_unmerged{ll} = nan(1,Nevents(ll));
+    AcousticParams{ll} = nan(16,Nevents(ll));
+    LoggerID_unmerged{ll} = cell(1,Nevents(ll));
+    Voc_loggerSamp_Idx_unmerged{ll} = nan(2,Nevents(ll));
     
     % Loop through sound events
     for ee=1:Nevents(ll)
-        ee_count = ee_count+1;
         if rem(ee,100)==0
             fprintf(1, 'Event %d/%d\n', ee,Nevents(ll))
         end
@@ -98,25 +97,36 @@ for ll=1:NL
         OnInd = SoundEvent_LoggerSamp.(sprintf(ALField_Id{ll}))(ee,1);
         OffInd = SoundEvent_LoggerSamp.(sprintf(ALField_Id{ll}))(ee,2);
         % find the sampling Frequency
-        FileIdx = find((Indices_of_first_and_last_samples(:,1)<OnInd) .* (Indices_of_first_and_last_samples(:,2)>OffInd));
-        if isempty(FileIdx) || (length(FileIdx)~=1) || FileIdx>length(Estimated_channelFS_Transceiver)
-            FS_logger_voc_unmerged(ee) = round(nanmean(Estimated_channelFS_Transceiver));
+        FileIdx = find((Data.Indices_of_first_and_last_samples(:,1)<OnInd) .* (Data.Indices_of_first_and_last_samples(:,2)>OffInd));
+        if isempty(FileIdx) || (length(FileIdx)~=1) || FileIdx>length(Data.Estimated_channelFS_Transceiver)
+            FS_logger_voc_unmerged{ll}(ee) = round(nanmean(Data.Estimated_channelFS_Transceiver));
         else
-            FS_logger_voc_unmerged(ee) = round(Estimated_channelFS_Transceiver(FileIdx));
+            FS_logger_voc_unmerged{ll}(ee) = round(Data.Estimated_channelFS_Transceiver(FileIdx));
         end
         
         % extract the sound with Buffer ms before after the sound
-        OnIndBuff = OnInd - round(FS_logger_voc_unmerged(ee)*Buffer*10^-3);
-        OffIndBuff = OffInd + round(FS_logger_voc_unmerged(ee)*Buffer*10^-3);
+        OnIndBuff = OnInd - round(FS_logger_voc_unmerged{ll}(ee)*Buffer*10^-3);
+        OffIndBuff = OffInd + round(FS_logger_voc_unmerged{ll}(ee)*Buffer*10^-3);
         Sound = Centered_piezo_signal(OnIndBuff : OffIndBuff);
         Sound = Sound - mean(Sound);
         
-       AcousticParams(ee_count,:) = run_acoustic_features(Sound, FS_logger_voc_unmerged(ee), F_high, F_low, F_highSpec);
-       LoggerID_unmerged{ee_count} = ALField_Id{ll};
-       Voc_loggerSamp_Idx_unmerged(ee_count,:) = [OnInd OffInd];
-       Voc_transc_time_unmerged(ee_count,:) = SoundEvent_TranscTime_ms.(sprintf(ALField_Id{ll}))(ee,:);
+       AcousticParams_temp = run_acoustic_features(Sound, FS_logger_voc_unmerged{ll}(ee), F_high, F_low, F_highSpec);
+       AcousticParams{ll}(:,ee) = AcousticParams_temp';
+       LoggerID_unmerged{ll}(ee) = ALField_Id{ll};
+       Voc_loggerSamp_Idx_unmerged{ll}(:,ee) = [OnInd; OffInd];
+       Voc_transc_time_unmerged{ll}(:,ee) = SoundEvent_TranscTime_ms.(sprintf(ALField_Id{ll}))(ee,:)';
     end
 end
+
+% Concatenate the results and set rows to be observations
+AcousticParams = [AcousticParams{:}]';
+LoggerID_unmerged = [LoggerID_unmerged{:}]';
+Voc_loggerSamp_Idx_unmerged = [Voc_loggerSamp_Idx_unmerged{:}]';
+Voc_transc_time_unmerged = [Voc_transc_time_unmerged{:}]';
+FS_logger_voc_unmerged = [FS_logger_voc_unmerged{:}]';
+
+
+
 % Load the SVM compact model, predict labels according to the model and
 % eliminate noise
 Path2SVM = fileparts(which('voc_localize_using_piezo.m'));
@@ -148,11 +158,12 @@ if length(FirstEvents2Merge)~=length(LastEvents2Merge)
 end
 Voc_transc_time = [Voc_transc_time_unmerged(Events2keep,:) ; [Voc_transc_time_unmerged(FirstEvents2Merge,1) Voc_transc_time_unmerged(LastEvents2Merge,2)]];
 Voc_loggerSamp_Idx = [Voc_loggerSamp_Idx_unmerged(Events2keep,:) ; [Voc_loggerSamp_Idx_unmerged(FirstEvents2Merge,1) Voc_loggerSamp_Idx_unmerged(LastEvents2Merge,2)]];
-LoggerID = [LoggerID_unmerged(Events2keep,:) ; [LoggerID_unmerged(FirstEvents2Merge,1) LoggerID_unmerged(LastEvents2Merge,2)]];
-FS_logger_voc = [FS_logger_voc_unmerged(Events2keep,:) ; [FS_logger_voc_unmerged(FirstEvents2Merge,1) FS_logger_voc_unmerged(LastEvents2Merge,2)]];
+LoggerID = [LoggerID_unmerged(Events2keep) ; LoggerID_unmerged(FirstEvents2Merge)];
+FS_logger_voc = [FS_logger_voc_unmerged(Events2keep) ; FS_logger_voc_unmerged(FirstEvents2Merge)];
 
 % reorder in time
-[Voc_transc_time, OrdInd] = sort(Voc_transc_time(:,1));
+[~, OrdInd] = sort(Voc_transc_time(:,1));
+Voc_transc_time = Voc_transc_time(OrdInd,:);
 LoggerID = LoggerID(OrdInd);
 Voc_loggerSamp_Idx = Voc_loggerSamp_Idx(OrdInd,:);
 FS_logger_voc =FS_logger_voc(OrdInd,:);
@@ -163,12 +174,10 @@ Voc_transc_time(:,2) = Voc_transc_time(:,2) + Merge_thresh;
 Voc_loggerSamp_Idx(:,1) = Voc_loggerSamp_Idx(:,1) - Merge_thresh*10^-3.*FS_logger_voc;
 Voc_loggerSamp_Idx(:,2) = Voc_loggerSamp_Idx(:,2) + Merge_thresh*10^-3.*FS_logger_voc;
 
+TotEvents_merged = size(Voc_transc_time,1);
+
 %% Retrieve the Microphone file that contains the data for each detected sequence of vocalization
 fprintf(1, '*****  Retrieve corresponding data in the microphone  *****\n')
-MeanStdAmpRawFile = nan(100,2);
-MeanStdAmpRawExtract = nan(TotEvents,2);
-Voc_samp_idx = nan(TotEvents,2);
-Voc_filename = cell(TotEvents,1);
 % Construct the frequency bandpass filter for calculating the noise rate on
 % the microphone data
 WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*.wav',Date, ExpStartTime)));
@@ -179,10 +188,22 @@ FS = Info.SampleRate;
 [z,p,k] = butter(6,[1000 90000]/(FS/2),'bandpass');
 sos_raw_band = zp2sos(z,p,k);
 
-for ee=1:TotEvents
+MeanStdAmpRawFile = cell(1,);
+MeanStdAmpRawExtract = nan(TotEvents_merged,2);
+Voc_samp_idx = nan(TotEvents_merged,2);
+Voc_filename = cell(TotEvents_merged,1);
+
+
+parfor ee=1:TotEvents_merged
     % Find the microphone file
-    OnFile = find(TTL.Pulse_TimeStamp_Transc<Voc_transc_time_unmerged(ee,1),1,'Last');
-    OffFile = find(TTL.Pulse_TimeStamp_Transc>Voc_transc_time_unmerged(ee,2),1,'First')-1;
+    OnFile = find(TTL.Pulse_TimeStamp_Transc<Voc_transc_time(ee,1),1,'Last');
+    if isempty(OnFile)
+        % This event occured before the onset of TTL pulses
+        OnFile =1;
+        OffFile=1;
+    else
+        OffFile = find(TTL.Pulse_TimeStamp_Transc>Voc_transc_time(ee,2),1,'First')-1;
+    end
     FileIdx = min(TTL.File_number(OnFile), TTL.File_number(OffFile));
     
     if isnan(MeanStdAmpRawFile(FileIdx,1)) % calculate the amplitude threshold for that file
@@ -219,7 +240,7 @@ for ee=1:TotEvents
     
     % Calculate the Samples of the extract in the microphone recording
     TTL_idx = find(unique(TTL.File_number) == FileIdx);
-    Voc_transc_time_zs = (Voc_transc_time - TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,2);
+    Voc_transc_time_zs = (Voc_transc_time(ee,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,2);
     Voc_samp_idx(ee,:) = TTL.Mean_std_Pulse_samp_audio(TTL_idx,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{TTL_idx}, Voc_transc_time_zs,[],TTL.Mean_std_x_transc2audiosamp{TTL_idx}) + TTL.Mean_std_Pulse_samp_audio(TTL_idx,1);
     
     % Extract the wave from the microphone recording
