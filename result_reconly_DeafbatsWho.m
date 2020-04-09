@@ -80,6 +80,31 @@ if nargin<2
         
 end
 
+fprintf(1,'*** Check the clock drift correction of the logger ***\n')
+LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
+Check = zeros(length(LoggersDir)+1,1);
+for ll=1:length(LoggersDir)
+    FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
+    %                 fprintf(1, 'Go in %s\n',fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'piezo',Date,'audiologgers','loggerxx','extracted_data'))
+    %                 fprintf(1,'Open CD_correction0\n')
+    Check(ll) = input('Is everything ok? (yes ->1, No -> 0): ');
+    fprintf('\n')
+    close(FigCD)
+end
+fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
+AllignmentPath = fullfile(AudioDataPath,sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, ExpStartTime));
+FigAP = open(AllignmentPath);
+%                 fprintf(1, 'Go in %s\n',fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'bataudio'))
+%                 fprintf(1,'Search for %s_%s_CD_correction_audio_piezo\n', Date, Time)
+Check(length(LoggersDir)+1) = input('Is everything ok? (yes ->1, No -> 0): ');
+fprintf('\n')
+close(FigAP)
+if any(~Check)
+    NCalls = nan;
+    fprintf(1,'\n****** Error in allignement reported ******\n')
+    return
+end
+
 %% Identify who is calling
 fprintf('\n*** Identify who is calling ***\n')
 WhoCall_dir = dir(fullfile(Logger_dir, sprintf('*%s_%s*whocalls*', Date, ExpStartTime)));
