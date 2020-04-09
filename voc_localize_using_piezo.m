@@ -50,12 +50,14 @@ AllLoggers = AllLoggers(DirFlags);
 % crossings on the envelope
 NL = length(AllLoggers);
 Nevents = nan(NL,1);
-SoundEvent_LoggerSamp = struct();
-SoundEvent_TranscTime_ms = struct();
+SoundEvent_LoggerSamp = cell(NL,1);
+SoundEvent_TranscTime_ms = cell(NL,1);
+ALField_Id = cell(NL,1);% Names of the audioLoggers
 for ll=1:NL
     fprintf(1,'Envelope calculations %s, %d/%d\n',AllLoggers(ll).name, ll, NL)
     Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
-    [SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),SoundEvent_TranscTime_ms.(sprintf('L%s',AllLoggers(ll).name(2:end))),~,~,~] = piezo_find_calls_logger(Data_directory);
+    ALField_Id{ll} = sprintf('L%s',AllLoggers(ll).name(2:end));
+    [SoundEvent_LoggerSamp{ll},SoundEvent_TranscTime_ms{ll},~,~,~] = piezo_find_calls_logger(Data_directory);
     Nevents(ll) = size(SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),1);
 end
 
@@ -69,7 +71,6 @@ LoggerID_unmerged = cell(1,NL);
 FS_logger_voc_unmerged = cell(1,NL);
 Voc_loggerSamp_Idx_unmerged = cell(1,NL);
 Voc_transc_time_unmerged = cell(1,NL);
-ALField_Id = fieldnames(SoundEvent_TranscTime_ms); % Names of the audioLoggers
 parfor ll=1:NL
     fprintf(1, '*** Sort Voc from Noise %s %d/%d ****\n',ALField_Id{ll}, ll, NL)
     % Load the raw signal
@@ -94,8 +95,8 @@ parfor ll=1:NL
             fprintf(1, 'Event %d/%d\n', ee,Nevents(ll))
         end
         % Onset and offset of detected sound extract
-        OnInd = SoundEvent_LoggerSamp.(sprintf(ALField_Id{ll}))(ee,1);
-        OffInd = SoundEvent_LoggerSamp.(sprintf(ALField_Id{ll}))(ee,2);
+        OnInd = SoundEvent_LoggerSamp{ll}(ee,1);
+        OffInd = SoundEvent_LoggerSamp{ll}(ee,2);
         % find the sampling Frequency
         FileIdx = find((Data.Indices_of_first_and_last_samples(:,1)<OnInd) .* (Data.Indices_of_first_and_last_samples(:,2)>OffInd));
         if isempty(FileIdx) || (length(FileIdx)~=1) || FileIdx>length(Data.Estimated_channelFS_Transceiver)
@@ -114,7 +115,7 @@ parfor ll=1:NL
        AcousticParams{ll}(:,ee) = AcousticParams_temp';
        LoggerID_unmerged{ll}(ee) = ALField_Id{ll};
        Voc_loggerSamp_Idx_unmerged{ll}(:,ee) = [OnInd; OffInd];
-       Voc_transc_time_unmerged{ll}(:,ee) = SoundEvent_TranscTime_ms.(sprintf(ALField_Id{ll}))(ee,:)';
+       Voc_transc_time_unmerged{ll}(:,ee) = SoundEvent_TranscTime_ms{ll}(ee,:)';
     end
 end
 
