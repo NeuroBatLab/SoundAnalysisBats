@@ -144,7 +144,6 @@ Voc_transc_time_unmerged = Voc_transc_time_unmerged(OrdInd,:);
 LoggerID_unmerged = LoggerID_unmerged(OrdInd);
 Voc_loggerSamp_Idx_unmerged = Voc_loggerSamp_Idx_unmerged(OrdInd,:);
 FS_logger_voc_unmerged = FS_logger_voc_unmerged(OrdInd,:);
-TotEvents = sum(Labels);
 
 %% Merge vocalizations into sequences if they are less than Merge_thresh appart to avoid repetition in Who Calls and add Merge_Thresh before/after
 fprintf(1, '***** . Merge sound events within %d ms  *****\n', Merge_thresh)
