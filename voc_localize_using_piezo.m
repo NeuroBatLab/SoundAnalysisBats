@@ -53,6 +53,7 @@ Nevents = nan(NL,1);
 SoundEvent_LoggerSamp = struct();
 SoundEvent_TranscTime_ms = struct();
 for ll=1:NL
+    fprintf(1,'Envelope calculations %s, %d/%d\n',AllLoggers(ll).name, ll, NL)
     Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
     [SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),SoundEvent_TranscTime_ms.(sprintf('L%s',AllLoggers(ll).name(2:end))),~,~,~] = piezo_find_calls_logger(Data_directory);
     Nevents = size(SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),1);
@@ -64,7 +65,7 @@ F_high = 5000; % frequency low pass on the logger detected sounds for calculatin
 F_low = 100;% frequency high pass n the logger detected sounds
 F_highSpec = 15000;% frequency low pass on the logger detected sounds for calculating spectral parameters
 TotEvents = sum(Nevents);
-AcousticParams = nan(TotEvents,11);
+AcousticParams = nan(TotEvents,16);
 LoggerID_unmerged = cell(TotEvents,1);
 FS_logger_voc_unmerged = nan(TotEvents,1);
 Voc_loggerSamp_Idx_unmerged = nan(TotEvents,2);
@@ -72,7 +73,7 @@ Voc_transc_time_unmerged = nan(TotEvents,2);
 ALField_Id = fieldnames(SoundEvent_TranscTime_ms); % Names of the audioLoggers
 ee_count=0;
 for ll=1:NL
-    fprintf(1, '*** %s %d/%d ****\n',ALField_Id{ll}, ll, NL)
+    fprintf(1, '*** Sort Voc from Noise %s %d/%d ****\n',ALField_Id{ll}, ll, NL)
     % Load the raw signal
     Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
     File = dir(fullfile(Data_directory, '*CSC0*'));
@@ -135,6 +136,7 @@ FS_logger_voc_unmerged = FS_logger_voc_unmerged(OrdInd,:);
 TotEvents = sum(Labels);
 
 %% Merge vocalizations into sequences if they are less than Merge_thresh appart to avoid repetition in Who Calls and add Merge_Thresh before/after
+fprintf(1, '***** . Merge sound events within %d ms  *****\n', Merge_thresh)
 Events2Merge = [0; (Voc_transc_time_unmerged(2:end,1)-Voc_transc_time_unmerged(1:end-1,2))<= Merge_thresh];
 FirstEvents2Merge = find(diff([Events2Merge; 0])==1); % onset of each sequence of events that should be merged
 LastEvents2Merge = find(diff([Events2Merge; 0])==-1);% offset of each sequence of events that should be merged
@@ -161,6 +163,7 @@ Voc_loggerSamp_Idx(:,1) = Voc_loggerSamp_Idx(:,1) - Merge_thresh*10^-3.*FS_logge
 Voc_loggerSamp_Idx(:,2) = Voc_loggerSamp_Idx(:,2) + Merge_thresh*10^-3.*FS_logger_voc;
 
 %% Retrieve the Microphone file that contains the data for each detected sequence of vocalization
+fprintf(1, '*****  Retrieve corresponding data in the microphone  *****\n')
 MeanStdAmpRawFile = nan(100,2);
 MeanStdAmpRawExtract = nan(TotEvents,2);
 Voc_samp_idx = nan(TotEvents,2);

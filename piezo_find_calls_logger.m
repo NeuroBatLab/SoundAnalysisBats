@@ -23,7 +23,7 @@ MergeThresh = 50e-3; % minimum length between two calls in s (50ms)
 % Identify data
 PathPieces = split(Data_directory, filesep);
 logger_name = PathPieces{find(contains(PathPieces,'extracted_data'))-1};
-disp(logger_name)
+%disp(logger_name)
 
 %it's saying the last call occurs at 3.8731, which doesn't make sense.
 %Check via graph
