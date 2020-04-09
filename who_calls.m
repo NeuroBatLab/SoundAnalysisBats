@@ -1,4 +1,4 @@
-function [IndVocStartRaw_merge_local, IndVocStopRaw_merge_local, IndVocStartPiezo_merge_local, IndVocStopPiezo_merge_local] = who_calls(Raw_dir, Loggers_dir, Date, ExpStartTime, MergeThresh, Manual,UseOld,CheckMicChannel, varargin)
+function [IndVocStartRaw_merged, IndVocStopRaw_merged, IndVocStartPiezo_merge_local, IndVocStopPiezo_merge_local] = who_calls(Raw_dir, Loggers_dir, Date, ExpStartTime, MergeThresh, Manual,UseOld,CheckMicChannel, varargin)
 
 % optional parameter: Factor_RMS_Mic, Factor by which the RMS of the
 % band-pass filtered baseline signal is multiplied to obtained the
@@ -104,6 +104,10 @@ else
     PreviousFile = fullfile(Working_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh));
     if ~isempty(dir(PreviousFile)) && UseOld
         load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+        if ~exist('vv','var') % There is no previous data but just data regarding piezo numbers and bats_ID
+            vv=1;
+        end
+            
     else
         vv=1;
     end
@@ -899,7 +903,11 @@ else
             RMSDiff_all{vv} = RMSDiff;
         end
         fprintf(1,'saving data...\n')
-        save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+        if ~isempty(dir(PreviousFile))
+            save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
+        else
+            save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+        end
     end
     if ~strcmp(Working_dir,Loggers_dir)
         fprintf(1,'Transferring data back on the server\n')

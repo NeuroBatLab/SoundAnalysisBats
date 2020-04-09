@@ -422,7 +422,7 @@ for ll=1:NLoggers
     end
 end
 % Turn back on warnings regarding Pyton to structure conversion
-warning('on', 'MATLAB:structOnObject')
+% warning('on', 'MATLAB:structOnObject')
 %save(fullfile(Path2Data1, 'SoundEvent.mat'),'BioSoundUniqParam', 'BioSoundParamNames','AL_AutoId','AL_ManId', 'MissedAutoDetection','TotManCall','CorrectAutoDetection01','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile','-append')
 save(fullfile(Path2Data1, 'SoundEvent2.mat'),'BioSoundUniqParam', 'AcounsticFeatureNames','AL_AutoId','AL_ManId', 'MissedAutoDetection','TotManCall','CorrectAutoDetection01','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile')
 BioSoundParamNames = AcounsticFeatureNames;
@@ -509,27 +509,27 @@ Y_train = BioSoundUniqParam(isInds,17);
 X_test = BioSoundUniqParam(oosInds,UsefulParams);
 Y_test = BioSoundUniqParam(oosInds,17);
 %Train an SVM classifier. Standardize the data . Conserve memory by reducing the size of the trained SVM classifier.
-SVMModel = fitcsvm(X_train,Y_train,'Standardize',true,'KernelFunction','RBF',...
+SVMModelSplit = fitcsvm(X_train,Y_train,'Standardize',true,'KernelFunction','RBF',...
     'KernelScale','auto','Prior','Uniform');
-CompactSVMModel = compact(SVMModel);
+CompactSVMModelSplit = compact(SVMModelSplit);
 whos('SVMModel','CompactSVMModel')
 
 % The CompactClassificationSVM classifier (CompactSVMModel) uses less space than the ClassificationSVM classifier (SVMModel) because SVMModel stores the data.
 % Estimate the optimal score-to-posterior-probability transformation function.
-CompactSVMModel = fitPosterior(CompactSVMModel,...
+CompactSVMModelSplit = fitPosterior(CompactSVMModelSplit,...
     X_train,Y_train)
 
 %The optimal score transformation function (CompactSVMModel.ScoreTransform)
 %is a sigmoid  function because the classes are inseparable.
 % Predict the out-of-sample labels and class posterior probabilities. Because true labels are available, compare them with the predicted labels.
-[labels,PostProbs] = predict(CompactSVMModel,X_test);
+[labels,PostProbs] = predict(CompactSVMModelSplit,X_test);
 figure();
 scatter(PostProbs(:,1), PostProbs(:,2), 40, [Y_test zeros(size(Y_test)) zeros(size(Y_test))], 'filled')
 hold on
 scatter(PostProbs(:,1), PostProbs(:,2), 42, [labels zeros(size(Y_test)) zeros(size(Y_test))])
 hold off
-xlabel(sprintf('Posterior probability class %d', CompactSVMModel.ClassNames(1)))
-ylabel(sprintf('Posterior probability class %d', CompactSVMModel.ClassNames(2)))
+xlabel(sprintf('Posterior probability class %d', CompactSVMModelSplit.ClassNames(1)))
+ylabel(sprintf('Posterior probability class %d', CompactSVMModelSplit.ClassNames(2)))
 
 fprintf(1,'Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', sum(~labels.*Y_test)/length(labels)*100, sum(~labels.*Y_test), length(labels)) % 2.5 %
 fprintf(1,'Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', sum(labels.*~Y_test)/length(labels)*100, sum(labels.*~Y_test), length(labels)) % 0.5%
@@ -582,6 +582,86 @@ whos('SVMModel','CompactSVMModel')
 CompactSVMModel = fitPosterior(CompactSVMModel,...
     BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,17)) 
 save('/Users/elie/Documents/CODE/SoundAnalysisBats/SVMModelNoiseVoc.mat', 'CompactSVMModel')
+
+%% Test a UMAP projection on this dataset
+addpath /Users/elie/Documents/CODE/umap_1.4.1/umap
+addpath /Users/elie/Documents/CODE/umap_1.4.1/util
+javaaddpath('/Users/elie/Documents/CODE/umap_1.4.1/umap/umap.jar')
+fprintf(1,'\n\n ***** Distance Euclidean *****\n')
+[Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(:,UsefulParams));
+figure()
+scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam(:,17) zeros(size(Reduction,1),2)],'filled')
+title('Euclidean distance')
+
+[Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(:,UsefulParams),'metric','cosine');
+figure()
+scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam(:,17) zeros(size(Reduction,1),2)],'filled')
+title('Cosyne metric')
+
+[Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(:,UsefulParams),'metric','correlation');
+figure()
+scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam(:,17) zeros(size(Reduction,1),2)],'filled')
+title('Correlation metric')
+
+%% Try with UMAP on acoustic features with same size noise/voc dataset for traning purposes
+NoiseIndices = find(~BioSoundUniqParam(:,17));
+SelectNoiseInd = NoiseIndices(randperm(sum(~BioSoundUniqParam(:,17)),sum(BioSoundUniqParam(:,17))));
+VocIndices = find(BioSoundUniqParam(:,17));
+[Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam([SelectNoiseInd VocIndices],UsefulParams));
+figure()
+scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam([SelectNoiseInd VocIndices],17) zeros(size(Reduction,1),2)],'filled')
+title('Euclidean distance')
+
+
+%% Test the calculations of spectrograms and apply UMAP with HBDSCAN as a clustering algorithm
+%% Now loop through the detected elements and calculate sound duration
+SoundEventDuration_ms = nan(21654,1);
+ee_count = 0;
+AL_AutoId = fieldnames(SoundEvent_TranscTime_ms); % Names of the audioLoggers
+AL_ManId = fieldnames(Piezo_wave); % Names of the audioLoggers
+
+for ll=1:NLoggers
+    ll_auto = contains(AL_AutoId, AL_ManId{ll});
+    fprintf(1, '*** %s %d/%d ****\n',AL_ManId{ll}, ll, NLoggers)
+    % Load the raw signal
+    Data_directory = fullfile(AllLoggers(ll).folder,AL_ManId{ll}, 'extracted_data');
+    File = dir(fullfile(Data_directory, '*CSC0*'));
+    if isempty(File)
+        error('Data file not found');
+    end
+    Filepath = fullfile(File.folder, File.name);
+    load(Filepath,'Indices_of_first_and_last_samples','Estimated_channelFS_Transceiver')
+    
+    % Loop through sound events
+    TotEv = size(SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto})),1);
+    for ee=1:TotEv
+        ee_count = ee_count+1;
+        if rem(ee,100)==0
+            fprintf(1, 'Event %d/%d\n', ee,TotEv)
+        end
+        
+        % find the sampling Frequency
+        FileIdx = find((Indices_of_first_and_last_samples(:,1)<OnInd) .* (Indices_of_first_and_last_samples(:,2)>OffInd));
+        if isempty(FileIdx) || (length(FileIdx)~=1) || FileIdx>length(Estimated_channelFS_Transceiver)
+            FS_local = round(nanmean(Estimated_channelFS_Transceiver));
+        else
+            FS_local = round(Estimated_channelFS_Transceiver(FileIdx));
+        end
+        SoundEventDuration_ms(ee) = diff(SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,:))/FS_local*10^3;
+    end
+end
+figure()
+subplot(3,1,1)
+histogram(SoundEventDuration_ms, 'BinWidth',1)
+xlabel('Sound event duration ms')
+subplot(3,1,2)
+histogram(SoundEventDuration_ms(SoundEventDuration_ms<500), 'BinWidth',1)
+xlabel('Sound event duration ms')
+subplot(3,1,3)
+histogram(SoundEventDuration_ms(SoundEventDuration_ms<200), 'BinWidth',1)
+xlabel('Sound event duration ms')
+
+
 %% Internal functions
 function BiosoundObj = runBiosound(Y, FS, F_high)
         % Hard coded parameters for biosound

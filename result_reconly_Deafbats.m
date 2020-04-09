@@ -1,7 +1,7 @@
-BaseDataDir = 'X:\users\JulieE\DeafSalineGroup151\';
-BaseCodeDir = 'C:\Users\Eva\Documents\GitHub\';
-Path2RecordingTable = 'C:\Users\Eva\Google Drive\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
-TTLFolder = 'C:\Users\Eva\Google Drive\JuvenileRecordings';
+BaseDataDir = 'Z:\JulieE\DeafSalineGroup151\';
+BaseCodeDir = 'C:\Users\Batman\Documents\Code\';
+Path2RecordingTable = 'C:\Users\Batman\GoogleDriveNeuroBatGroup\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
+TTLFolder = 'C:\Users\Batman\GoogleDriveNeuroBatGroup\JuvenileRecordings';
 
 % BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';
 % BaseCodeDir = '/Users/elie/Documents/CODE';
@@ -276,36 +276,13 @@ else
     fprintf(1,'\n*** ALREADY DONE: Alligning TTL pulses for the free session ***\n');
 end
 
-fprintf(1,'*** Check the clock drift correction of the logger ***\n')
-LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
-Check = zeros(length(LoggersDir)+1,1);
-for ll=1:length(LoggersDir)
-    FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
-    %                 fprintf(1, 'Go in %s\n',fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'piezo',Date,'audiologgers','loggerxx','extracted_data'))
-    %                 fprintf(1,'Open CD_correction0\n')
-    Check(ll) = input('Is everything ok? (yes ->1, No -> 0): ');
-    fprintf('\n')
-    close(FigCD)
-end
-fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
-AllignmentPath = fullfile(AudioDataPath,sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, ExpStartTime));
-FigAP = open(AllignmentPath);
-%                 fprintf(1, 'Go in %s\n',fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'bataudio'))
-%                 fprintf(1,'Search for %s_%s_CD_correction_audio_piezo\n', Date, Time)
-Check(length(LoggersDir)+1) = input('Is everything ok? (yes ->1, No -> 0): ');
-fprintf('\n')
-close(FigAP)
 
-
-%% Identify voclaizations using the piezo
-if sum(Check)==length(Check) && (isempty(VocExt_dir) || ForceVocExt1)
+%% Identify vocalizations using the piezo
+if (isempty(VocExt_dir) || ForceVocExt1)
     fprintf(1,'\n*** Localizing and extracting vocalizations using the piezos ***\n');
     voc_localize_using_piezo(Logger_dir, AudioDataPath,Date, ExpStartTime)
-elseif sum(Check)==length(Check) && ~(isempty(VocExt_dir) || ForceVocExt1)
+elseif ~(isempty(VocExt_dir) || ForceVocExt1)
     fprintf(1,'\n*** ALREADY DONE: Localizing and extracting vocalizations using the piezos ***\n');
-elseif sum(Check)~=length(Check)
-    Processed = 0;
-    return
 end
 
 %% Identify the same vocalizations on the piezos and save sound extracts, onset and offset times
@@ -318,14 +295,6 @@ else
     
 end
 
-%% Identify who is calling
-fprintf('\n*** Identify who is calling ***\n')
-WhoCall_dir = dir(fullfile(Logger_dir, sprintf('*%s_%s*whocalls*', Date, ExpStartTime)));
-if isempty(WhoCall_dir) || ForceVocExt1 || ForceWhoID || ForceVocExt2
-    who_calls(AudioDataPath,Logger_dir,Date, ExpStartTime,200,1,1,0);
-else
-    fprintf('\n*** ALREADY DONE: Identify who is calling ***\n')
-end
 % Save the ID of the bat for each logger
 Filename_ID = fullfile(Logger_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, 200));
 if isfile(Filename_ID)
