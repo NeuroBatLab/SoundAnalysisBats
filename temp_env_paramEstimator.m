@@ -14,8 +14,8 @@ RMS = std(Filtered_SoundIn(Filtered_SoundIn~=0));
 maxAmp = max(Amp_env);
 
 if length(Amp_env)~=fix(length(Filtered_SoundIn)*FS_env/FS)
-    warning('Issue is envelope calculation, the envelope is not the expected length\n')
     if abs(length(Amp_env)-fix(length(Filtered_SoundIn)*FS_env/FS))>1
+        warning('Issue in envelope calculation, the envelope is different by more than one sample from the expected length\n')
         keyboard
     end
 end

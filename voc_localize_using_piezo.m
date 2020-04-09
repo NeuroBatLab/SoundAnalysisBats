@@ -120,7 +120,7 @@ end
 % Load the SVM compact model, predict labels according to the model and
 % eliminate noise
 Path2SVM = fileparts(which('voc_localize_using_piezo.m'));
-load(fullfile(Path2SVM,'SVMCompact.mat'),'CompactSVMModel')
+load(fullfile(Path2SVM,'SVMModelNoiseVoc.mat'),'CompactSVMModel')
 [~,PostProbs] = predict(CompactSVMModel,AcousticParams);
 Labels = PostProbs(:,2)>=10^-3; % Here we are being very conservative and keep events that even have a slight chance of being vocalizations
 % Select presume vocalizations and order them in time
