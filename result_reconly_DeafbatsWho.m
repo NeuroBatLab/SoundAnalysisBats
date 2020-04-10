@@ -1,7 +1,7 @@
 BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
 BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\';
-Path2RecordingTable = 'C:\Users\BatLab\Google Drive\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
-TTLFolder = 'C:\Users\BatLab\Google Drive\JuvenileRecordings';
+% Path2RecordingTable = 'C:\Users\BatLab\Google Drive\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
+% TTLFolder = 'C:\Users\BatLab\Google Drive\JuvenileRecordings';
 
 % BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';
 % BaseCodeDir = '/Users/elie/Documents/CODE';
@@ -59,7 +59,7 @@ for ee=1:NExpe
         continue
     end
     Filepath = fullfile(ParamFile.folder, ParamFile.name);
-    NCalls = result_reconly_DbatsWho(Filepath,Path2RecordingTable,TTLFolder);
+    NCalls = result_reconly_DbatsWho(Filepath);
     fprintf(FidWho, '%s\t%s\t%s\t%d\n',ParamFile.name(1:4),ParamFile.name(6:11),ParamFile.name(13:16),NCalls);
 end
 fclose(FidWho);
