@@ -78,7 +78,7 @@ ForceExtract = 0; % set to 1 to redo the extraction of loggers otherwise the cal
 ForceAllign = 0; % In case the TTL pulses allignment was already done but you want to do it again, set to 1
 ForceVocExt1 = 0; % In case the localization on raw files of vocalizations that were manually extracted was already done but you want to do it again set to 1
 ForceVocExt2 = 0; % In case the localization on Loggers of vocalizations that were manually extracted was already done but you want to do it again set to 1
-ReAllignment = 1; % Incase we don't have a logger on all animals, it's better not to reallign the vocal data by cross correlation between the Microphone and the loggers
+ReAllignment = 0; % Incase we don't have a logger on all animals, it's better not to reallign the vocal data by cross correlation between the Microphone and the loggers
 close all
 
 % Get the recording date
@@ -158,9 +158,9 @@ for ll=1:length(All_loggers_dir)
     Logger_num = str2double(All_loggers_dir(ll).name((Ind+1):end));
     NLogCol = find(contains(Header, 'NL'));% Columns of the neural loggers
     ALogCol = find(contains(Header, 'AL'));% Columns of the audio loggers
-    LogCol = NLogCol(find(cell2mat(DataInfo(NLogCol))==Logger_num));
+    LogCol = NLogCol(find(cell2mat(DataInfo(NLogCol))==Logger_num)); %#ok<FNDSB>
     if isempty(LogCol) % This is an audiologger and not a neural logger
-        LogCol = ALogCol(find(cell2mat(DataInfo(ALogCol))==Logger_num));
+        LogCol = ALogCol(find(cell2mat(DataInfo(ALogCol))==Logger_num)); %#ok<FNDSB>
         LoggerName{ll} = ['AL' num2str(Logger_num)];
     else
         LoggerName{ll} = ['NL' num2str(Logger_num)];
