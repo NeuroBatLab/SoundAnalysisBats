@@ -1,7 +1,7 @@
-BaseDataDir = 'X:\JulieE\DeafSalineGroup151\';
-BaseCodeDir = 'C:\Users\Batman\Documents\Code\';
-Path2RecordingTable = 'C:\Users\Batman\GoogleDriveNeuroBatGroup\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
-TTLFolder = 'C:\Users\Batman\GoogleDriveNeuroBatGroup\JuvenileRecordings';
+BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
+BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\';
+Path2RecordingTable = 'C:\Users\BatLab\Google Drive\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
+TTLFolder = 'C:\Users\BatLab\Google Drive\JuvenileRecordings';
 
 % BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';
 % BaseCodeDir = '/Users/elie/Documents/CODE';

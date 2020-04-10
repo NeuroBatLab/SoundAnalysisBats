@@ -297,16 +297,21 @@ for ee=1:TotEvents_merged
         audiowrite(Voc_filename{ee} , Raw_wave, FS)
     end
 end
+
 Voc_samp_idx = [Voc_samp_idx{:}]';
 ActiveVoc = ~cellfun('isempty',Voc_filename);
 Voc_samp_idx = Voc_samp_idx(ActiveVoc,:);
 MeanStdAmpRawExtract = [MeanStdAmpRawExtract{:}]';
 MeanStdAmpRawExtract = MeanStdAmpRawExtract(ActiveVoc,:);
 Voc_filename = Voc_filename(ActiveVoc);
+Voc_transc_time = Voc_transc_time(ActiveVoc,:);
+LoggerID = LoggerID(ActiveVoc);
+Voc_loggerSamp_Idx = Voc_loggerSamp_Idx(ActiveVoc,:);
+FS_logger_voc =FS_logger_voc(ActiveVoc,:);
 
 
 %% save the calculation results
-save(fullfile(RawWav_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_filename','Voc_samp_idx','Voc_transc_time','MeanStdAmpRawExtract','Voc_loggerSamp_Idx','LoggerID','FS_logger_voc','LoggerID_unmerged','FS_logger_voc_unmerged','Voc_loggerSamp_Idx_unmerged','Voc_transc_time_unmerged')
+save(fullfile(RawWav_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_filename','Voc_samp_idx','Voc_transc_time','MeanStdAmpRawExtract','Voc_loggerSamp_Idx','LoggerID','FS_logger_voc','LoggerID_unmerged','FS_logger_voc_unmerged','Voc_loggerSamp_Idx_unmerged','Voc_transc_time_unmerged','ActiveVoc')
 
 end
 
