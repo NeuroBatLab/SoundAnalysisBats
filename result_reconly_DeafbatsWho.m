@@ -65,9 +65,9 @@ end
 fclose(FidWho);
 
 %% INTERNAL FUNCTION
-function [NCalls] = result_reconly_DbatsWho(Path2ParamFile, Logger_dir)
+function [NCalls] = result_reconly_DbatsWho(Path2ParamFile,Logger_dir)
+ForceWhoID = 1; % In case the identification of bats was already done but you want to re-do it again
 
-ForceWhoID = 0; % In case the identification of bats was already done but you want to re-do it again
 close all
 
 % Get the recording date
