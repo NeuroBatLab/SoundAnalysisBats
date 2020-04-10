@@ -73,6 +73,7 @@ close all
 % Get the recording date
 [AudioDataPath, DataFile ,~]=fileparts(Path2ParamFile);
 Date = DataFile(6:11);
+ExpStartTime = DataFile(13:16);
 
 if nargin<2
     % Set the path to logger data
