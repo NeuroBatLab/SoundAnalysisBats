@@ -265,11 +265,11 @@ for ee=1:TotEvents_merged
         if ~(FileIdx_local == FileIdx_local_old)
             WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, FileIdx_local)));
             Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
-            [Raw_10minwav, FS] = audioread(Raw_filename);
+            [Raw_10minwav2, FS2] = audioread(Raw_filename);
         end
         
-        if length(Raw_10minwav)>Voc_samp_idx{ee}(1)
-            Raw_wave = Raw_10minwav(Voc_samp_idx{ee}(1) : min(Voc_samp_idx{ee}(2),length(Raw_10minwav)));
+        if length(Raw_10minwav2)>Voc_samp_idx{ee}(1)
+            Raw_wave = Raw_10minwav2(Voc_samp_idx{ee}(1) : min(Voc_samp_idx{ee}(2),length(Raw_10minwav2)));
         elseif FileIdx_local==NRawWave
             % This event happened after the offset of microphone, discard
             fprintf(1, 'This call occured after microphone offset\n')
@@ -287,14 +287,14 @@ for ee=1:TotEvents_merged
             if ~(FileIdx_local == FileIdx_local_old)
                 WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, FileIdx_local)));
                 Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
-                [Raw_10minwav, FS] = audioread(Raw_filename);
+                [Raw_10minwav2, FS2] = audioread(Raw_filename);
             end
-            Raw_wave = Raw_10minwav(Voc_samp_idx{ee}(1) : min(Voc_samp_idx{ee}(2),length(Raw_10minwav)));
+            Raw_wave = Raw_10minwav2(Voc_samp_idx{ee}(1) : min(Voc_samp_idx{ee}(2),length(Raw_10minwav2)));
         end
         FileIdx_local_old = FileIdx_local;
         % Save the sound as a wav file 
         Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, FileIdx_local, Voc_samp_idx{ee}(1)));
-        audiowrite(Voc_filename{ee} , Raw_wave, FS)
+        audiowrite(Voc_filename{ee} , Raw_wave, FS2)
     end
 end
 
