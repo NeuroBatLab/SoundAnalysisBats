@@ -22,7 +22,7 @@ if ~exist(ExpLog, 'file')
     error('Cannot find the list of file to run in: %s \n',ExpLog);
 else
     FidExp = fopen(ExpLog, 'r');
-    Header = textscan(FidExp,'%s\t%s\t%s\t%s\t%s\n');
+    Header = textscan(FidExp,'%s\t%s\t%s\t%s\t%s\n',1);
     DoneListDetect = textscan(FidExp,'%s\t%s\t%s\t%.1f\t%d');
     fclose(FidExp);
 end
@@ -62,7 +62,7 @@ for ee=1:NExpe
     NCalls = result_reconly_DbatsWho(Filepath,Path2RecordingTable,TTLFolder);
     fprintf(FidWho, '%s\t%s\t%s\t%d\n',ParamFile.name(1:4),ParamFile.name(6:11),ParamFile.name(13:16),NCalls);
 end
-close(FidWho)
+fclose(FidWho);
 
 %% INTERNAL FUNCTION
 function [NCalls] = result_reconly_DbatsWho(Path2ParamFile, Logger_dir)
