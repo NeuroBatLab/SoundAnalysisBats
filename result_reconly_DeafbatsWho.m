@@ -46,7 +46,7 @@ for ee=1:NExpe
     Date = DoneListDetect{2}{ee};
     Time = DoneListDetect{3}{ee};
     ParamFile = dir(fullfile(BaseDataDir,['20' Date],'audio',sprintf('%s_%s_%s*RecOnly_param.txt', BatsID, Date, Time)));
-    fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,dd,NExpe,ParamFile.name)
+    fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
     % Check that the file was not already set aside or done
     
     if ~isempty(DoneListWho)
