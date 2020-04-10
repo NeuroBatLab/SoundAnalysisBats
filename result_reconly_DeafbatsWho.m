@@ -33,7 +33,7 @@ if ~exist(WhoLog, 'file')
     DoneListWho = [];
 else
     FidWho = fopen(WhoLog, 'r');
-    Header = textscan(FidWho,'%s\t%s\t%s\t%s\n');
+    Header = textscan(FidWho,'%s\t%s\t%s\t%s\n',1);
     DoneListWho = textscan(FidWho,'%s\t%s\t%s\t%d');
     fclose(FidWho);
     FidWho = fopen(WhoLog, 'a');

@@ -23,7 +23,7 @@ if ~exist(ExpLog, 'file')
     DoneList = [];
 else
     Fid = fopen(ExpLog, 'r');
-    Header = textscan(Fid,'%s\t%s\t%s\t%s\t%s\n');
+    Header = textscan(Fid,'%s\t%s\t%s\t%s\t%s\n',1);
     DoneList = textscan(Fid,'%s\t%s\t%s\t%.1f\t%d');
     fclose(Fid);
     Fid = fopen(ExpLog, 'a');
