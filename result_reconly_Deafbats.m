@@ -65,10 +65,10 @@ for dd=1:NDates
         end
     end
     ProcessedOK = result_reconly_Dbats(Filepath,Path2RecordingTable,TTLFolder);
-    Ind_ = strfind(ParamFile(ff).name, '_param');
+    Ind_ = strfind(ParamFile.name, '_param');
     fprintf(Fid, '%s\t%s\t%s\t%.1f\t%d\n',ParamFile.name(1:4),ParamFile.name(6:11),ParamFile.name(13:16),Temp,ProcessedOK);
 end
-close(Fid)
+fclose(Fid);
 
 %% INTERNAL FUNCTION
 function [Processed] = result_reconly_Dbats(Path2ParamFile, Path2RecordingTable, TTLFolder,Logger_dir)
