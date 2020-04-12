@@ -46,6 +46,18 @@ AllLoggers = dir(fullfile(Logger_dir, '*ogger*'));
 DirFlags = [AllLoggers.isdir];
 % Extract only those that are directories.
 AllLoggers = AllLoggers(DirFlags);
+% Identify audio loggers
+NLogger = length(AllLoggers);
+% Identify the type of logger and initialize output variables
+LoggerTypeAudi = zeros(NLogger,1);
+for ll=1:NLogger
+    LDir = dir(fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data', '*CSC*.mat'));
+    LData = load(fullfile(LDir(1).folder, LDir(1).name), 'logger_type', 'logger_serial_number');
+    LoggerTypeAudi  = strcmp(LData.logger_type, 'Audi');
+end
+AllLoggers = AllLoggers(LoggerTypeAudi);
+
+
 % Loop through loggers and detect vocalizations based on thereshold
 % crossings on the envelope
 NL = length(AllLoggers);
