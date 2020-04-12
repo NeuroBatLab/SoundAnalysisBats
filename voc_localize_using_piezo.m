@@ -53,8 +53,8 @@ Merge_thresh = 500; % merge thershold in ms for grouping sounds in sequences if 
 if MicData && ~exist(fullfile(RawWav_dir, 'Detected_calls'),'dir')
     mkdir(fullfile(RawWav_dir, 'Detected_calls'))
 end
-    
-    
+
+
 
 %% Load data and initialize output variables
 if MicData
@@ -146,11 +146,11 @@ parfor ll=1:NL
         Sound = Centered_piezo_signal(OnIndBuff : OffIndBuff);
         Sound = Sound - mean(Sound);
         
-       AcousticParams_temp = run_acoustic_features(Sound, FS_logger_voc_unmerged{ll}(ee), F_high, F_low, F_highSpec);
-       AcousticParams{ll}(:,ee) = AcousticParams_temp';
-       LoggerID_unmerged{ll}{ee} = ALField_Id{ll};
-       Voc_loggerSamp_Idx_unmerged{ll}(:,ee) = [OnInd; OffInd];
-       Voc_transc_time_unmerged{ll}(:,ee) = SoundEvent_TranscTime_ms{ll}(ee,:)';
+        AcousticParams_temp = run_acoustic_features(Sound, FS_logger_voc_unmerged{ll}(ee), F_high, F_low, F_highSpec);
+        AcousticParams{ll}(:,ee) = AcousticParams_temp';
+        LoggerID_unmerged{ll}{ee} = ALField_Id{ll};
+        Voc_loggerSamp_Idx_unmerged{ll}(:,ee) = [OnInd; OffInd];
+        Voc_transc_time_unmerged{ll}(:,ee) = SoundEvent_TranscTime_ms{ll}(ee,:)';
     end
 end
 
@@ -214,136 +214,144 @@ TotEvents_merged = size(Voc_transc_time,1);
 %% Retrieve the Microphone file that contains the data for each detected sequence of vocalization if requested
 % currently only working for Motu set-ups
 if MicData
-fprintf(1, '*****  Retrieve corresponding data in the microphone  *****\n')
-% Construct the frequency bandpass filter for calculating the noise rate on
-% the microphone data
-WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*.wav',Date, ExpStartTime)));
-Raw_filename = fullfile(WavFileStruc_local(1).folder, WavFileStruc_local(1).name);
-Subj = WavFileStruc_local(1).name(1:4);
-Info = audioinfo(Raw_filename);
-FS = Info.SampleRate;
-[z,p,k] = butter(6,[1000 90000]/(FS/2),'bandpass');
-sos_raw_band = zp2sos(z,p,k);
-
-NRawWave = length(WavFileStruc_local);
-MeanStdAmpRawFile = cell(1,NRawWave);
-FileIdx = cell(1,NRawWave);
-
-% Calculate the amplitude threshold as the average amplitude on the
-        % first 30 seconds of that 10 min recording file from which that file
-        % come from
-        % Get the average running rms in a Dur_RMS min extract in the middle of
-        % the recording
-% calculate the amplitude threshold for that file
-fprintf(1, 'Calculating average RMS values on a %.1f min sample of silence for each mic file\n',Dur_RMS);
-parfor vv=1:NRawWave
-    % load the raw file
-    Raw_filename = fullfile(WavFileStruc_local(vv).folder, WavFileStruc_local(vv).name);
-    [Raw_10minwav, FS] = audioread(Raw_filename);
+    fprintf(1, '*****  Retrieve corresponding data in the microphone  *****\n')
+    % Construct the frequency bandpass filter for calculating the noise rate on
+    % the microphone data
+    WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*.wav',Date, ExpStartTime)));
+    Raw_filename = fullfile(WavFileStruc_local(1).folder, WavFileStruc_local(1).name);
+    Subj = WavFileStruc_local(1).name(1:4);
+    Info = audioinfo(Raw_filename);
+    FS = Info.SampleRate;
+    [z,p,k] = butter(6,[1000 90000]/(FS/2),'bandpass');
+    sos_raw_band = zp2sos(z,p,k);
     
+    NRawWave = length(WavFileStruc_local);
+    MeanStdAmpRawFile = cell(1,NRawWave);
+    FileIdx = cell(1,NRawWave);
     
-    SampleDur = round(Dur_RMS*60*FS);
-    StartSamp = round(length(Raw_10minwav)/2);
-    fprintf(1,'Calculating the amplitude threshold for file %d/%d  ',vv,NRawWave)
-    BadSection = 1;
-    while BadSection
-        Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_10minwav(StartSamp + (1:round(SampleDur))));
-        Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
-        if any(Amp_env_Mic>MicThreshNoise) % there is most likely a vocalization in this sequence look somewhere else!
-            StartSamp = StartSamp + SampleDur +1;
-        else
-            BadSection = 0;
-        end
-    end
-    Ind_ = strfind(WavFileStruc_local(vv).name, '_');
-    Ind_ = Ind_(end);
-    Indwav = strfind(WavFileStruc_local(vv).name, '.wav');
-    FileIdx{vv} = str2double(WavFileStruc_local(vv).name((Ind_+1):(Indwav)));
-    MeanStdAmpRawFile{vv} = [mean(Amp_env_Mic); std(Amp_env_Mic)];
-    fprintf('-> Done\n')
-end
-MeanStdAmpRawFile = [MeanStdAmpRawFile{[FileIdx{:}]}]';
-
-MeanStdAmpRawExtract = cell(1,TotEvents_merged);
-Voc_samp_idx = cell(1,TotEvents_merged);
-Voc_filename = cell(TotEvents_merged,1);
-FileIdx_local_old=0;
-fprintf(1,'Extracting vocalization sequences from microphone and save\n')
-for ee=1:TotEvents_merged
-    fprintf('Saving Voc %d/%d\n', ee, TotEvents_merged)
-    % Find the microphone file
-    OnFile = find(TTL.Pulse_TimeStamp_Transc<Voc_transc_time(ee,1),1,'Last');
-    OffFile = find(TTL.Pulse_TimeStamp_Transc>Voc_transc_time(ee,2),1,'First')-1;
-    if isempty(OnFile)
-        % This event occured before the onset of TTL pulses
-        OnFile =1;
-        OffFile=1;
-    elseif isempty(OffFile)
-         % This event occured after the offset of TTL pulses
-         OffFile = OnFile;
-    end
-    FileIdx_local = min(TTL.File_number(OnFile), TTL.File_number(OffFile));
-    
-    
-    MeanStdAmpRawExtract{ee}= MeanStdAmpRawFile(FileIdx_local,:)';
-    
-    % Calculate the Samples of the extract in the microphone recording
-    TTL_idx = find(unique(TTL.File_number) == FileIdx_local);
-    Voc_transc_time_zs = (Voc_transc_time(ee,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,2);
-    Voc_samp_idx{ee} = round((TTL.Mean_std_Pulse_samp_audio(TTL_idx,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{TTL_idx}, Voc_transc_time_zs,[],TTL.Mean_std_x_transc2audiosamp{TTL_idx}) + TTL.Mean_std_Pulse_samp_audio(TTL_idx,1)))';
-    
-    % Extract the wave from the microphone recording
-    if any(Voc_samp_idx{ee}<0)
-        % This vocalization happened before the microphone started
-        % recording, discard
-        fprintf(1,'Vocalization happened before Mic onset\n')
-    else
-        if ~(FileIdx_local == FileIdx_local_old)
-            WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, FileIdx_local)));
-            Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
-            [Raw_10minwav2, FS2] = audioread(Raw_filename);
-        end
+    % Calculate the amplitude threshold as the average amplitude on the
+    % first 30 seconds of that 10 min recording file from which that file
+    % come from
+    % Get the average running rms in a Dur_RMS min extract in the middle of
+    % the recording
+    % calculate the amplitude threshold for that file
+    fprintf(1, 'Calculating average RMS values on a %.1f min sample of silence for each mic file\n',Dur_RMS);
+    parfor vv=1:NRawWave
+        % load the raw file
+        Raw_filename = fullfile(WavFileStruc_local(vv).folder, WavFileStruc_local(vv).name);
+        [Raw_10minwav, FS] = audioread(Raw_filename);
         
-        if length(Raw_10minwav2)>Voc_samp_idx{ee}(1)
-            Raw_wave = Raw_10minwav2(Voc_samp_idx{ee}(1) : min(Voc_samp_idx{ee}(2),length(Raw_10minwav2)));
-        elseif FileIdx_local==NRawWave
-            % This event happened after the offset of microphone, discard
-            fprintf(1, 'This call occured after microphone offset\n')
-            continue
-        else% there was an error in the estimation of the file index, this call occured in the next file
-            fprintf(1, 'This call occured in next file\n')
-            FileIdx_local = FileIdx_local+1;
-            MeanStdAmpRawExtract{ee}= MeanStdAmpRawFile(FileIdx_local,:)';
+        
+        SampleDur = round(Dur_RMS*60*FS);
+        StartSamp = round(length(Raw_10minwav)/2);
+        fprintf(1,'Calculating the amplitude threshold for file %d/%d  ',vv,NRawWave)
+        BadSection = 1;
+        while BadSection
+            Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_10minwav(StartSamp + (1:round(SampleDur))));
+            Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
+            if any(Amp_env_Mic>MicThreshNoise) % there is most likely a vocalization in this sequence look somewhere else!
+                StartSamp = StartSamp + SampleDur +1;
+            else
+                BadSection = 0;
+            end
+        end
+        Ind_ = strfind(WavFileStruc_local(vv).name, '_');
+        Ind_ = Ind_(end);
+        Indwav = strfind(WavFileStruc_local(vv).name, '.wav');
+        FileIdx{vv} = str2double(WavFileStruc_local(vv).name((Ind_+1):(Indwav)));
+        MeanStdAmpRawFile{vv} = [mean(Amp_env_Mic); std(Amp_env_Mic)];
+        fprintf('-> Done\n')
+    end
+    MeanStdAmpRawFile = [MeanStdAmpRawFile{[FileIdx{:}]}]';
     
-            % Calculate the Samples of the extract in the microphone recording
-            TTL_idx = find(unique(TTL.File_number) == FileIdx_local);
+    MeanStdAmpRawExtract = cell(1,TotEvents_merged);
+    Voc_samp_idx = cell(1,TotEvents_merged);
+    Voc_filename = cell(TotEvents_merged,1);
+    FileIdx_local_old=0;
+    fprintf(1,'Extracting vocalization sequences from microphone and save\n')
+    for ee=1:TotEvents_merged
+        fprintf('Saving Voc %d/%d\n', ee, TotEvents_merged)
+        % Find the microphone file
+        OnFile = find(TTL.Pulse_TimeStamp_Transc<Voc_transc_time(ee,1),1,'Last');
+        OffFile = find(TTL.Pulse_TimeStamp_Transc>Voc_transc_time(ee,2),1,'First')-1;
+        if isempty(OnFile)
+            % This event occured before the onset of TTL pulses
+            OnFile =1;
+            OffFile=1;
+        elseif isempty(OffFile)
+            % This event occured after the offset of TTL pulses
+            OffFile = OnFile;
+        end
+        FileIdx_local = min(TTL.File_number(OnFile), TTL.File_number(OffFile));
+        
+        
+        MeanStdAmpRawExtract{ee}= MeanStdAmpRawFile(FileIdx_local,:)';
+        
+        % Calculate the Samples of the extract in the microphone recording
+        TTL_idx = find(unique(TTL.File_number) == FileIdx_local);
+        if isempty(TTL_idx) % There was an error with that TTL file, no allignment possible, no microphone data can be retrieved
+            continue
+        else
             Voc_transc_time_zs = (Voc_transc_time(ee,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,2);
             Voc_samp_idx{ee} = round((TTL.Mean_std_Pulse_samp_audio(TTL_idx,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{TTL_idx}, Voc_transc_time_zs,[],TTL.Mean_std_x_transc2audiosamp{TTL_idx}) + TTL.Mean_std_Pulse_samp_audio(TTL_idx,1)))';
-            
+        end
+        
+        % Extract the wave from the microphone recording
+        if any(Voc_samp_idx{ee}<0)
+            % This vocalization happened before the microphone started
+            % recording, discard
+            fprintf(1,'Vocalization happened before Mic onset\n')
+        else
             if ~(FileIdx_local == FileIdx_local_old)
                 WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, FileIdx_local)));
                 Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
                 [Raw_10minwav2, FS2] = audioread(Raw_filename);
             end
-            Raw_wave = Raw_10minwav2(Voc_samp_idx{ee}(1) : min(Voc_samp_idx{ee}(2),length(Raw_10minwav2)));
+            
+            if length(Raw_10minwav2)>Voc_samp_idx{ee}(1)
+                Raw_wave = Raw_10minwav2(Voc_samp_idx{ee}(1) : min(Voc_samp_idx{ee}(2),length(Raw_10minwav2)));
+            elseif FileIdx_local==NRawWave
+                % This event happened after the offset of microphone, discard
+                fprintf(1, 'This call occured after microphone offset\n')
+                continue
+            else% there was an error in the estimation of the file index, this call occured in the next file
+                fprintf(1, 'This call occured in next file\n')
+                FileIdx_local = FileIdx_local+1;
+                MeanStdAmpRawExtract{ee}= MeanStdAmpRawFile(FileIdx_local,:)';
+                
+                % Calculate the Samples of the extract in the microphone recording
+                TTL_idx = find(unique(TTL.File_number) == FileIdx_local);
+                if isempty(TTL_idx) % There was an error with that TTL file, no allignment possible, no microphone data can be retrieved
+                    continue
+                else
+                    Voc_transc_time_zs = (Voc_transc_time(ee,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,2);
+                    Voc_samp_idx{ee} = round((TTL.Mean_std_Pulse_samp_audio(TTL_idx,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{TTL_idx}, Voc_transc_time_zs,[],TTL.Mean_std_x_transc2audiosamp{TTL_idx}) + TTL.Mean_std_Pulse_samp_audio(TTL_idx,1)))';
+                end
+                
+                if ~(FileIdx_local == FileIdx_local_old)
+                    WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, FileIdx_local)));
+                    Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
+                    [Raw_10minwav2, FS2] = audioread(Raw_filename);
+                end
+                Raw_wave = Raw_10minwav2(Voc_samp_idx{ee}(1) : min(Voc_samp_idx{ee}(2),length(Raw_10minwav2)));
+            end
+            FileIdx_local_old = FileIdx_local;
+            % Save the sound as a wav file
+            Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, FileIdx_local, Voc_samp_idx{ee}(1)));
+            audiowrite(Voc_filename{ee} , Raw_wave, FS2)
         end
-        FileIdx_local_old = FileIdx_local;
-        % Save the sound as a wav file 
-        Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, FileIdx_local, Voc_samp_idx{ee}(1)));
-        audiowrite(Voc_filename{ee} , Raw_wave, FS2)
     end
-end
-
-Voc_samp_idx = [Voc_samp_idx{:}]';
-ActiveVoc = ~cellfun('isempty',Voc_filename);
-Voc_samp_idx = Voc_samp_idx(ActiveVoc,:);
-MeanStdAmpRawExtract = [MeanStdAmpRawExtract{:}]';
-MeanStdAmpRawExtract = MeanStdAmpRawExtract(ActiveVoc,:);
-Voc_filename = Voc_filename(ActiveVoc);
-Voc_transc_time = Voc_transc_time(ActiveVoc,:);
-LoggerID = LoggerID(ActiveVoc);
-Voc_loggerSamp_Idx = Voc_loggerSamp_Idx(ActiveVoc,:);
-FS_logger_voc =FS_logger_voc(ActiveVoc,:);
+    
+    Voc_samp_idx = [Voc_samp_idx{:}]';
+    ActiveVoc = ~cellfun('isempty',Voc_filename);
+    Voc_samp_idx = Voc_samp_idx(ActiveVoc,:);
+    MeanStdAmpRawExtract = [MeanStdAmpRawExtract{:}]';
+    MeanStdAmpRawExtract = MeanStdAmpRawExtract(ActiveVoc,:);
+    Voc_filename = Voc_filename(ActiveVoc);
+    Voc_transc_time = Voc_transc_time(ActiveVoc,:);
+    LoggerID = LoggerID(ActiveVoc);
+    Voc_loggerSamp_Idx = Voc_loggerSamp_Idx(ActiveVoc,:);
+    FS_logger_voc =FS_logger_voc(ActiveVoc,:);
 end
 
 %% save and return the calculation results
