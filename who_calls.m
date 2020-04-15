@@ -96,7 +96,7 @@ else
     
     % design filters of raw ambient recording, bandpass and low pass which was
     % used for the cross correlation
-    [z,p,k] = butter(6,[BandPassFilter(1) 90000]/(FS/2),'bandpass');
+    [z,p,k] = butter(6,[BandPassFilter(1) 20000]/(FS/2),'bandpass');
     sos_raw_band = zp2sos(z,p,k);
     % [z,p,k] = butter(6,BandPassFilter(1:2)/(FS/2),'bandpass');
     % sos_raw_low = zp2sos(z,p,k);
