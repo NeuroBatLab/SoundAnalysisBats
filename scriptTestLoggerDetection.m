@@ -661,7 +661,146 @@ subplot(3,1,3)
 histogram(SoundEventDuration_ms(SoundEventDuration_ms<200), 'BinWidth',1)
 xlabel('Sound event duration ms')
 
+%% Find calls using call detection on microphone
+addpath(genpath('/Users/elie/Documents/CODE/neurobat-callCutting'))
+WD = '/Users/elie/Documents/ManipBats/LMC/20190603';
+FS = 192000;
+findcalls_session(WD,FS,'fileType','wav')
 
+Path2Data2 = '/Volumes/Julie4T/JuvenileRecordings151/20190927/audio';
+FS = 192000;
+findcalls_session(Path2Data2,FS,'fileType','wav')
+
+% convert automatically detected Audio time to transceiver times 
+MicVoc_transcTime_ms = mic2transc_time(Path2Data2);
+
+% 
+%% Let's loop in the dataset of manually extracted calls (Compare to ground truth) and see how many correct hits we get in the automatic detection
+
+FS_env = 1000; %Sampling Frequency of the envelope as calculated by piezo_find_calls_logger
+Delay = 100; %in ms error/delay between auto and man detection and Delay to add before each detected call in ms
+load(fullfile(Path2Data1, 'SoundEvent2.mat'),'BioSoundUniqParam', 'AcounsticFeatureNames','AL_ManId','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile')
+MissedAutoDetection = cell(NLoggers,1);
+TotManCall = 0;
+MicCorrectAutoDetection01 = struct();
+
+for ll=1:NLoggers
+    MissedAutoDetection{ll} = [];
+    MicCorrectAutoDetection01.(sprintf(AL_ManId{ll})) = zeros(size(MicVoc_transcTime_ms,1),1);
+    
+    TotManCall = TotManCall+size(ManCallTranscTime_ms{ll},1);
+    
+    for vv=1:size(ManCallTranscTime_ms{ll},1)
+        fprintf(1, '*** %s vocalization %d/%d ****\n', AL_ManId{ll}, vv,size(ManCallTranscTime_ms{ll},1))
+        OnOffVoc = ManCallTranscTime_ms{ll}(vv,:);
+        Idx_OnsetAuto = find((MicVoc_transcTime_ms(:,1)>(OnOffVoc(1)-Delay)) .* (MicVoc_transcTime_ms(:,1)<(OnOffVoc(2)+Delay))>0);
+        Idx_OffsetAuto = find((MicVoc_transcTime_ms(:,2)>(OnOffVoc(1)-Delay)) .* (MicVoc_transcTime_ms(:,2)<(OnOffVoc(2)+Delay))>0);
+        
+        if isempty(Idx_OnsetAuto) && isempty(Idx_OffsetAuto)
+            Idx_OnsetAuto = find((MicVoc_transcTime_ms(:,1)<(OnOffVoc(1)-Delay)) .* (MicVoc_transcTime_ms(:,2)>(OnOffVoc(1)-Delay))>0);
+            Idx_OffsetAuto = find((MicVoc_transcTime_ms(:,1)<(OnOffVoc(2)+Delay)) .* (MicVoc_transcTime_ms(:,2)>(OnOffVoc(2)+Delay))>0);
+        end
+        if isempty(Idx_OnsetAuto) && isempty(Idx_OffsetAuto)
+            fprintf('No automatic call detected\n')
+            disp(OnOffVoc)
+            MissedAutoDetection{ll} = [MissedAutoDetection{ll} vv];
+            figure(1)
+            clf
+            
+            % Plot the spectrogram of the sound extract
+            DBNoise = 60; % amplitude parameter for the color scale of the spectro
+            FHigh = 10000; % y axis max scale for the spectrogram
+            x_start = round(ManCallLogSamp{ll}(vv,1)-Delay*10^(-3)*SamplingFreq{ll});
+            x_stop = round(ManCallLogSamp{ll}(vv,2)+Delay*10^(-3)*SamplingFreq{ll});
+            Raw = Centered_piezo_signal(x_start:x_stop);
+            Raw_ramp = cosramp(Raw-mean(Raw), SamplingFreq{ll}*10*10^-3);
+            [~] = spec_only_bats(Raw_ramp,SamplingFreq{ll},DBNoise, FHigh);
+            caxis('manual');
+            caxis([2 70]);
+            ylim([-500 10000])
+            hold on
+            
+            yyaxis right %% There is always a problem in the plot for allignment of the envelope that I attribute to the average sample frequency estimate... Teh onset/offset detection is correctly alligned though!
+            x_start_env = round((ManCallLogSamp{ll}(vv,1)/SamplingFreq{ll}-Delay*10^(-3))*FS_env);
+%             x_start_env = round(x_start/SamplingFreq{ll}*FS_env);
+            x_stop_env = round((ManCallLogSamp{ll}(vv,2)/SamplingFreq{ll}+Delay*10^(-3))*FS_env);
+%             x_stop_env = round(x_stop/SamplingFreq{ll}*FS_env);
+            plot(LoggerEnvelopeAll.(sprintf(AL_AutoId{ll_auto}))(x_start_env:x_stop_env), '-k','LineWidth',2)
+            hold on
+%             hline((RMSfactor * Noise))
+%             hold on
+            ylim([-10 300])
+            ylabel('Amplitude Envelope')
+            
+            AllignOn = ManCallLogSamp{ll}(vv,1)-Delay*10^(-3)*SamplingFreq{ll}; % in logger samples
+            x_start_man = round(Delay*10^(-3)*FS_env);
+            x_stop_man = round((ManCallLogSamp{ll}(vv,2)-AllignOn)/SamplingFreq{ll}*FS_env);
+            plot([x_start_man x_stop_man], ones(2,1) * 1.5, 'g-', 'LineWidth',1)
+            hold off
+            
+            
+%             title(sprintf('%s  Voc %d/%d NOT DETECTED', AL_ManId{ll}, vv, size(ManCallTranscTime_ms{ll},1)))
+%             Player = audioplayer(Raw_ramp/std(Raw_ramp), SamplingFreq{ll});
+%             play(Player)
+%             pause()
+            
+            
+        else
+            IdxAll = union(Idx_OnsetAuto,Idx_OffsetAuto);
+            MicCorrectAutoDetection01.(sprintf(AL_AutoId{ll_auto}))(IdxAll) = ones(size(IdxAll));
+            fprintf('%d events started during that vocalization\n',length(IdxAll))
+            figure(1)
+            clf
+            
+            % Plot the spectrogram of the sound extract
+            DBNoise = 60; % amplitude parameter for the color scale of the spectro
+            FHigh = 10000; % y axis max scale for the spectrogram
+            x_start = round(ManCallLogSamp{ll}(vv,1)-Delay*10^(-3)*SamplingFreq{ll});
+            x_stop = round(ManCallLogSamp{ll}(vv,2)+Delay*10^(-3)*SamplingFreq{ll});
+            Raw = Centered_piezo_signal(x_start:x_stop);
+            Raw_ramp = cosramp(Raw-mean(Raw), SamplingFreq{ll}*10*10^-3);
+            [~] = spec_only_bats(Raw_ramp,SamplingFreq{ll},DBNoise, FHigh);
+            caxis('manual');
+            caxis([2 70]);
+            ylim([-500 10000])
+            hold on
+            
+            yyaxis right
+            x_start_env = round((ManCallLogSamp{ll}(vv,1)/SamplingFreq{ll}-Delay*10^(-3))*FS_env);
+%             x_start_env = round(x_start/SamplingFreq{ll}*FS_env);
+            x_stop_env = round((ManCallLogSamp{ll}(vv,2)/SamplingFreq{ll}+Delay*10^(-3))*FS_env);
+%             x_stop_env = round(x_stop/SamplingFreq{ll}*FS_env);
+            plot(LoggerEnvelopeAll.(sprintf(AL_AutoId{ll_auto}))(x_start_env:x_stop_env), '-k','LineWidth',2)
+            hold on
+%             hline((RMSfactor * Noise))
+%             hold on
+            ylim([-10 300])
+            ylabel('Amplitude Envelope')
+            
+            AllignOn = ManCallLogSamp{ll}(vv,1)-Delay*10^(-3)*SamplingFreq{ll}; % in logger samples
+            x_start_man = round(Delay*10^(-3)*FS_env);
+            x_stop_man = round((ManCallLogSamp{ll}(vv,2)-AllignOn)/SamplingFreq{ll}*FS_env);
+            plot([x_start_man x_stop_man], ones(2,1) * 1.5, 'g-', 'LineWidth',1)
+            hold on
+            for ii=1:length(IdxAll)
+                OnOff = (SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(IdxAll(ii),:) - AllignOn)/SamplingFreq{ll}*FS_env;
+                plot(OnOff, ones(2,1) * (-1.5), 'b-', 'LineWidth',2)
+                if ii==1
+                    legend({ 'Automatic' ,'Manual'})
+                    legend('AutoUpdate','Off')
+                end
+                hold on
+            end
+            hold off
+            
+            
+            title(sprintf('%s  Voc %d/%d', AL_ManId{ll}, vv, size(ManCallTranscTime_ms{ll},1)))
+%             Player = audioplayer(Raw_ramp/std(Raw_ramp), SamplingFreq{ll});
+%             play(Player)
+%             pause()
+        end
+    end
+end
 %% Internal functions
 function BiosoundObj = runBiosound(Y, FS, F_high)
         % Hard coded parameters for biosound
@@ -771,5 +910,30 @@ function BiosoundObj = runBiosound(Y, FS, F_high)
         BiosoundObj.wf = double(BiosoundObj.wf);
         BiosoundObj.wt = double(BiosoundObj.wt);
         BiosoundObj.mps = double(BiosoundObj.mps);
-    end
+end
+    
+function [MicAuto_transcTime]=mic2transc_time(RawWav_dir)
+AllFiles = dir(fullfile(RawWav_dir, 'Analyzed_auto'));
+% find the date and expstart time
+Date = AllFiles(1).name(6:11);
+ExpStartTime = AllFiles(1).name(13:16);
+TTL_dir = dir(fullfile(RawWav_dir,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
+TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
+% loop through data
+Nfiles = length(AllFiles);
+MicAuto_transcTime=nan(Nfiles,2);
+% Extract the transceiver time
+% zscore the sample stamps
+for ff=1:Nfiles
+    Ind_=strfind(AllFiles(ff).name,'_');
+    FileIdx=str2double(AllFiles(ff).name((Ind_(5)+1):(Ind_(6)-1)));
+    Data = load(fullfile(AllFiles(ff).folder, AllFiles(ff).name));
+    TTL_idx = find(unique(TTL.File_number) == FileIdx);
+    Voc_samp_idx_zs = (Data.callpos - TTL.Mean_std_Pulse_samp_audio(TTL_idx,1))/TTL.Mean_std_Pulse_samp_audio(TTL_idx,2);
+    % calculate the transceiver times
+    MicAuto_transcTime(ff,:) = TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,2) .* polyval(TTL.Slope_and_intercept{TTL_idx},Voc_samp_idx_zs,[], TTL.Mean_std_x{TTL_idx}) + TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,1);
+    callpos_transcTime = MicAuto_transcTime(ff,:);
+    save(fullfile(AllFiles(ff).folder, AllFiles(ff).name), 'callpos_transcTime', '-append')
+end
+end
     
