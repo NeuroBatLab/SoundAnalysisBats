@@ -659,7 +659,13 @@ else
                     if isempty(IndVocStart{ll})
                         fprintf('\nNo vocalization detected on %s\n',Fns_AL{ll});
                     else% Some vocalizations were detected
-                        ManCall_loggger=input('\nDid you hear any call on %s? (yes:1 ; No;0)\n',Fns_AL{ll});
+                        ManCall_loggger=input('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll});
+                        while ManCall_loggger~=0 && ManCall_loggger~=1
+                            Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                            play(Player)
+                            pause(length(Raw_wave{vv})/FS +1)
+                            ManCall_loggger = input('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll});
+                        end
                         IndVocStart_diffind = find(diff(IndVocStart{ll})>1);
                         IndVocStart{ll} = [IndVocStart{ll}(1) IndVocStart{ll}(IndVocStart_diffind +1)]; % these two lines get rid of overlapping sequences that werer detected several times
                         NV = length(IndVocStart{ll}); % This is the number of detected potential vocalization
