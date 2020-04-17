@@ -68,8 +68,8 @@ else
     LowPassLogVoc = cell(1,Nvoc);
     % LowPassMicVoc = cell(1,Nvoc);
     Fns_AL = fieldnames(Piezo_wave);
-    IndVocStart_all = cell(1,Nvoc);
-    IndVocStop_all = cell(1,Nvoc);
+    IndVocStart_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
+    IndVocStop_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
     IndNoiseStart_all = cell(1,Nvoc);
     IndNoiseStop_all = cell(1,Nvoc);
     IndVocStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc)

@@ -673,18 +673,20 @@ addpath(genpath('/Users/elie/Documents/CODE/neurobat-callCutting'))
 % findcalls_session(WD,FS,'fileType','wav')
 
 FS = 192000;
-findcalls_session(Path2Data2,FS,'fileType','wav','audio_file_filter','JuGr_190927_1014_RecOnly_mic1*')
+findcalls_session(Path2Data2,FS,'fileType','wav','audio_file_filter','JuGr_190927_1014_RecOnly_mic1*','filter_raw_data',true)
 
-%% convert automatically detected Audio time to transceiver times 
+% convert automatically detected Audio time to transceiver times 
 [MicVoc_samp_idx,MicVoc_transcTime_ms] = mic2transc_time(Path2Data2);
 
 % 
 %% Let's loop in the dataset of manually extracted calls (Compare to ground truth) and see how many correct hits we get in the automatic detection
 
-Delay = 500; %in ms error/delay between auto and man detection and Delay to add before each detected call in ms
+Delay = 100; %in ms error/delay between auto and man detection and Delay to add before each detected call in ms
 MissedMicAutoDetection = cell(NLoggers,1);
 TotManCall = 0;
 MicCorrectAutoDetection01 = zeros(size(MicVoc_transcTime_ms,1),1);
+[z,p,k] = butter(6,[100 90000]/(192000/2),'bandpass');
+sos_raw_band = zp2sos(z,p,k);
 
 for ll=1:NLoggers
     MissedMicAutoDetection{ll} = [];
@@ -715,18 +717,19 @@ for ll=1:NLoggers
             x_start = round(ManCallMicSamp{ll}(vv,1)-Delay*10^(-3)*FSRaw);
             x_stop = round(ManCallMicSamp{ll}(vv,2)+Delay*10^(-3)*FSRaw);
             Raw = Raw(x_start:x_stop);
-            Raw_ramp = cosramp(Raw-mean(Raw), FSRaw*10*10^-3);
+            Filt_RawVoc = filtfilt(sos_raw_band,1,Raw);
+            Raw_ramp = cosramp(Filt_RawVoc-mean(Filt_RawVoc), FSRaw*10*10^-3);
             [~] = spec_only_bats(Raw_ramp,FSRaw,DBNoise, FHigh);
-            caxis('manual');
-            caxis([2 70]);
+%             caxis('manual');
+%             caxis([2 70]);
             ylim([-500 10000])
             hold on
             
             yyaxis right 
             ylim([-10 300])
-            AllignOn = ManCallMicSamp{ll}(vv,1)-Delay*10^(-3)*FSRaw; % in logger samples
-            x_start_man = round(Delay*10^(-3)*FSRaw);
-            x_stop_man = round((ManCallMicSamp{ll}(vv,2)-AllignOn));
+            AllignOn = ManCallMicSamp{ll}(vv,1)/FSRaw*10^3-Delay;
+            x_start_man = Delay;
+            x_stop_man = round(ManCallMicSamp{ll}(vv,2)/FSRaw*10^3-AllignOn);
             plot([x_start_man x_stop_man], ones(2,1) * 1.5, 'g-', 'LineWidth',1)
             hold off
             
@@ -734,7 +737,7 @@ for ll=1:NLoggers
             title(sprintf('%s  Voc %d/%d NOT DETECTED', AL_ManId{ll}, vv, size(ManCallTranscTime_ms{ll},1)))
             Player = audioplayer(Raw_ramp/std(Raw_ramp), FSRaw);
             play(Player)
-            pause()
+%             pause()
             
             
         else
@@ -751,25 +754,26 @@ for ll=1:NLoggers
             x_start = round(ManCallMicSamp{ll}(vv,1)-Delay*10^(-3)*FSRaw);
             x_stop = round(ManCallMicSamp{ll}(vv,2)+Delay*10^(-3)*FSRaw);
             Raw = Raw(x_start:x_stop);
-            Raw_ramp = cosramp(Raw-mean(Raw), FSRaw*10*10^-3);
+            Filt_RawVoc = filtfilt(sos_raw_band,1,Raw);
+            Raw_ramp = cosramp(Filt_RawVoc-mean(Filt_RawVoc), FSRaw*10*10^-3);
             [~] = spec_only_bats(Raw_ramp,FSRaw,DBNoise, FHigh);
-            caxis('manual');
-            caxis([2 70]);
+%             caxis('manual');
+%             caxis([2 70]);
             ylim([-500 10000])
             hold on
             
             yyaxis right
             ylim([-10 300])
-            AllignOn = ManCallMicSamp{ll}(vv,1)-Delay*10^(-3)*FSRaw; % in mic samples
-            x_start_man = round(Delay*10^(-3)*FSRaw);
-            x_stop_man = round(ManCallMicSamp{ll}(vv,2)-AllignOn);
+            AllignOn = ManCallMicSamp{ll}(vv,1)/FSRaw*10^3-Delay;
+            x_start_man = Delay;
+            x_stop_man = round(ManCallMicSamp{ll}(vv,2)/FSRaw*10^3-AllignOn);
             plot([x_start_man x_stop_man], ones(2,1) * 1.5, 'g-', 'LineWidth',1)
             hold on
             for ii=1:length(IdxAll)
-                OnOff = (MicVoc_samp_idx(IdxAll(ii),:) - AllignOn);
+                OnOff = (MicVoc_samp_idx(IdxAll(ii),:)/FSRaw*10^3 - AllignOn);
                 plot(OnOff, ones(2,1) * (-1.5), 'b-', 'LineWidth',2)
                 if ii==1
-                    legend({ 'Automatic' ,'Manual'})
+                    legend({ 'Manual' ,'Automatic'})
                     legend('AutoUpdate','Off')
                 end
                 hold on
@@ -778,14 +782,14 @@ for ll=1:NLoggers
             
             
             title(sprintf('%s  Voc %d/%d', AL_ManId{ll}, vv, size(ManCallTranscTime_ms{ll},1)))
-            Player = audioplayer(Raw_ramp/std(Raw_ramp), FSRaw);
-            play(Player)
-            pause()
+%             Player = audioplayer(Raw_ramp/std(Raw_ramp), FSRaw);
+%             play(Player)
+%             pause()
         end
     end
 end
 fprintf(1,'Missed call by the microphone auto detection: %d/%d or %.1f%%\n', sum(cellfun('length',MissedMicAutoDetection)),TotManCall,sum(cellfun('length',MissedMicAutoDetection))/TotManCall*100);
-fprintf(1,'Number of detected events from the microphone %d, proportion of true calls %d/%d or %.1f%%\n',length(MicCorrectAutoDetection01),sum(MicCorrectAutoDetection01),length(MicCorrectAutoDetection01)/sum(MicCorrectAutoDetection01)*100);
+fprintf(1,'Number of detected events from the microphone %d, proportion of true calls %d/%d or %.1f%%\n',length(MicCorrectAutoDetection01),sum(MicCorrectAutoDetection01),length(MicCorrectAutoDetection01),sum(MicCorrectAutoDetection01)/length(MicCorrectAutoDetection01)*100);
 
 
 %% Internal functions
