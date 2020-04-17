@@ -659,8 +659,9 @@ else
                     if isempty(IndVocStart{ll})
                         fprintf('\nNo vocalization detected on %s\n',Fns_AL{ll});
                     else% Some vocalizations were detected
+                        
                         if ManCall
-                            ManCall_logger=input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
+                            ManCall_logger=input(sprintf('\nSound event detected. Did you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
                             while ManCall_logger~=0 && ManCall_logger~=1
                                 Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                 play(Player)
@@ -668,6 +669,7 @@ else
                                 ManCall_logger = input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
                             end
                         else
+                            fprintf(1,'\nSound event detected on %s\n',Fns_AL{ll});
                             ManCall_logger = 0;
                         end
                         IndVocStart_diffind = find(diff(IndVocStart{ll})>1);
@@ -751,9 +753,9 @@ else
                             hold off
                             
                             if Call1Hear0_temp(ii)
-                                fprintf('\nComputer guess for that sound element: %s calling\n',Fns_AL{ll});
+                                fprintf('Computer guess for that sound element: %s calling\n',Fns_AL{ll});
                             else
-                                fprintf('\nComputer guess for that sound element: %s hearing/noise\n',Fns_AL{ll});
+                                fprintf('Computer guess for that sound element: %s hearing/noise\n',Fns_AL{ll});
                             end
                             if ManCall &&  ManCall_logger
                                 Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    Listen again to that logger recording (any other number)\n');
