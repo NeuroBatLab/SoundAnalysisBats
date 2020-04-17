@@ -659,12 +659,16 @@ else
                     if isempty(IndVocStart{ll})
                         fprintf('\nNo vocalization detected on %s\n',Fns_AL{ll});
                     else% Some vocalizations were detected
-                        ManCall_loggger=input('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll});
-                        while ManCall_loggger~=0 && ManCall_loggger~=1
-                            Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
-                            play(Player)
-                            pause(length(Raw_wave{vv})/FS +1)
-                            ManCall_loggger = input('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll});
+                        if ManCall
+                            ManCall_logger=input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
+                            while ManCall_logger~=0 && ManCall_logger~=1
+                                Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                                play(Player)
+                                pause(length(Raw_wave{vv})/FS +1)
+                                ManCall_logger = input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
+                            end
+                        else
+                            ManCall_logger = 0;
                         end
                         IndVocStart_diffind = find(diff(IndVocStart{ll})>1);
                         IndVocStart{ll} = [IndVocStart{ll}(1) IndVocStart{ll}(IndVocStart_diffind +1)]; % these two lines get rid of overlapping sequences that werer detected several times
@@ -674,7 +678,7 @@ else
                         RMSRatio{ll} = nan(NV,1);
                         RMSDiff{ll} = nan(NV,1);
                         Call1Hear0_temp = nan(NV,1);
-                        if ManCall && ManCall_loggger
+                        if ManCall && ManCall_logger
                             Call1Hear0_man = nan(NV,1);
                         else
                             Call1Hear0_man = zeros(NV,1);
@@ -751,7 +755,7 @@ else
                             else
                                 fprintf('\nComputer guess for that sound element: %s hearing/noise\n',Fns_AL{ll});
                             end
-                            if ManCall &&  ManCall_loggger
+                            if ManCall &&  ManCall_logger
                                 Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    Listen again to that logger recording (any other number)\n');
                                 while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
                                     Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
