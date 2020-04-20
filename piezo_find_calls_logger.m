@@ -1,4 +1,4 @@
-function [SoundEvent_LoggerSamp, SoundEvent_TranscTime_ms, Piezo_envelope_All, CallEnvInd_merge, CallEnvInd] = piezo_find_calls_logger(Data_directory)
+function [SoundEvent_LoggerSamp, SoundEvent_TranscTime_ms, Piezo_envelope_All, CallEnvInd_merge, CallEnvInd] = piezo_find_calls_logger(Data_directory, RMSfactor)
 % Takes in the directory for the individidual logger data
 % LOGGER_DIRECTORY and outputs SoundEvent_LoggerSamp, the start/stop indices of potential
 % calls in the raw input data. Note that SoundEvent_LoggerSamp is a matrix where each
@@ -16,13 +16,15 @@ EnvWin = 5; % duration of the sliding window for the envelope calculation
 BandPassFilter = [1000 5000]; % the frequencies we care about to identify when a call is made
 
 % Call detection parameters
-RMSfactor = 3; % how much greater the call's envelope needs to be than the noise. Subject to change implementation
+if nargin<2
+    RMSfactor = 3; % how much greater the call's envelope needs to be than the noise. Subject to change implementation
+end
 CallLength = 0.007; % minimum length of a call in s
 MergeThresh = 50e-3; % minimum length between two calls in s (50ms)
 
 % Identify data
 PathPieces = split(Data_directory, filesep);
-logger_name = PathPieces{find(contains(PathPieces,'extracted_data'))-1};
+Logger_name = PathPieces{find(contains(PathPieces,'extracted_data'))-1};
 %disp(logger_name)
 
 %it's saying the last call occurs at 3.8731, which doesn't make sense.
@@ -114,7 +116,7 @@ if draw_plots
     plot((1:length(Piezo_envelope_All)), Piezo_envelope_All, 'Color',[0,0.5,0.9])
     hold on
     line([1, length(Piezo_envelope_All)], [Noise * RMSfactor, Noise * RMSfactor], 'Color','red','LineStyle','--', 'LineWidth',2)
-    title(logger_name)
+    title(Logger_name)
     xlabel('Time (ms or sample)')
     legend({'Envelope', 'Sound detection threshold'})
     hold on
