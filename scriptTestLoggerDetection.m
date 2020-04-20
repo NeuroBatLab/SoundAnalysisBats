@@ -163,6 +163,15 @@ DirFlags = [AllLoggers.isdir];
 % Extract only those that are directories.
 AllLoggers = AllLoggers(DirFlags);
 NL = length(AllLoggers);
+
+AllFiles = dir(fullfile(Path2Data2,'*.wav'));
+% find the date and expstart time
+Date = AllFiles(1).name(6:11);
+ExpStartTime = AllFiles(1).name(13:16);
+TTL_dir = dir(fullfile(Path2Data2,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
+TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
+MaxTranscTime = max(TTL.Pulse_TimeStamp_Transc(TTL.File_number==10));
+
 %RMSThresh = [1 1.5 2 3];
 RMSThresh = 1.5;
 MissedAutoDetection = cell(length(RMSThresh),1);
@@ -172,7 +181,10 @@ for tt=1:length(RMSThresh)
     fprintf(1,'*** RMS Thresh %d/%d *****', tt, length(RMSThresh))
     for ll=1:NL
         Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
-        [SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))),SoundEvent_TranscTime_ms.(sprintf('L%s',AllLoggers(ll).name(2:end))),LoggerEnvelopeAll.(sprintf('L%s',AllLoggers(ll).name(2:end))),~,~] = piezo_find_calls_logger(Data_directory, RMSThresh(tt));
+        [SE_LS,SE_TT_ms,LoggerEnvelopeAll.(sprintf('L%s',AllLoggers(ll).name(2:end))),~,~] = piezo_find_calls_logger(Data_directory, RMSThresh(tt));
+        % only keep detection that are within the period of analysis
+        SoundEvent_TranscTime_ms.(sprintf('L%s',AllLoggers(ll).name(2:end))) = SE_TT_ms((SE_TT_ms(:,1)<MaxTranscTime),:);
+        SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))) = SE_LS((SE_TT_ms(:,1)<MaxTranscTime),:);
     end
     % save(fullfile(Path2Results1, 'SoundEvent.mat'),'SoundEvent_LoggerSamp','SoundEvent_TranscTime_ms','LoggerEnvelopeAll')
     % load(fullfile(Path2Data1, 'SoundEvent.mat')
