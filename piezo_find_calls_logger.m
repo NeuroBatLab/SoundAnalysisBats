@@ -1,4 +1,4 @@
-function [SoundEvent_LoggerSamp, SoundEvent_TranscTime_ms, Piezo_envelope_All, CallEnvInd_merge, CallEnvInd] = piezo_find_calls_logger(Data_directory)
+function [SoundEvent_LoggerSamp, SoundEvent_TranscTime_ms, Piezo_envelope_All, CallEnvInd_merge, CallEnvInd] = piezo_find_calls_logger(Data_directory, RMSfactor)
 % Takes in the directory for the individidual logger data
 % LOGGER_DIRECTORY and outputs SoundEvent_LoggerSamp, the start/stop indices of potential
 % calls in the raw input data. Note that SoundEvent_LoggerSamp is a matrix where each
@@ -16,14 +16,16 @@ EnvWin = 5; % duration of the sliding window for the envelope calculation
 BandPassFilter = [1000 5000]; % the frequencies we care about to identify when a call is made
 
 % Call detection parameters
-RMSfactor = 3; % how much greater the call's envelope needs to be than the noise. Subject to change implementation
+if nargin<2
+    RMSfactor = 3; % how much greater the call's envelope needs to be than the noise. Subject to change implementation
+end
 CallLength = 0.007; % minimum length of a call in s
 MergeThresh = 50e-3; % minimum length between two calls in s (50ms)
 
 % Identify data
 PathPieces = split(Data_directory, filesep);
-logger_name = PathPieces{find(contains(PathPieces,'extracted_data'))-1};
-disp(logger_name)
+Logger_name = PathPieces{find(contains(PathPieces,'extracted_data'))-1};
+%disp(logger_name)
 
 %it's saying the last call occurs at 3.8731, which doesn't make sense.
 %Check via graph
@@ -114,7 +116,7 @@ if draw_plots
     plot((1:length(Piezo_envelope_All)), Piezo_envelope_All, 'Color',[0,0.5,0.9])
     hold on
     line([1, length(Piezo_envelope_All)], [Noise * RMSfactor, Noise * RMSfactor], 'Color','red','LineStyle','--', 'LineWidth',2)
-    title(logger_name)
+    title(Logger_name)
     xlabel('Time (ms or sample)')
     legend({'Envelope', 'Sound detection threshold'})
     hold on
@@ -260,7 +262,7 @@ TotalNumSoundEvent_merge = size(CallEnvInd_merge,1);
 
 % check that the merge work properly
 if draw_plots
-    Fig5 = figure(5);
+    figure(5);
     subplot(2,1,1)
     histogram((CallEnvInd(2:end,1)-CallEnvInd(1:end-1,2))/FS_env*10^3, 'BinWidth',1)
     hold on
@@ -423,194 +425,194 @@ end
 
 end
 
-function BiosoundObj = runBiosound(Y, FS, F_high)
-% Hard coded parameters for biosound
-% spectrogram parameters
-Spec_sample_rate = 1000; % sampling rate Hz
-Freq_spacing = 50; % width of the frequency window for the FFT Hz
-Min_freq = 300; % high pass filter before FFT Hz
-Max_freq = 50000; % Low pass filter before FFT Hz
-% temporal enveloppe parameters
-Cutoff_freq = 150; % Hz
-Amp_sample_rate = 1000; % Hz
-if nargin<3
-    % Spectrum parameters
-    F_high = 50000; % frequency of Low-pass filter Hz
-end
-% Fundamental parameters
-MaxFund = 4000;
-MinFund = 300;
-LowFc = 100; %100
-HighFc = 18000;% 15000
-MinSaliency = 0.6;
-DebugFigFundest = 0;
-MinFormantFreq = 2000;
-MaxFormantBW = 1000; %500
-WindowFormant = 0.1;
-Method= 'Stack';
-
-% create the biosound object
-BiosoundObj = py.soundsig.sound.BioSound(py.numpy.array(Y),pyargs('fs',FS));
-% methods(BiosoundFi, '-full') % this command plot all the methods with the available arguments
-
-% Calculate the RMS (lhs std(varargin))
-BiosoundObj.rms = BiosoundObj.sound.std();
-
-% calculate the amplitude enveloppe
-ampenv(BiosoundObj, Cutoff_freq,Amp_sample_rate);
-
-% Calculate the periodicity of the amplitude envelope
-SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
-[P,F] = pspectrum(SoundAmp,1000);
-[PKS,LOCS]=findpeaks(P);
-AmpPeriodF = F(LOCS(PKS == max(PKS))); % Frequency in hertz of the max peak
-AmpPeriodP = max(PKS)/mean(SoundAmp.^2); % Proportion of power in the max peak of the spectrum
-
-% calculate the spectrum (lhs spectrum(self, f_high, pyargs))
-spectrum(BiosoundObj, F_high)
-% calculate the spectrogram (lhs spectroCalc(self, spec_sample_rate,
-% freq_spacing, min_freq, max_freq, pyargs))
-try % For very short sound, the Freq_spacing is too small, doubling if error
-    spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing, Min_freq,Max_freq)
-catch
-    spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing.*2, Min_freq,Max_freq)
-end
-
-% Calculate time varying spectralmean and spectral max
-Spectro = double(BiosoundObj.spectro);
-Fo = double(BiosoundObj.fo);
-TPoints = size(Spectro,2);
-SpectralMean = nan(1,TPoints);
-%         SpectralMax = nan(1,TPoints);
-for tt=1:TPoints
-    %             SpectralMax(tt) = Fo(Spectro(:,tt)==max(Spectro(:,tt)));
-    PSDSpec = Spectro(:,tt)./(sum(Spectro(:,tt)));
-    SpectralMean(tt) = sum(PSDSpec' .* Fo);
-end
-
-% calculate the fundamental and related values (lhs fundest(self, maxFund,
-% minFund, lowFc, highFc, minSaliency, debugFig, pyargs)
-fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
-
-% convert biosound to a strcuture
-BiosoundObj = struct(BiosoundObj);
-% Add some fields
-BiosoundObj.AmpPeriodF = AmpPeriodF;
-BiosoundObj.AmpPeriodP = AmpPeriodP;
-BiosoundObj.SpectralMean = SpectralMean;
-%         BiosoundObj.SpectralMax = SpectralMax;
-% convert all nmpy arrays to double to be able to save as matfiles
-BiosoundObj.amp = SoundAmp;
-BiosoundObj.tAmp = double(BiosoundObj.tAmp);
-BiosoundObj.spectro = double(BiosoundObj.spectro);
-BiosoundObj.to = double(BiosoundObj.to);
-BiosoundObj.fo = double(BiosoundObj.fo);
-BiosoundObj.F1 = double(BiosoundObj.F1);
-BiosoundObj.F2 = double(BiosoundObj.F2);
-BiosoundObj.F3 = double(BiosoundObj.F3);
-BiosoundObj.fpsd = double(BiosoundObj.fpsd);
-BiosoundObj.psd = double(BiosoundObj.psd);
-BiosoundObj.sal = double(BiosoundObj.sal);
-BiosoundObj.f0 = double(BiosoundObj.f0);
-BiosoundObj.f0_2 = double(BiosoundObj.f0_2);
-BiosoundObj.sound = double(BiosoundObj.sound);
-BiosoundObj.wf = double(BiosoundObj.wf);
-BiosoundObj.wt = double(BiosoundObj.wt);
-BiosoundObj.mps = double(BiosoundObj.mps);
-end
-
-
-function plotBiosound(BiosoundObj, F_high, FormantPlot)
-if nargin<3
-    FormantPlot=1;
-end
-% Plot the results of biosound calculations
-subplot(2,1,1)
-ColorCode = get(groot,'DefaultAxesColorOrder');
-DBNOISE =12;
-f_low = 0;
-logB = - 20*log10(abs(double(BiosoundObj.spectro)));
-maxB = max(max(logB));
-minB = maxB-DBNOISE;
-
-imagesc(double(BiosoundObj.to)*1000,double(BiosoundObj.fo),logB);          % to is in seconds
-axis xy;
-caxis('manual');
-caxis([minB maxB]);
-cmap = spec_cmap();
-colormap(cmap);
-%         colorbar()
-
-v_axis = axis;
-v_axis(3)=f_low;
-v_axis(4)=F_high;
-axis(v_axis);
-xlabel('time (ms)'), ylabel('Frequency');
-
-% Plot the fundamental and formants if they were calculated
-%     if double(BiosoundFi.sal)>MinSaliency
-Legend = {'F0' 'Formant1' 'Formant2' 'Formant3'};
-IndLegend = [];
-if ~isempty(double(BiosoundObj.f0))
-    hold on
-    plot(double(BiosoundObj.to)*1000,double(BiosoundObj.f0),'r-','LineWidth',2)
-    IndLegend = [1 IndLegend];
-end
-if FormantPlot
-    hold on
-    plot(double(BiosoundObj.to)*1000,double(BiosoundObj.F1),'Color',ColorCode(4,:),'LineWidth',2)
-    hold on
-    plot(double(BiosoundObj.to)*1000,double(BiosoundObj.F2),'Color',ColorCode(2,:),'LineWidth',2)
-    hold on
-    if any(~isnan(double(BiosoundObj.F3)))
-        plot(double(BiosoundObj.to)*1000,double(BiosoundObj.F3),'Color',ColorCode(3,:),'LineWidth',2)
-        IndLegend = [IndLegend 2:4];
-    else
-        IndLegend = [IndLegend 2:3];
-    end
-end
-legend(Legend(IndLegend))
-hold off
-subplot(2,1,2)
-yyaxis left
-plot((1:length(double(BiosoundObj.sound)))/BiosoundObj.samprate*1000,double(BiosoundObj.sound), 'k-','LineWidth',2)
-hold on
-YLIM = get(gca,'YLim');
-YLIM = max(abs(YLIM)).*[-1 1];
-set(gca, 'YLim', YLIM)
-SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
-yyaxis right
-plot(double(BiosoundObj.tAmp)*1000,double(SoundAmp), 'r-', 'LineWidth',2)
-YLIM = get(gca,'YLim');
-YLIM = max(abs(YLIM)).*[-1 1];
-set(gca, 'YLim', YLIM)
-set(gca, 'XLim', v_axis(1:2))
-xlabel('Time (ms)')
-title(sprintf('AmpPeriodicity = %.3f AmpPF = %.1f Hz',BiosoundObj.AmpPeriodP, BiosoundObj.AmpPeriodF))
-hold off
-end
-
-function [callTimes] = broadenCallLength(callTimes, piezo_envelope, noise)
-% Recovers the beginning and end of a call in CALLTIMES by looking
-% below the noise threshold NOISE of PIEZO_ENVELOPE for where the call
-% likely began and ended
-
-for ii = 1:length(callTimes)
-    call = callTimes{ii};
-    callStart = call(1);
-    callEnd = call(2);
-    while piezo_envelope(callStart) >= noise * 1.5
-        callStart = callStart - 1;
-    end
-    while piezo_envelope(callEnd) >= noise * 1.5
-        callEnd = callEnd + 1;
-    end
-    newCall = [callStart, callEnd];
-    callTimes{ii} = newCall;
-    
-end
-
-end
+% function BiosoundObj = runBiosound(Y, FS, F_high)
+% % Hard coded parameters for biosound
+% % spectrogram parameters
+% Spec_sample_rate = 1000; % sampling rate Hz
+% Freq_spacing = 50; % width of the frequency window for the FFT Hz
+% Min_freq = 300; % high pass filter before FFT Hz
+% Max_freq = 50000; % Low pass filter before FFT Hz
+% % temporal enveloppe parameters
+% Cutoff_freq = 150; % Hz
+% Amp_sample_rate = 1000; % Hz
+% if nargin<3
+%     % Spectrum parameters
+%     F_high = 50000; % frequency of Low-pass filter Hz
+% end
+% % Fundamental parameters
+% MaxFund = 4000;
+% MinFund = 300;
+% LowFc = 100; %100
+% HighFc = 18000;% 15000
+% MinSaliency = 0.6;
+% DebugFigFundest = 0;
+% MinFormantFreq = 2000;
+% MaxFormantBW = 1000; %500
+% WindowFormant = 0.1;
+% Method= 'Stack';
+% 
+% % create the biosound object
+% BiosoundObj = py.soundsig.sound.BioSound(py.numpy.array(Y),pyargs('fs',FS));
+% % methods(BiosoundFi, '-full') % this command plot all the methods with the available arguments
+% 
+% % Calculate the RMS (lhs std(varargin))
+% BiosoundObj.rms = BiosoundObj.sound.std();
+% 
+% % calculate the amplitude enveloppe
+% ampenv(BiosoundObj, Cutoff_freq,Amp_sample_rate);
+% 
+% % Calculate the periodicity of the amplitude envelope
+% SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
+% [P,F] = pspectrum(SoundAmp,1000);
+% [PKS,LOCS]=findpeaks(P);
+% AmpPeriodF = F(LOCS(PKS == max(PKS))); % Frequency in hertz of the max peak
+% AmpPeriodP = max(PKS)/mean(SoundAmp.^2); % Proportion of power in the max peak of the spectrum
+% 
+% % calculate the spectrum (lhs spectrum(self, f_high, pyargs))
+% spectrum(BiosoundObj, F_high)
+% % calculate the spectrogram (lhs spectroCalc(self, spec_sample_rate,
+% % freq_spacing, min_freq, max_freq, pyargs))
+% try % For very short sound, the Freq_spacing is too small, doubling if error
+%     spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing, Min_freq,Max_freq)
+% catch
+%     spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing.*2, Min_freq,Max_freq)
+% end
+% 
+% % Calculate time varying spectralmean and spectral max
+% Spectro = double(BiosoundObj.spectro);
+% Fo = double(BiosoundObj.fo);
+% TPoints = size(Spectro,2);
+% SpectralMean = nan(1,TPoints);
+% %         SpectralMax = nan(1,TPoints);
+% for tt=1:TPoints
+%     %             SpectralMax(tt) = Fo(Spectro(:,tt)==max(Spectro(:,tt)));
+%     PSDSpec = Spectro(:,tt)./(sum(Spectro(:,tt)));
+%     SpectralMean(tt) = sum(PSDSpec' .* Fo);
+% end
+% 
+% % calculate the fundamental and related values (lhs fundest(self, maxFund,
+% % minFund, lowFc, highFc, minSaliency, debugFig, pyargs)
+% fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
+% 
+% % convert biosound to a strcuture
+% BiosoundObj = struct(BiosoundObj);
+% % Add some fields
+% BiosoundObj.AmpPeriodF = AmpPeriodF;
+% BiosoundObj.AmpPeriodP = AmpPeriodP;
+% BiosoundObj.SpectralMean = SpectralMean;
+% %         BiosoundObj.SpectralMax = SpectralMax;
+% % convert all nmpy arrays to double to be able to save as matfiles
+% BiosoundObj.amp = SoundAmp;
+% BiosoundObj.tAmp = double(BiosoundObj.tAmp);
+% BiosoundObj.spectro = double(BiosoundObj.spectro);
+% BiosoundObj.to = double(BiosoundObj.to);
+% BiosoundObj.fo = double(BiosoundObj.fo);
+% BiosoundObj.F1 = double(BiosoundObj.F1);
+% BiosoundObj.F2 = double(BiosoundObj.F2);
+% BiosoundObj.F3 = double(BiosoundObj.F3);
+% BiosoundObj.fpsd = double(BiosoundObj.fpsd);
+% BiosoundObj.psd = double(BiosoundObj.psd);
+% BiosoundObj.sal = double(BiosoundObj.sal);
+% BiosoundObj.f0 = double(BiosoundObj.f0);
+% BiosoundObj.f0_2 = double(BiosoundObj.f0_2);
+% BiosoundObj.sound = double(BiosoundObj.sound);
+% BiosoundObj.wf = double(BiosoundObj.wf);
+% BiosoundObj.wt = double(BiosoundObj.wt);
+% BiosoundObj.mps = double(BiosoundObj.mps);
+% end
+% 
+% 
+% function plotBiosound(BiosoundObj, F_high, FormantPlot)
+% if nargin<3
+%     FormantPlot=1;
+% end
+% % Plot the results of biosound calculations
+% subplot(2,1,1)
+% ColorCode = get(groot,'DefaultAxesColorOrder');
+% DBNOISE =12;
+% f_low = 0;
+% logB = - 20*log10(abs(double(BiosoundObj.spectro)));
+% maxB = max(max(logB));
+% minB = maxB-DBNOISE;
+% 
+% imagesc(double(BiosoundObj.to)*1000,double(BiosoundObj.fo),logB);          % to is in seconds
+% axis xy;
+% caxis('manual');
+% caxis([minB maxB]);
+% cmap = spec_cmap();
+% colormap(cmap);
+% %         colorbar()
+% 
+% v_axis = axis;
+% v_axis(3)=f_low;
+% v_axis(4)=F_high;
+% axis(v_axis);
+% xlabel('time (ms)'), ylabel('Frequency');
+% 
+% % Plot the fundamental and formants if they were calculated
+% %     if double(BiosoundFi.sal)>MinSaliency
+% Legend = {'F0' 'Formant1' 'Formant2' 'Formant3'};
+% IndLegend = [];
+% if ~isempty(double(BiosoundObj.f0))
+%     hold on
+%     plot(double(BiosoundObj.to)*1000,double(BiosoundObj.f0),'r-','LineWidth',2)
+%     IndLegend = [1 IndLegend];
+% end
+% if FormantPlot
+%     hold on
+%     plot(double(BiosoundObj.to)*1000,double(BiosoundObj.F1),'Color',ColorCode(4,:),'LineWidth',2)
+%     hold on
+%     plot(double(BiosoundObj.to)*1000,double(BiosoundObj.F2),'Color',ColorCode(2,:),'LineWidth',2)
+%     hold on
+%     if any(~isnan(double(BiosoundObj.F3)))
+%         plot(double(BiosoundObj.to)*1000,double(BiosoundObj.F3),'Color',ColorCode(3,:),'LineWidth',2)
+%         IndLegend = [IndLegend 2:4];
+%     else
+%         IndLegend = [IndLegend 2:3];
+%     end
+% end
+% legend(Legend(IndLegend))
+% hold off
+% subplot(2,1,2)
+% yyaxis left
+% plot((1:length(double(BiosoundObj.sound)))/BiosoundObj.samprate*1000,double(BiosoundObj.sound), 'k-','LineWidth',2)
+% hold on
+% YLIM = get(gca,'YLim');
+% YLIM = max(abs(YLIM)).*[-1 1];
+% set(gca, 'YLim', YLIM)
+% SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
+% yyaxis right
+% plot(double(BiosoundObj.tAmp)*1000,double(SoundAmp), 'r-', 'LineWidth',2)
+% YLIM = get(gca,'YLim');
+% YLIM = max(abs(YLIM)).*[-1 1];
+% set(gca, 'YLim', YLIM)
+% set(gca, 'XLim', v_axis(1:2))
+% xlabel('Time (ms)')
+% title(sprintf('AmpPeriodicity = %.3f AmpPF = %.1f Hz',BiosoundObj.AmpPeriodP, BiosoundObj.AmpPeriodF))
+% hold off
+% end
+% 
+% function [callTimes] = broadenCallLength(callTimes, piezo_envelope, noise)
+% % Recovers the beginning and end of a call in CALLTIMES by looking
+% % below the noise threshold NOISE of PIEZO_ENVELOPE for where the call
+% % likely began and ended
+% 
+% for ii = 1:length(callTimes)
+%     call = callTimes{ii};
+%     callStart = call(1);
+%     callEnd = call(2);
+%     while piezo_envelope(callStart) >= noise * 1.5
+%         callStart = callStart - 1;
+%     end
+%     while piezo_envelope(callEnd) >= noise * 1.5
+%         callEnd = callEnd + 1;
+%     end
+%     newCall = [callStart, callEnd];
+%     callTimes{ii} = newCall;
+%     
+% end
+% 
+% end
 
 function [Average_noise] = getAverageNoise(Piezo_envelope, FS_env, Num_samples)
 % Takes in PIEZO_ENVELOPE, FS_ENV, and NUM_SAMPLES and computes the

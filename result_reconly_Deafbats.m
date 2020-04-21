@@ -1,7 +1,7 @@
-BaseDataDir = 'X:\users\JulieE\DeafSalineGroup151\';
-BaseCodeDir = 'C:\Users\Eva\Documents\GitHub\';
-Path2RecordingTable = 'C:\Users\Eva\GoogleDrive\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
-TTLFolder = 'C:\Users\Eva\GoogleDrive\JuvenileRecordings';
+BaseDataDir = 'Z:\JulieE\DeafSalineGroup151\';
+BaseCodeDir = 'C:\Users\Batman\Documents\Code\';
+Path2RecordingTable = 'C:\Users\Batman\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
+TTLFolder = 'C:\Users\Batman\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings';
 
 % BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';
 % BaseCodeDir = '/Users/elie/Documents/CODE';
@@ -23,7 +23,7 @@ if ~exist(ExpLog, 'file')
     DoneList = [];
 else
     Fid = fopen(ExpLog, 'r');
-    Header = textscan(Fid,'%s\t%s\t%s\t%s\t%s\n');
+    Header = textscan(Fid,'%s\t%s\t%s\t%s\t%s\n',1);
     DoneList = textscan(Fid,'%s\t%s\t%s\t%.1f\t%d');
     fclose(Fid);
     Fid = fopen(ExpLog, 'a');
@@ -65,10 +65,10 @@ for dd=1:NDates
         end
     end
     ProcessedOK = result_reconly_Dbats(Filepath,Path2RecordingTable,TTLFolder);
-    Ind_ = strfind(ParamFile(ff).name, '_param');
+    Ind_ = strfind(ParamFile.name, '_param');
     fprintf(Fid, '%s\t%s\t%s\t%.1f\t%d\n',ParamFile.name(1:4),ParamFile.name(6:11),ParamFile.name(13:16),Temp,ProcessedOK);
 end
-close(Fid)
+fclose(Fid);
 
 %% INTERNAL FUNCTION
 function [Processed] = result_reconly_Dbats(Path2ParamFile, Path2RecordingTable, TTLFolder,Logger_dir)
@@ -78,8 +78,7 @@ ForceExtract = 0; % set to 1 to redo the extraction of loggers otherwise the cal
 ForceAllign = 0; % In case the TTL pulses allignment was already done but you want to do it again, set to 1
 ForceVocExt1 = 0; % In case the localization on raw files of vocalizations that were manually extracted was already done but you want to do it again set to 1
 ForceVocExt2 = 0; % In case the localization on Loggers of vocalizations that were manually extracted was already done but you want to do it again set to 1
-ReAllignment = 1; % Incase we don't have a logger on all animals, it's better not to reallign the vocal data by cross correlation between the Microphone and the loggers
-ForceWhoID = 0; % In case the identification of bats was already done but you want to re-do it again
+ReAllignment = 0; % Incase we don't have a logger on all animals, it's better not to reallign the vocal data by cross correlation between the Microphone and the loggers
 close all
 
 % Get the recording date
@@ -159,9 +158,9 @@ for ll=1:length(All_loggers_dir)
     Logger_num = str2double(All_loggers_dir(ll).name((Ind+1):end));
     NLogCol = find(contains(Header, 'NL'));% Columns of the neural loggers
     ALogCol = find(contains(Header, 'AL'));% Columns of the audio loggers
-    LogCol = NLogCol(find(cell2mat(DataInfo(NLogCol))==Logger_num));
+    LogCol = NLogCol(find(cell2mat(DataInfo(NLogCol))==Logger_num)); %#ok<FNDSB>
     if isempty(LogCol) % This is an audiologger and not a neural logger
-        LogCol = ALogCol(find(cell2mat(DataInfo(ALogCol))==Logger_num));
+        LogCol = ALogCol(find(cell2mat(DataInfo(ALogCol))==Logger_num)); %#ok<FNDSB>
         LoggerName{ll} = ['AL' num2str(Logger_num)];
     else
         LoggerName{ll} = ['NL' num2str(Logger_num)];
@@ -271,40 +270,18 @@ if isempty(TTL_dir) || ForceAllign
     elseif contains(Path2RecordingTable, 'JuvenileRecordings')
         align_soundmexAudio_2_logger(AudioDataPath, Logger_dir, ExpStartTime,'TTL_pulse_generator','Avisoft','Method','risefall', 'Session_strings', {'rec only start', 'rec only stop'}, 'TTLFolder',TTLFolder);
     end
+    close all
 else
     fprintf(1,'\n*** ALREADY DONE: Alligning TTL pulses for the free session ***\n');
 end
 
-fprintf(1,'*** Check the clock drift correction of the logger ***\n')
-LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
-Check = zeros(length(LoggersDir)+1,1);
-for ll=length(LoggersDir)
-    FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
-    %                 fprintf(1, 'Go in %s\n',fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'piezo',Date,'audiologgers','loggerxx','extracted_data'))
-    %                 fprintf(1,'Open CD_correction0\n')
-    Check(ll) = input('Is everything ok? (yes ->1, No -> 0): ');
-    fprintf('\n')
-    close(FigCD)
-end
-fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
-AllignmentPath = fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'bataudio',sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, Time));
-FigAP = open(AllignmentPath);
-%                 fprintf(1, 'Go in %s\n',fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'bataudio'))
-%                 fprintf(1,'Search for %s_%s_CD_correction_audio_piezo\n', Date, Time)
-Check(length(LoggersDir)+1) = input('Is everything ok? (yes ->1, No -> 0): ');
-fprintf('\n')
-close(FigAP)
 
-
-%% Identify voclaizations using the piezo
-if sum(Check)==length(Check) && (isempty(VocExt_dir) || ForceVocExt1)
+%% Identify vocalizations using the piezo
+if (isempty(VocExt_dir) || ForceVocExt1)
     fprintf(1,'\n*** Localizing and extracting vocalizations using the piezos ***\n');
     voc_localize_using_piezo(Logger_dir, AudioDataPath,Date, ExpStartTime)
-elseif sum(Check)==length(Check) && ~(isempty(VocExt_dir) || ForceVocExt1)
+elseif ~(isempty(VocExt_dir) || ForceVocExt1)
     fprintf(1,'\n*** ALREADY DONE: Localizing and extracting vocalizations using the piezos ***\n');
-elseif sum(Check)~=length(Check)
-    Processed = 0;
-    return
 end
 
 %% Identify the same vocalizations on the piezos and save sound extracts, onset and offset times
@@ -317,14 +294,6 @@ else
     
 end
 
-%% Identify who is calling
-fprintf('\n*** Identify who is calling ***\n')
-WhoCall_dir = dir(fullfile(Logger_dir, sprintf('*%s_%s*whocalls*', Date, ExpStartTime)));
-if isempty(WhoCall_dir) || ForceVocExt1 || ForceWhoID || ForceVocExt2
-    who_calls(AudioDataPath,Logger_dir,Date, ExpStartTime,200,1,1,0);
-else
-    fprintf('\n*** ALREADY DONE: Identify who is calling ***\n')
-end
 % Save the ID of the bat for each logger
 Filename_ID = fullfile(Logger_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, 200));
 if isfile(Filename_ID)
