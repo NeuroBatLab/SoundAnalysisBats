@@ -1,18 +1,6 @@
-% TO DO:
-% init voc_start and voc_start
-% get Raw_wave, Nvoc (% vocalizations)
-%
-% convert frequencies from miliseconds --> whatever the sampling freq is for correct indices
-%
-% extract segment of Raw_wave from (onset, offset) and add to listen
-%
-% save this list of files in a folder somewhere in .WAV
-% can use audiowrite for this ^
-% make sure to include all info in name (date, bats, etc. AND noise/vocalization (type))
-%
-% download biosound, do tutorials
-% generate graphs on python
-
+function extract_error_audio(Loggers_dir, Date, ExpStartTime)
+% Converts vocal extraction data in .mat files into relevant .wav files,
+% separating the audio by type. Writes into folder Z:\tobias\vocOperant\error_clips
 
 OutputDataPath = 'Z:\tobias\vocOperant\error_clips';
 DataFile = fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime));
