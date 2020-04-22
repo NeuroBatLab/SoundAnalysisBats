@@ -21,8 +21,9 @@ if length(Amp_env)~=fix(length(Filtered_SoundIn)*FS_env/FS)
 end
 
 % Calculate the momentum of the temporal envelope
-tAmp_env = 0:fix(length(Filtered_SoundIn)*FS_env/FS);
+tAmp_env = 0:round(length(Filtered_SoundIn)*FS_env/FS);
 Amp_env = Amp_env./sum(Amp_env);
+tAmp_env = tAmp_env(1:length(Amp_env));
 MeanTime = sum(tAmp_env.*Amp_env);
 StdTime = sqrt(sum(Amp_env.*((tAmp_env-MeanTime).^2)));
 SkewTime = sum(Amp_env.*(tAmp_env-MeanTime).^3);
