@@ -49,7 +49,7 @@ else
     % parameters
     Consecutive_binsMic = 10; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
     Consecutive_binsPiezo = 15; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
-    Factor_RMS_low = 5.*ones(length(AudioLogs),1); % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on piezos
+    Factor_RMS_low = 3.*ones(length(AudioLogs),1); % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on piezos
     % Factor_AmpRatio = 1.5; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
     Factor_AmpDiff = 50; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
     DB_noise = 60; % Noise threshold for the spectrogram colormap
@@ -888,16 +888,18 @@ else
             ylabel('AL ID')
             xlabel('Time (ms)')
             [~,FileVoc]=fileparts(VocFilename{vv}); %#ok<IDISVAR,USENS>
-            fprintf(1,'saving figures...\n')
+            
             if strcmp(SaveFileType,'pdf')
-                print(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
-                if ManCall % Only save the RMS figure if there was a vocalization
-                    saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
+                if ManCall % Only save the RMS and spectro figures if there was a vocalization
+                    fprintf(1,'saving figures...\n')
+                    print(F1,fullfile(Working_dir,sprintf('%s_%d_whocalls_spec_%d.pdf',FileVoc,vv, MergeThresh)),'-dpdf','-fillpage')
+                    saveas(F2,fullfile(Working_dir,sprintf('%s_%d_whocalls_RMS_%d.pdf',FileVoc,vv, MergeThresh)),'pdf')
                 end
             elseif strcmp(SaveFileType,'fig')
-                saveas(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.fig', FileVoc, MergeThresh)))
-                if ManCall % Only save the RMS figure if there was a vocalization
-                    saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.fig', FileVoc, MergeThresh)))
+                if ManCall % Only save the RMS and spectro figures if there was a vocalization
+                    fprintf(1,'saving figures...\n')
+                    saveas(F1,fullfile(Working_dir,sprintf('%s_%d_whocalls_spec_%d.fig', FileVoc,vv, MergeThresh)))
+                    saveas(F2,fullfile(Working_dir,sprintf('%s_%d_whocalls_RMS_%d.fig', FileVoc,vv, MergeThresh)))
                 end
             end
             if ManCall

@@ -445,7 +445,7 @@ if MicData
             OldMicVoc_File = MicVoc_File(ee);
             
             % Save the sound as a wav file
-            Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, MicVoc_File(ee), MicVoc_samp_idx(ee,1)));
+            Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, MicVoc_File(ee), round(MicVoc_samp_idx(ee,1))));
             audiowrite(Voc_filename{ee} , Raw_wave, FS2)
         end
     end
