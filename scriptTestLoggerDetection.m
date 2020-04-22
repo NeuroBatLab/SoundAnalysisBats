@@ -178,8 +178,8 @@ TTL_dir = dir(fullfile(Path2Data2,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpS
 TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
 MaxTranscTime = max(TTL.Pulse_TimeStamp_Transc(TTL.File_number==10));
 
-RMSThresh = [1.5 2 3];
-%RMSThresh = 1.5;
+%RMSThresh = [1.5 2 3];
+RMSThresh = 1.5;
 MissedAutoDetection = cell(length(RMSThresh),1);
 CorrectAutoDetection01 = cell(length(RMSThresh),1);
 TotMissedAutoCall = nan(length(RMSThresh),1);
@@ -201,7 +201,7 @@ for tt=1:length(RMSThresh)
     
     %% Let's loop in the dataset of manually extracted calls and see how many correct hits we get in the automatic detection
     FS_env = 1000; %Sampling Frequency of the envelope as calculated by piezo_find_calls_logger
-    Delay = 100; %in ms error/delay between auto and man detection and Delay to add before each detected call in ms
+    Delay = 50; %in ms error/delay between auto and man detection and Delay to add before each detected call in ms
     AL_AutoId = fieldnames(SoundEvent_TranscTime_ms); % Names of the audioLoggers
     MissedAutoDetection{tt} = cell(NLoggers,1);
     TotManCall = 0;
@@ -390,7 +390,7 @@ figure()
  ylim([80 100])
 hold off
 %%
-save(fullfile(Path2Results1, 'SoundEvent.mat'),'SoundEvent_LoggerSamp','SoundEvent_TranscTime_ms','LoggerEnvelopeAll', 'CorrectAutoDetection01','MissedAutoDetection','RMSThresh','-append')
+save(fullfile(Path2Results1, 'SoundEvent.mat'),'SoundEvent_LoggerSamp','SoundEvent_TranscTime_ms','LoggerEnvelopeAll', 'CorrectAutoDetection01','MissedAutoDetection','RMSThresh','Delay','-append')
 
 
 
@@ -741,7 +741,7 @@ for ll=1:NL
     BioSoundUniqParam{ll} = [BioSoundUniqParam{ll}{:}];
 end
 BioSoundUniqParam = [BioSoundUniqParam{:}]';
-save(fullfile(Path2Results1, 'SoundEvent2.mat'),'BioSoundUniqParam', 'BioSoundParamNames','AL_AutoId','AL_ManId', 'MissedAutoDetection','TotManCall','CorrectAutoDetection01','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile','-append')
+save(fullfile(Path2Results1, 'SoundEvent2.mat'),'BioSoundUniqParam', 'BioSoundParamNames','AL_AutoId','AL_ManId', 'MissedAutoDetection','TotManCall','CorrectAutoDetection01','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile','Delay','RMSThresh','SoundEvent_LoggerSamp','SoundEvent_TranscTime_ms','CorrectAutoDetection01','MissedAutoDetection','-append')
 
 %% Draw some scatters of the parameters
 DatasetVoc = BioSoundUniqParam(:,21)==1;
@@ -892,7 +892,30 @@ fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected
  % brought down to 2-10% and % of missed vocalizations brought down to 1.7%
 
  %% Save the SVM model for use/prediction with other recordings
+DataSet = ~isnan(BioSoundUniqParam(:,21));
+BioSoundUniqParam = BioSoundUniqParam(DataSet,:);
+
+
  UsefulParams = 1:20;
+% Try a support vector machine classifier (linear) Binary SVM
+SVMModel = fitcsvm(BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,21),'Standardize',true,'KernelFunction','RBF',...
+    'KernelScale','auto','Prior','Uniform');
+% Cross-validate the SVM classifier. By default, the software uses 10-fold cross-validation.
+CVSVMModel = crossval(SVMModel);
+%Estimate the out-of-sample misclassification rate.
+classLoss = kfoldLoss(CVSVMModel)
+CompactSVMModel = compact(SVMModel);
+whos('SVMModel','CompactSVMModel')
+
+% The CompactClassificationSVM classifier (CompactSVMModel) uses less space than the ClassificationSVM classifier (SVMModel) because SVMModel stores the data.
+% Estimate the optimal score-to-posterior-probability transformation function.
+CompactSVMModel = fitPosterior(CompactSVMModel,...
+    BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,21)) 
+save('/Users/elie/Documents/CODE/SoundAnalysisBats/SVMModelNoiseVoc_MicLog.mat', 'CompactSVMModel')
+
+
+
+UsefulParams = 1:16;
 % Try a support vector machine classifier (linear) Binary SVM
 SVMModel = fitcsvm(BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,21),'Standardize',true,'KernelFunction','RBF',...
     'KernelScale','auto','Prior','Uniform');
@@ -916,12 +939,12 @@ javaaddpath('/Users/elie/Documents/CODE/umap_1.4.1/umap/umap.jar')
 fprintf(1,'\n\n ***** Distance Euclidean *****\n')
 [Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(:,UsefulParams));
 figure()
-scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam(:,17) zeros(size(Reduction,1),2)],'filled')
+scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam(:,21) zeros(size(Reduction,1),2)],'filled')
 title('Euclidean distance')
 
 [Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(:,UsefulParams),'metric','cosine');
 figure()
-scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam(:,17) zeros(size(Reduction,1),2)],'filled')
+scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam(:,21) zeros(size(Reduction,1),2)],'filled')
 title('Cosyne metric')
 
 [Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(:,UsefulParams),'metric','correlation');

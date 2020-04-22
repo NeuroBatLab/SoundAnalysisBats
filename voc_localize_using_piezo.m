@@ -48,8 +48,10 @@ end
 
 
 Merge_thresh = 500; % merge thershold in ms for grouping sounds in sequences if they are withinh that delay
-if MicData && ~exist(fullfile(RawWav_dir, 'Detected_calls'),'dir')
-    mkdir(fullfile(RawWav_dir, 'Detected_calls'))
+if MicData
+    if ~exist(fullfile(RawWav_dir, 'Detected_calls'),'dir')
+        mkdir(fullfile(RawWav_dir, 'Detected_calls'))
+    end
     FS_raw = 192000;%Frequency of the microphone recordings, here MOTU as default
     % Hard coded input for finding the microphone envelope noise threshold
     Dur_RMS = 0.5; % duration of the silence sample in min for the calculation of average running RMS
@@ -80,9 +82,9 @@ LoggerTypeAudi = zeros(NLogger,1);
 for ll=1:NLogger
     LDir = dir(fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data', '*CSC*.mat'));
     LData = load(fullfile(LDir(1).folder, LDir(1).name), 'logger_type', 'logger_serial_number');
-    LoggerTypeAudi  = strcmp(LData.logger_type, 'Audi');
+    LoggerTypeAudi(ll)  = strcmp(LData.logger_type, 'Audi');
 end
-AllLoggers = AllLoggers(LoggerTypeAudi);
+AllLoggers = AllLoggers(logical(LoggerTypeAudi));
 
 
 % Loop through loggers and detect vocalizations based on thereshold
@@ -122,7 +124,7 @@ if MicData
 end
     
     
-parfor ll=1:NL
+parfor ll=1:NL % parfor
     fprintf(1, '*** Sort Voc from Noise %s %d/%d ****\n',ALField_Id{ll}, ll, NL)
     % Load the raw signal
     Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
@@ -144,7 +146,7 @@ parfor ll=1:NL
     % Loop through sound events
     
     FS_logger_voc_unmerged{ll} = nan(1,Nevents(ll));
-    if Mic_data
+    if MicData
         AcousticParams{ll} = nan(20,Nevents(ll));
     else
         AcousticParams{ll} = nan(16,Nevents(ll));
@@ -184,7 +186,7 @@ parfor ll=1:NL
         if MicData
             % Add parameters regarding the microphone data
             if OldMicVoc_File~=MVF(ee)
-                RawWavDir = dir(fullfile(Path2Data2,sprintf('*mic1_%d.wav',MVF(ee))));
+                RawWavDir = dir(fullfile(RawWav_dir,sprintf('*RecOnly*mic1_%d.wav',MVF(ee))));
                 [RawWav_mic, FS_mic] = audioread(fullfile(RawWavDir.folder, RawWavDir.name));
                 OldMicVoc_File = MVF(ee);
             end
@@ -197,7 +199,7 @@ parfor ll=1:NL
             if mic_stop>length(RawWav_mic) % this section is cut between 2 10 min recordings
                 mic_stop1 = length(RawWav_mic);
                 mic_stop2 = mic_stop - length(RawWav_mic);
-                RawWavDir2 = dir(fullfile(Path2Data2,sprintf('*mic1_%d.wav',MVF(ee)+1)));
+                RawWavDir2 = dir(fullfile(RawWav_dir,sprintf('*RecOnly*mic1_%d.wav',MVF(ee)+1)));
                 if ~isempty(RawWavDir2) 
                     [RawWav_local2, FS_mic] = audioread(fullfile(RawWavDir2.folder, RawWavDir2.name));
                     Mic_Sound = [RawWav_mic(mic_start:mic_stop1); RawWav_local2(1:mic_stop2)];
@@ -244,7 +246,7 @@ LoggerID_unmerged = [LoggerID_unmerged{:}]';
 Voc_loggerSamp_Idx_unmerged = [Voc_loggerSamp_Idx_unmerged{:}]';
 Voc_transc_time_unmerged = [Voc_transc_time_unmerged{:}]';
 FS_logger_voc_unmerged = [FS_logger_voc_unmerged{:}]';
-if Mic_data
+if MicData
     % restrict data to only those that have microphone data
     DataSet = ~isnan(AcousticParams(:,20));
     AcousticParams = AcousticParams(DataSet,:);
@@ -258,7 +260,7 @@ end
 % Load the SVM compact model, predict labels according to the model and
 % eliminate noise
 Path2SVM = fileparts(which('voc_localize_using_piezo.m'));
-if Mic_data
+if MicData
     load(fullfile(Path2SVM,'SVMModelNoiseVoc_MicLog.mat'),'CompactSVMModel')
 else
     load(fullfile(Path2SVM,'SVMModelNoiseVoc.mat'),'CompactSVMModel')
@@ -434,7 +436,7 @@ if MicData
                 end
                 
                 if ~(MicVoc_File(ee) == OldMicVoc_File)
-                    WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, FileIdx_local)));
+                    WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File(ee))));
                     Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
                     [Raw_10minwav2, FS2] = audioread(Raw_filename);
                 end
@@ -443,7 +445,7 @@ if MicData
             OldMicVoc_File = MicVoc_File(ee);
             
             % Save the sound as a wav file
-            Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, FileIdx_local, MicVoc_samp_idx(ee,1)));
+            Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, MicVoc_File(ee), MicVoc_samp_idx(ee,1)));
             audiowrite(Voc_filename{ee} , Raw_wave, FS2)
         end
     end
@@ -456,11 +458,12 @@ if MicData
     LoggerID = LoggerID(ActiveVoc);
     Voc_loggerSamp_Idx = Voc_loggerSamp_Idx(ActiveVoc,:);
     FS_logger_voc =FS_logger_voc(ActiveVoc,:);
+    MicVoc_File = MicVoc_File(ActiveVoc,:);
 end
 
 %% save and return the calculation results
 if MicData
-    save(fullfile(RawWav_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_filename','Voc_samp_idx','Voc_transc_time','MeanStdAmpRawExtract','Voc_loggerSamp_Idx','LoggerID','FS_logger_voc','LoggerID_unmerged','FS_logger_voc_unmerged','Voc_loggerSamp_Idx_unmerged','Voc_transc_time_unmerged','ActiveVoc')
+    save(fullfile(RawWav_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_filename','Voc_samp_idx','Voc_transc_time','MeanStdAmpRawExtract','Voc_loggerSamp_Idx','LoggerID','FS_logger_voc','LoggerID_unmerged','FS_logger_voc_unmerged','Voc_loggerSamp_Idx_unmerged','Voc_transc_time_unmerged','ActiveVoc','MicVoc_File')
 else
     save(fullfile(Logger_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_transc_time','Voc_loggerSamp_Idx','LoggerID','FS_logger_voc','LoggerID_unmerged','FS_logger_voc_unmerged','Voc_loggerSamp_Idx_unmerged','Voc_transc_time_unmerged')
 end
@@ -480,7 +483,7 @@ end
 %% INTERNAL FUNCTION
 
 function [MicVoc_samp_idx,MicVoc_File]=transc_time2micsamp(RawWav_dir,OnOffTranscTime_ms)
-AllFiles = dir(fullfile(RawWav_dir, '*.wav'));
+AllFiles = dir(fullfile(RawWav_dir, '*RecOnly*.wav'));
 % find the date and expstart time
 Date = AllFiles(1).name(6:11);
 ExpStartTime = AllFiles(1).name(13:16);
