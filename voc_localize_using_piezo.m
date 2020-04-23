@@ -174,6 +174,14 @@ parfor ll=1:NL % parfor
         % extract the sound with Buffer ms before after the sound
         OnIndBuff = OnInd - round(FS_logger_voc_unmerged{ll}(ee)*Buffer*10^-3);
         OffIndBuff = OffInd + round(FS_logger_voc_unmerged{ll}(ee)*Buffer*10^-3);
+        if OnIndBuff<0
+            OffIndBuff = OffIndBuff - OnIndBuff;
+            OnIndBuff = 1;
+        end
+        if OffIndBuff>length(Centered_piezo_signal)
+            OnIndBuff = OnIndBuff - (OffIndBuff - length(Centered_piezo_signal));
+            OffIndBuff = length(Centered_piezo_signal);
+        end
         Logger_Sound = Centered_piezo_signal(OnIndBuff : OffIndBuff);
         Logger_Sound = Logger_Sound - mean(Logger_Sound);
         
