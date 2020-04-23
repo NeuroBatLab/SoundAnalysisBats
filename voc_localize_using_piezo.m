@@ -487,6 +487,8 @@ Unmerged.Voc_transc_time = Voc_transc_time_unmerged;
 Unmerged.LoggerID = LoggerID_unmerged;
 Unmerged.Voc_loggerSamp_Idx = Voc_loggerSamp_Idx_unmerged;
 Unmerged.FS_logger_voc = FS_logger_voc_unmerged;
+
+fprintf(1,'Done running the detection of sound events using the piezos, %d events were found\n',size(Voc_transc_time,1))
 end
 
 
