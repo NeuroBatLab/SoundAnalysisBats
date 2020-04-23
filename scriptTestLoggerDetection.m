@@ -23,7 +23,17 @@ FS_Piezo = 50000; % could also be retrieved from Piezo_FS
 
 %% Load the data saved of that script
 % load(fullfile(Path2Data1, 'SoundEvent.mat'))
+%% Load the data of CoEd
+Path2Data1 = '/Volumes/Julie4T/LMC_CoEd/logger/20190603';
+Path2Results1 = '/Volumes/Julie4T/LMC_CoEd/logger/20190603/GroundTruthResultsRecOnly';
+load(fullfile(Path2Results1,'190603_1447_VocExtractData_200.mat'))
+load(fullfile(Path2Results1,'190603_1447_VocExtractData.mat'))
 
+Path2Data2 = '/Volumes/Julie4T/LMC_CoEd/audio/20190603';
+Path2Results2 = '/Volumes/Julie4T/LMC_CoEd/audio/20190603/GroundTruthResults';
+load(fullfile(Path2Results2,'190603_1447_VocExtractTimes.mat'))
+Fs_env=1000; % in Hertz, should have been saved in who_calls.m to correctly convert in time the starting and ending indices of vocalizations in IndVocStart
+FS_Piezo = 50000; % could also be retrieved from Piezo_FS
 
 %% Get in transceiver time the onset/offset of each vocalization manually extracted for each logger
 AllLoggers = dir(fullfile(Path2Data1, '*ogger*'));
@@ -153,7 +163,7 @@ end
 % %     end
 % %     hold off
 % % end
-save(fullfile(Path2Results1, 'SoundEvent.mat'),'AL_ManId','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile','-append')
+save(fullfile(Path2Results1, 'SoundEvent.mat'),'AL_ManId','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile')
 
 
 
@@ -170,13 +180,17 @@ DirFlags = [AllLoggers.isdir];
 AllLoggers = AllLoggers(DirFlags);
 NL = length(AllLoggers);
 
-AllFiles = dir(fullfile(Path2Data2,'*.wav'));
+AllFiles = dir(fullfile(Path2Data2,'*RecOnly*.wav'));
 % find the date and expstart time
 Date = AllFiles(1).name(6:11);
 ExpStartTime = AllFiles(1).name(13:16);
 TTL_dir = dir(fullfile(Path2Data2,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
 TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
-MaxTranscTime = max(TTL.Pulse_TimeStamp_Transc(TTL.File_number==10));
+if strcmp(Date, '190927')
+    MaxTranscTime = max(TTL.Pulse_TimeStamp_Transc(TTL.File_number==10));
+elseif strcmp(Date, '190603')
+    MaxTranscTime = max(TTL.Pulse_TimeStamp_Transc);
+end
 
 %RMSThresh = [1.5 2 3];
 RMSThresh = 1.5;
@@ -192,7 +206,7 @@ for tt=1:length(RMSThresh)
         SoundEvent_TranscTime_ms.(sprintf('L%s',AllLoggers(ll).name(2:end))) = SE_TT_ms((SE_TT_ms(:,1)<MaxTranscTime),:);
         SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))) = SE_LS((SE_TT_ms(:,1)<MaxTranscTime),:);
     end
-    % save(fullfile(Path2Results1, 'SoundEvent.mat'),'SoundEvent_LoggerSamp','SoundEvent_TranscTime_ms','LoggerEnvelopeAll')
+     save(fullfile(Path2Results1, 'SoundEvent.mat'),'SoundEvent_LoggerSamp','SoundEvent_TranscTime_ms','LoggerEnvelopeAll','-append')
     % load(fullfile(Path2Data1, 'SoundEvent.mat')
     
     
@@ -243,7 +257,7 @@ for tt=1:length(RMSThresh)
                 fprintf('No automatic call detected\n')
                 disp(OnOffVoc)
                 MissedAutoDetection{tt}{ll} = [MissedAutoDetection{tt}{ll} vv];
-                if FigOn
+%                 if FigOn
                     figure(1)
                     clf
 
@@ -283,7 +297,7 @@ for tt=1:length(RMSThresh)
                     Player = audioplayer(Raw_ramp/std(Raw_ramp), SamplingFreq{ll});
                     play(Player)
                     pause()
-                end
+%                 end
                 
             else
                 IdxAll = union(Idx_OnsetAuto,Idx_OffsetAuto);
@@ -583,7 +597,14 @@ Buffer = 30;% time in ms to add before after each sound element such atht it's l
 F_High = 5000;
 F_low = 100;
 F_highSpec = 15000;
+Flow = 500;
 FHigh = 10000;
+DBNoise = 60;
+[z,p,k] = butter(6,[Flow FHigh]/(192000/2),'bandpass');
+sos_mic_band = zp2sos(z,p,k);
+[z,p,k] = butter(6,[Flow FHigh]/(50000/2),'bandpass');
+sos_logger_band = zp2sos(z,p,k);
+
 % BioSoundUniqParam = nan(21553,23);
 BioSoundUniqParam = cell(1,NLoggers);
 % BioSoundUniqParam = nan(24770,21);
@@ -663,7 +684,7 @@ parfor ll=1:NLoggers
             % Add parameters regarding the microphone data
             
             if OldMicVoc_File~=MicVoc_File(ee)
-                RawWavDir = dir(fullfile(Path2Data2,sprintf('*mic1_%d.wav',MicVoc_File(ee))));
+                RawWavDir = dir(fullfile(Path2Data2,sprintf('*RecOnly_mic1_%d.wav',MicVoc_File(ee))));
                 [RawWav_mic, FS_mic] = audioread(fullfile(RawWavDir.folder, RawWavDir.name));
                 OldMicVoc_File = MicVoc_File(ee);
             end
@@ -676,7 +697,7 @@ parfor ll=1:NLoggers
             if mic_stop>length(RawWav_mic) % this section is cut between 2 10 min recordings
                 mic_stop1 = length(RawWav_mic);
                 mic_stop2 = mic_stop - length(RawWav_mic);
-                RawWavDir2 = dir(fullfile(Path2Data2,sprintf('*mic1_%d.wav',MicVoc_File(ee)+1)));
+                RawWavDir2 = dir(fullfile(Path2Data2,sprintf('*RecOnly_mic1_%d.wav',MicVoc_File(ee)+1)));
                 if ~isempty(RawWavDir2) 
                     [RawWav_local2, FS_mic] = audioread(fullfile(RawWavDir2.folder, RawWavDir2.name));
                     Mic_Data = [RawWav_mic(mic_start:mic_stop1); RawWav_local2(1:mic_stop2)];
@@ -698,25 +719,25 @@ parfor ll=1:NLoggers
             Filt_LoggerData = filtfilt(sos_logger_band,1,Logger_Data);
             % Calculate the RMS in the microphone extract and check if it's
             % above thershold
-            AmpEnv=envelope(Filt_MicData,FS_raw/FS_env,'rms');
+            AmpEnv=envelope(Filt_MicData,FS_mic/FS_env,'rms');
             BioSoundUniqParam{ll}{ee}(17)=std(Filt_MicData(Filt_MicData~=0));
             BioSoundUniqParam{ll}{ee}(18) = max(AmpEnv);
             BioSoundUniqParam{ll}{ee}(19) = mean(AmpEnv);
-            ResampFilt_MicData = resample(Filt_MicData,4*FHigh,FS_raw);
+            ResampFilt_MicData = resample(Filt_MicData,4*FHigh,FS_mic);
             ResampFilt_LogData = resample(Filt_LoggerData,4*FHigh,FS_local);
             if length(ResampFilt_MicData)~=length(ResampFilt_LogData)
                 OptLength = min(length(ResampFilt_MicData),length(ResampFilt_LogData));
                 ResampFilt_MicData = ResampFilt_MicData(1:OptLength);
                 ResampFilt_LogData = ResampFilt_LogData(1:OptLength);
             end
-            figure(10)
-            clf
-            title(sprintf('%s event %d/%d', AL_AutoId{ll}, ee, Nevents))
-            subplot(2,1,1)
-            [toM, foM, logBM,~] = spec_only_bats(ResampFilt_MicData,4*FHigh,DBNoise, FHigh,100,'Time_increment',0.005);
-            subplot(2,1,2)
-            [toL, foL, logBL,~] = spec_only_bats(ResampFilt_LogData,4*FHigh,DBNoise, FHigh,100,'Time_increment',0.005);
-        
+%             figure(10)
+%             clf
+%             title(sprintf('%s event %d/%d', AL_AutoId{ll}, ee, Nevents))
+%             subplot(2,1,1)
+%             [toM, foM, logBM,~] = spec_only_bats(ResampFilt_MicData,4*FHigh,DBNoise, FHigh,100,'Time_increment',0.005);
+%             subplot(2,1,2)
+%             [toL, foL, logBL,~] = spec_only_bats(ResampFilt_LogData,4*FHigh,DBNoise, FHigh,100,'Time_increment',0.005);
+%         
         
             % Do a cross correlation between the two signals
             [Xcor,Lag] = xcorr(ResampFilt_MicData,ResampFilt_LogData, (2*Buffer*10^-3)*4*FHigh,'normalized'); % Running a cross correlation between the raw signal and each audio logger signal with a maximum lag equal to twice the Buffer size
@@ -805,9 +826,9 @@ fprintf(1,'%% False positive before/after restrictions on acoustic parameters: %
 %% Machine learning approach
 % UsefulParams = [22 15 16 17 14 12 9 11 4 8 10];
 
-DataSet = ~isnan(BioSoundUniqParam(:,21));
+DataSet190927 = ~isnan(BioSoundUniqParam(:,21));
 BioSoundUniqParam_Old = BioSoundUniqParam;
-BioSoundUniqParam = BioSoundUniqParam(DataSet,:);
+BioSoundUniqParam = BioSoundUniqParam(DataSet190927,:);
 
 UsefulParams = 1:20;
 % Try a support vector machine classifier (linear) Binary SVM
@@ -816,7 +837,7 @@ SVMModel = fitcsvm(BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,21),'St
 % Cross-validate the SVM classifier. By default, the software uses 10-fold cross-validation.
 CVSVMModel = crossval(SVMModel);
 %Estimate the out-of-sample misclassification rate.
-classLoss = kfoldLoss(CVSVMModel) % 9.8%-10.8% error in cross-validation
+classLoss = kfoldLoss(CVSVMModel) % 5% error in cross-validation
 
 
 % Binary Kernel classification (non-linear)
@@ -892,11 +913,18 @@ fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected
  % brought down to 2-10% and % of missed vocalizations brought down to 1.7%
 
  %% Save the SVM model for use/prediction with other recordings
-DataSet = ~isnan(BioSoundUniqParam(:,21));
-BioSoundUniqParam = BioSoundUniqParam(DataSet,:);
+Path2Results1 = '/Volumes/Julie4T/JuvenileRecordings151/20190927/audiologgers/GroundTruthResultsPipelineCheck';
+Data190927 = load(fullfile(Path2Results1, 'SoundEvent2.mat'));
+DataSet190927 = ~isnan(Data190927.BioSoundUniqParam(:,21));
+Data190927.BioSoundUniqParam = Data190927.BioSoundUniqParam(DataSet190927,:);
+Path2Results1 = '/Volumes/Julie4T/LMC_CoEd/logger/20190603/GroundTruthResultsRecOnly';
+Data190603 = load(fullfile(Path2Results1, 'SoundEvent2.mat'));
+DataSet190603 = ~isnan(Data190603.BioSoundUniqParam(:,21));
+Data190603.BioSoundUniqParam = Data190603.BioSoundUniqParam(DataSet190603,:);
 
+BioSoundUniqParam = [Data190603.BioSoundUniqParam; Data190927.BioSoundUniqParam];
 
- UsefulParams = 1:20;
+UsefulParams = 1:20;
 % Try a support vector machine classifier (linear) Binary SVM
 SVMModel = fitcsvm(BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,21),'Standardize',true,'KernelFunction','RBF',...
     'KernelScale','auto','Prior','Uniform');
@@ -1322,7 +1350,7 @@ end
 
 
 function [MicVoc_samp_idx,MicVoc_File]=transc_time2micsamp(RawWav_dir,OnOffTranscTime_ms)
-AllFiles = dir(fullfile(RawWav_dir, '*.wav'));
+AllFiles = dir(fullfile(RawWav_dir, '*RecOnly*.wav'));
 % find the date and expstart time
 Date = AllFiles(1).name(6:11);
 ExpStartTime = AllFiles(1).name(13:16);
