@@ -276,7 +276,7 @@ end
 [~,PostProbs] = predict(CompactSVMModel,AcousticParams);
 Labels = PostProbs(:,2)>=2*10^-3; % Here we are being very conservative and keep events that even have a slight chance of being vocalizations
 
-frpintf(1, 'Eliminating %d/%d elements detected as noise\n', sum(~Labels), length(Labels))
+fprintf(1, 'Eliminating %d/%d elements detected as noise\n', sum(~Labels), length(Labels))
 % Select presume vocalizations and order them in time
 LoggerID_unmerged = LoggerID_unmerged(logical(Labels));
 Voc_loggerSamp_Idx_unmerged = Voc_loggerSamp_Idx_unmerged(logical(Labels),:);
