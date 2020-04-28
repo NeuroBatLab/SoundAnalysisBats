@@ -170,6 +170,7 @@ end
             % Spectrum parameters
             F_high = 50000; % frequency of Low-pass filter Hz
         end
+        Quartile_values = [0.25, 0.5, 0.75];
         % Fundamental parameters
         MaxFund = 4000;
         MinFund = 300;
