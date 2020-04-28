@@ -267,6 +267,7 @@ end
             % Spectrum parameters
             F_high = 50000; % frequency of Low-pass filter Hz
         end
+        Quartile_values = [0.25, 0.5, 0.75];
         % Fundamental parameters
         MaxFund = 4000;
         MinFund = 300;
@@ -311,11 +312,26 @@ end
         Fo = double(BiosoundObj.fo);
         TPoints = size(Spectro,2);
         SpectralMean = nan(1,TPoints);
+        Quartile_freq = nan(3,TPoints);
         %         SpectralMax = nan(1,TPoints);
         for tt=1:TPoints
             %             SpectralMax(tt) = Fo(Spectro(:,tt)==max(Spectro(:,tt)));
             PSDSpec = Spectro(:,tt)./(sum(Spectro(:,tt)));
             SpectralMean(tt) = sum(PSDSpec' .* Fo);
+            % Find quartile power
+            Cum_power = cumsum(Spectro(:,tt));
+            Tot_power = sum(Spectro(:,tt));
+            Nfreqs = length(Cum_power);
+            iq = 1;
+            for ifreq=1:Nfreqs
+                if (Cum_power(ifreq) > Quartile_values(iq)*Tot_power)
+                    Quartile_freq(iq,tt) = Fo(ifreq);
+                    iq = iq+1;
+                    if (iq > 3)
+                        break;
+                    end
+                end
+            end
         end
         
         % calculate the fundamental and related values (lhs fundest(self, maxFund,
@@ -328,6 +344,9 @@ end
         BiosoundObj.AmpPeriodF = AmpPeriodF;
         BiosoundObj.AmpPeriodP = AmpPeriodP;
         BiosoundObj.SpectralMean = SpectralMean;
+        BiosoundObj.Q1t = Quartile_freq(1,:);
+        BiosoundObj.Q2t = Quartile_freq(2,:);
+        BiosoundObj.Q3t = Quartile_freq(3,:);
         %         BiosoundObj.SpectralMax = SpectralMax;
         % convert all nmpy arrays to double to be able to save as matfiles
         BiosoundObj.amp = SoundAmp;
