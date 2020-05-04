@@ -11,7 +11,7 @@ ManualPause=0;
 py.importlib.import_module('soundsig')
 
 % Load data
-Data1 = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData*.mat', Date, ExpStartTime)));
+Data1 = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractDat*.mat', Date, ExpStartTime)));
 % select the correct files
 Gdf = zeros(length(Data1),1);
 for df=1:length(Data1)
@@ -34,9 +34,11 @@ else
         % bringing the file back on the local computer (we're going to write
         % pretty often to it)
         Data1 = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData%d.mat', Date, ExpStartTime, df)));
-        if sum(Gdf)>1
-            DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData%d_*.mat', Date, ExpStartTime,df)));
-        else
+        if isempty(Data1)
+            Data1 = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime)));
+        end
+        DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData%d_*.mat', Date, ExpStartTime,df)));
+        if isempty(DataFile) % who calls was the earlier format
             DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_*.mat', Date, ExpStartTime)));
         end
         WorkDir = ['~' filesep 'WorkingDirectoryWhat'];
