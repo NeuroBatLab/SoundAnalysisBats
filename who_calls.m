@@ -125,13 +125,12 @@ else
             % [z,p,k] = butter(6,BandPassFilter(1:2)/(FS/2),'bandpass');
             % sos_raw_low = zp2sos(z,p,k);
         end
-        if length(DataFiles)==1
+        PreviousFile = fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime, df,MergeThresh));
+        if ~isfile(PreviousFile)
             PreviousFile = fullfile(Working_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime,MergeThresh));
-        else
-            PreviousFile = fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime, df,MergeThresh));
         end
         if ~isempty(dir(PreviousFile)) && UseOld
-            load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+            load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
             if ~exist('vv','var') % There is no previous data but just data regarding piezo numbers and bats_ID
                 vv=1;
             end
