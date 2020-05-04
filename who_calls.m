@@ -10,7 +10,7 @@ dflts  = {3,Loggers_dir,0,'pdf'};
 if ~exist(Working_dir,'dir')
     mkdir(Working_dir)
 end
-DataFiles = fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData*.mat', Date, ExpStartTime));
+DataFiles = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData*.mat', Date, ExpStartTime)));
 
 if isempty(DataFiles)
     warning('Vocalization data were not extracted by get_logger_data_voc.m')
@@ -22,7 +22,7 @@ else
             Gdf(df)=1;
         end
     end
-    DataFiles = DataFiles(Gdf);
+    DataFiles = DataFiles(logical(Gdf));
     load(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'MeanStdAmpRawExtract','Voc_filename')
     Nvoc_all = length(Voc_filename);
     if Nvoc_all>1000
@@ -32,7 +32,7 @@ else
     end
     for df=1:length(DataFiles)
         Nvoc = Nvocs(df);
-        DataFile = DataFiles(df);
+        DataFile = fullfile(DataFiles(df).folder, DataFiles(df).name);
         load(DataFile, 'Piezo_wave', 'Piezo_FS',  'Raw_wave','FS', 'DiffRMS', 'AudioLogs', 'RMSLow','VocFilename');
         
         %% Identify sound elements in each vocalization extract and decide of the vocalizer
