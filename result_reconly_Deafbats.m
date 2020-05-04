@@ -285,8 +285,15 @@ elseif ~(isempty(VocExt_dir) || ForceVocExt1)
 end
 
 %% Identify the same vocalizations on the piezos and save sound extracts, onset and offset times
-LogVoc_dir = dir(fullfile(Logger_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime)));
-if isempty(LogVoc_dir) || ForceVocExt1 || ForceVocExt2
+LogVoc_dir = dir(fullfile(Logger_dir, sprintf('%s_%s_VocExtractData*.mat', Date, ExpStartTime)));
+% select the correct files
+Gdf = zeros(length(LogVoc_dir),1);
+for df=1:length(LogVoc_dir)
+    if length(strfind(LogVoc_dir(df).name, '_'))==2
+        Gdf(df)=1;
+    end
+end
+if sum(Gdf)==0 || ForceVocExt1 || ForceVocExt2
     fprintf('\n*** Localizing vocalizations on piezo recordings ***\n')
     get_logger_data_voc(AudioDataPath, Logger_dir,Date, ExpStartTime, 'ReAllignment',ReAllignment);
 else
@@ -295,7 +302,7 @@ else
 end
 
 % Save the ID of the bat for each logger
-Filename_ID = fullfile(Logger_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime, 200));
+Filename_ID = fullfile(Logger_dir, sprintf('%s_%s_VocExtractData1_%d.mat', Date, ExpStartTime, 200));
 if isfile(Filename_ID)
     save(Filename_ID, 'BatID','LoggerName','-append')
 else
