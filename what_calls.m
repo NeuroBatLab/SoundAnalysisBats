@@ -280,6 +280,12 @@ end
 
     function BiosoundObj = runBiosound(Y, FS, F_high)
         % Hard coded parameters for biosound
+        % Spectrum parameters
+        if nargin<3
+            F_high = 50000; % frequency of Low-pass filter Hz
+        end
+        DBNOISE = 60; % Threshold on amplitude of spectrogram to extract time varying spectral mean and quartiles
+        Quartile_values = [0.25, 0.5, 0.75];
         % spectrogram parameters
         Spec_sample_rate = 1000; % sampling rate Hz
         Freq_spacing = 50; % width of the frequency window for the FFT Hz
@@ -288,12 +294,6 @@ end
         % temporal enveloppe parameters
         Cutoff_freq = 150; % Hz
         Amp_sample_rate = 1000; % Hz
-        if nargin<3
-            % Spectrum parameters
-            F_high = 50000; % frequency of Low-pass filter Hz
-        end
-        DBNOISE = 60; % Threshold on amplitude of spectrogram to extract time varying spectral mean and quartiles
-        Quartile_values = [0.25, 0.5, 0.75];
         % Fundamental parameters
         MaxFund = 4000;
         MinFund = 300;
@@ -333,7 +333,7 @@ end
             spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing.*2, Min_freq,Max_freq)
         end
         
-        % Calculate time varying spectralmean and spectral max
+        % Calculate time varying spectralmean and spectral quartiles
         Spectro = double(BiosoundObj.spectro);
         maxB = max(max(Spectro));
         minB = maxB-DBNOISE; 
