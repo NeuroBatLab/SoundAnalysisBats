@@ -124,7 +124,7 @@ if MicData
 end
     
     
-parfor ll=1:NL % parfor
+parfor ll=1:NL
     fprintf(1, '*** Sort Voc from Noise %s %d/%d ****\n',ALField_Id{ll}, ll, NL)
     % Load the raw signal
     Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
@@ -169,6 +169,10 @@ parfor ll=1:NL % parfor
             FS_logger_voc_unmerged{ll}(ee) = round(nanmean(Data.Estimated_channelFS_Transceiver));
         else
             FS_logger_voc_unmerged{ll}(ee) = round(Data.Estimated_channelFS_Transceiver(FileIdx));
+            if isnan(FS_logger_voc_unmerged{ll}(ee))
+                FS_logger_voc_unmerged{ll}(ee) = round(nanmean(Data.Estimated_channelFS_Transceiver));
+            end
+                
         end
         
         % extract the sound with Buffer ms before after the sound

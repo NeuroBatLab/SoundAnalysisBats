@@ -57,7 +57,7 @@ else
             error('File transfer did not occur correctly for %s\n', fullfile(Data1.folder, Data1.name));
         end
         load(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
-        load(Data1, 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename');
+        load(fullfile(Data1.folder, Data1.name), 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename');
     
     
     
@@ -284,7 +284,7 @@ end
         Spec_sample_rate = 1000; % sampling rate Hz
         Freq_spacing = 50; % width of the frequency window for the FFT Hz
         Min_freq = 300; % high pass filter before FFT Hz
-        Max_freq = 50000; % Low pass filter before FFT Hz
+        Max_freq = F_high; % Low pass filter before FFT Hz
         % temporal enveloppe parameters
         Cutoff_freq = 150; % Hz
         Amp_sample_rate = 1000; % Hz
@@ -407,9 +407,9 @@ end
         % Plot the results of biosound calculations
         subplot(2,1,1)
         ColorCode = get(groot,'DefaultAxesColorOrder');
-        DBNOISE =12;
+        DBNOISE =60;
         f_low = 0;
-        logB = - 20*log10(abs(double(BiosoundObj.spectro)));
+        logB = BiosoundObj.spectro;
         maxB = max(max(logB));
         minB = maxB-DBNOISE;
         
@@ -427,14 +427,19 @@ end
         axis(v_axis);
         xlabel('time (ms)'), ylabel('Frequency');
         
+        hold on
+        plot(double(BiosoundObj.to)*1000,double(BiosoundObj.SpectralMean),'k-','LineWidth',2)
+        hold on
+        plot(double(BiosoundObj.to)*1000,double(BiosoundObj.Q2t),'Color',ColorCode(6,:),'LineWidth',2)
+        
         % Plot the fundamental and formants if they were calculated
         %     if double(BiosoundFi.sal)>MinSaliency
-        Legend = {'F0' 'Formant1' 'Formant2' 'Formant3'};
-        IndLegend = [];
+        Legend = {'SpecMean' 'SpecMed' 'F0' 'Formant1' 'Formant2' 'Formant3'};
+        IndLegend = [1 2];
         if ~isempty(double(BiosoundObj.f0))
             hold on
             plot(double(BiosoundObj.to)*1000,double(BiosoundObj.f0),'r-','LineWidth',2)
-            IndLegend = [1 IndLegend];
+            IndLegend = [IndLegend 3];
         end
         if FormantPlot
             hold on
@@ -443,12 +448,13 @@ end
             plot(double(BiosoundObj.to)*1000,double(BiosoundObj.F2),'Color',ColorCode(2,:),'LineWidth',2)
             hold on
             if any(~isnan(double(BiosoundObj.F3)))
-                plot(double(BiosoundObj.to)*1000,double(BiosoundObj.F3),'Color',ColorCode(3,:),'LineWidth',2)
-                IndLegend = [IndLegend 2:4];
+                plot(double(BiosoundObj.to)*1000,double(BiosoundObj.F3),'Color',ColorCode(7,:),'LineWidth',2)
+                IndLegend = [IndLegend 4:6];
             else
-                IndLegend = [IndLegend 2:3];
+                IndLegend = [IndLegend 4:5];
             end
         end
+        
         legend(Legend(IndLegend))
         hold off
         subplot(2,1,2)
