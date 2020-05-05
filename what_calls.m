@@ -306,6 +306,9 @@ end
         WindowFormant = 0.1;
         Method= 'Stack';
         
+        % Pitch saliency parameter
+        RMSThresh = 0.05;
+        
         % create the biosound object
         BiosoundObj = py.soundsig.sound.BioSound(py.numpy.array(Y),pyargs('fs',FS));
         % methods(BiosoundFi, '-full') % this command plot all the methods with the available arguments
@@ -368,6 +371,15 @@ end
         % minFund, lowFc, highFc, minSaliency, debugFig, pyargs)
         fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
         
+        % Calculate again the saliency with a lower threshold on minimum
+        % RMS to calculate Sal
+        [Sal,t] = salEstimator(Y, FS, MinFund, MaxFund,RMSThresh);
+        % check that t is same as BiosoundObj.to
+        if any(~(t==BiosoundObj.to))
+            warning('Unexpected difference in time points')
+            keyboard
+        end
+        
         % convert biosound to a strcuture
         BiosoundObj = struct(BiosoundObj);
         % Add some fields
@@ -390,6 +402,7 @@ end
         BiosoundObj.fpsd = double(BiosoundObj.fpsd);
         BiosoundObj.psd = double(BiosoundObj.psd);
         BiosoundObj.sal = double(BiosoundObj.sal);
+        BiosoundObj.sal = Sal;
         BiosoundObj.f0 = double(BiosoundObj.f0);
         BiosoundObj.f0_2 = double(BiosoundObj.f0_2);
         BiosoundObj.sound = double(BiosoundObj.sound);

@@ -1,4 +1,4 @@
-function [sal,t] = salEstimator(SoundIn_filtered, FS, minFund, maxFund)
+function [sal,t] = salEstimator(SoundIn_filtered, FS, minFund, maxFund,RMSThresh)
 DebugFig=0;
 % Estimates the pitch
 % saliency (sal) 
@@ -6,6 +6,9 @@ DebugFig=0;
 % FS is the sampling rate
 
 % Some user parameters (should be part of the function at some time)
+if nargin<6
+    RMSThresh=0.1;      % Minimum relative threshold on Max RMS to calculate pitch saliency
+end
 if nargin<5
     minFund = 300;       % Minimum fundamental frequency expected
 end
@@ -13,11 +16,11 @@ if nargin<6
     maxFund = 4000;      % Maximum fundamental frequency expected
 end
 
-
-DBNOISE = 60;         % dB in Noise for the log compression in the spectrogram calculation - values below will be set to zero.
-f_high=10000;         % Upper frequency bound to get average amplitude in spectrogram
-fband = 100;            % Size of each frequency band in spectrogram, also determine time resolution
-
+if DebugFig
+    DBNOISE = 60;         % dB in Noise for the log compression in the spectrogram calculation - values below will be set to zero.
+    f_high=10000;         % Upper frequency bound to get average amplitude in spectrogram
+    fband = 100;            % Size of each frequency band in spectrogram, also determine time resolution
+end
 
 
 
@@ -75,7 +78,7 @@ for it = 1:nt
     fund(it) = NaN;
     sal(it) = NaN;
     fund2(it) = NaN;
-    if (soundRMS(it) < soundRMSMax*0.1)
+    if (soundRMS(it) < soundRMSMax*RMSThresh)
         continue;
     end
     soundlen = soundlen + 1;
