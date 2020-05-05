@@ -292,6 +292,7 @@ end
             % Spectrum parameters
             F_high = 50000; % frequency of Low-pass filter Hz
         end
+        DBNOISE = 60; % Threshold on amplitude of spectrogram to extract time varying spectral mean and quartiles
         Quartile_values = [0.25, 0.5, 0.75];
         % Fundamental parameters
         MaxFund = 4000;
@@ -334,6 +335,10 @@ end
         
         % Calculate time varying spectralmean and spectral max
         Spectro = double(BiosoundObj.spectro);
+        maxB = max(max(Spectro));
+        minB = maxB-DBNOISE; 
+        Spectro(Spectro<minB) =minB;
+        Spectro = Spectro-minB;
         Fo = double(BiosoundObj.fo);
         TPoints = size(Spectro,2);
         SpectralMean = nan(1,TPoints);
