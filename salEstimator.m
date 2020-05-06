@@ -1,18 +1,18 @@
 function [sal,t] = salEstimator(SoundIn_filtered, FS, minFund, maxFund,RMSThresh)
-DebugFig=0;
+DebugFig=1;
 % Estimates the pitch
 % saliency (sal) 
 % soundIn is the sound pressure waveform.
 % FS is the sampling rate
 
 % Some user parameters (should be part of the function at some time)
-if nargin<6
+if nargin<5
     RMSThresh=0.1;      % Minimum relative threshold on Max RMS to calculate pitch saliency
 end
-if nargin<5
-    minFund = 300;       % Minimum fundamental frequency expected
+if nargin<3
+    minFund = 600;       % Minimum fundamental frequency expected
 end
-if nargin<6
+if nargin<5
     maxFund = 4000;      % Maximum fundamental frequency expected
 end
 
@@ -26,8 +26,12 @@ end
 
 
 % Initializations and useful variables
+Tt = 1; % period in ms, getting a value per ms
+if size(SoundIn_filtered,2)==1
+    SoundIn_filtered = SoundIn_filtered';
+end
 soundLen = length(SoundIn_filtered);
-t = (0:1:floor(soundLen/FS*10^3))*10^-3; % getting a value per ms, note that t is in seconds
+t = (0:Tt:(floor(soundLen/FS*10^3)-1))*10^-3; % getting a value per ms, note that t is in seconds
 nt=length(t);
 soundRMS = zeros(1,nt);
 fund = zeros(1,nt);
@@ -46,7 +50,7 @@ maxlags = 2*ceil((FS/minFund));
 
 %% First calculate the rms in each window
 for it = 1:nt
-    tval = t(it);   % Center of window in time
+    tval = t(it)+Tt/2*10^-3;   % Center of window in time
     tind = fix(tval*FS);  % Center of window in ind
     tstart = tind - (winLen-1)/2;
     tend = tind + (winLen-1)/2;
@@ -82,7 +86,7 @@ for it = 1:nt
         continue;
     end
     soundlen = soundlen + 1;
-    tval = t(it);   % Center of window in time
+    tval = t(it)+Tt/2*10^-3;   % Center of window in time
     tind = fix(tval*FS);  % Center of window in ind
     tstart = tind - (winLen-1)/2;
     tend = tind + (winLen-1)/2;
@@ -104,15 +108,25 @@ for it = 1:nt
     soundWin = SoundIn_filtered(tstart:tend).*w(winstart:windend)';
     
     [autoCorr, lags] = xcorr(soundWin, maxlags, 'unbiased');
+    Timelags = (lags/FS)*10^3;
     ind0 = find(lags == 0);
     
     % find peaks
-    [pksCorr, indPeaksCorr] = findpeaks(autoCorr, 'MINPEAKHEIGHT', max(autoCorr)./10);
+    [pksCorr, indPeaksCorr] = findpeaks(autoCorr, 'MINPEAKPROMINENCE', max(autoCorr)./10);
     
+    if DebugFig
+        figure(155)
+        clf
+        plot(Timelags, autoCorr, 'LineWidth',2)
+        hold on; plot(Timelags(indPeaksCorr),pksCorr,'r*')
+    end
+        
     % Eliminate center peak and all peaks too close to middle
-    
     pksCorr(abs(indPeaksCorr-ind0) < FS/maxFund ) = [];
     indPeaksCorr(abs(indPeaksCorr-ind0) < FS/maxFund ) = [];
+    if DebugFig
+        hold on; plot(Timelags(indPeaksCorr),pksCorr,'g*')
+    end
     
     % Find max peak
     if isempty(pksCorr)
@@ -121,6 +135,17 @@ for it = 1:nt
         indIndMax = find(pksCorr == max(pksCorr), 1, 'first');
         indMax = indPeaksCorr(indIndMax);   
         pitchSaliency = autoCorr(indMax)./autoCorr(ind0);
+        if DebugFig
+            hold on; plot(Timelags(indMax),max(pksCorr),'mo', 'MarkerSize',16)
+            vline(10^3/maxFund)
+            hold on
+            vline(-10^3/maxFund)
+            hold off
+            title(sprintf('Autocorr for time point %d/%d Sal = %.2f',it,nt,pitchSaliency))
+            xlabel('Time lag (ms)')
+            ylabel('Autocorrelation')
+            pause()
+        end
     end
 
     sal(it) = pitchSaliency;

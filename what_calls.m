@@ -1,7 +1,25 @@
-function what_calls(Loggers_dir, Date, ExpStartTime)
-% Hard coded parameters for the calculation of the spectrum in biosound
+function what_calls(Loggers_dir, Date, ExpStartTime,SaveBiosoundperFile, PlotDyn, GuessCallType, TransferLocal)
+if nargin<4
+    SaveBiosoundperFile = 0;
+end
+
+if nargin<5
+    PlotDyn=1;
+end
+
+if nargin<6
+    GuessCallType = 1;
+end
+
+if nargin<7
+    TransferLocal = 1;
+end
+
+% Hard coded parameters for the filtering of the signal and calculations in biosound
 F_high_Raw = 50000;
+F_low_Raw = 100;
 F_high_Piezo = 10000;
+F_low_Piezo = 100;
 
 % Set to 1 if you want to manually pause after each vocalization and listen
 % to them
@@ -33,6 +51,7 @@ else
     for df=1:sum(Gdf)
         % bringing the file back on the local computer (we're going to write
         % pretty often to it)
+        
         Data1 = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData%d.mat', Date, ExpStartTime, df)));
         if isempty(Data1)
             Data1 = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime)));
@@ -41,23 +60,29 @@ else
         if isempty(DataFile) % who calls was the earlier format
             DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_*.mat', Date, ExpStartTime)));
         end
-        WorkDir = ['~' filesep 'WorkingDirectoryWhat'];
-        fprintf(1,'Transferring data from the server %s\n on the local computer %s\n', DataFile(df).folder, WorkDir);
-        mkdir(WorkDir)
-        [s,m,e]=copyfile(fullfile(DataFile.folder, DataFile.name), WorkDir, 'f');
-        if ~s
-            m %#ok<NOPRT>
-            e %#ok<NOPRT>
-            error('File transfer did not occur correctly for %s\n', fullfile(DataFile.folder, DataFile.name));
-        end
-        [s,m,e]=copyfile(fullfile(Data1.folder, Data1.name), WorkDir, 'f');
-        if ~s
-            m %#ok<NOPRT>
-            e %#ok<NOPRT>
-            error('File transfer did not occur correctly for %s\n', fullfile(Data1.folder, Data1.name));
+        if TransferLocal
+            WorkDir = ['~' filesep 'WorkingDirectoryWhat'];
+            fprintf(1,'Transferring data from the server %s\n on the local computer %s\n', DataFile(df).folder, WorkDir);
+            if ~exist('WorkDir','dir')
+                mkdir(WorkDir)
+            end
+            [s,m,e]=copyfile(fullfile(DataFile.folder, DataFile.name), WorkDir, 'f');
+            if ~s
+                m %#ok<NOPRT>
+                e %#ok<NOPRT>
+                error('File transfer did not occur correctly for %s\n', fullfile(DataFile.folder, DataFile.name));
+            end
+            [s,m,e]=copyfile(fullfile(Data1.folder, Data1.name), WorkDir, 'f');
+            if ~s
+                m %#ok<NOPRT>
+                e %#ok<NOPRT>
+                error('File transfer did not occur correctly for %s\n', fullfile(Data1.folder, Data1.name));
+            end
+        else
+            WorkDir = Loggers_dir;
         end
         load(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
-        load(fullfile(Data1.folder, Data1.name), 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename');
+        load(fullfile(WorkDir, Data1.name), 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename');
     
     
     
@@ -67,13 +92,13 @@ else
         Fns_AL = fieldnames(Piezo_wave);
     
         % Filter for the Mic signal
-        [z,p,k] = butter(3,100/(FS/2),'high');
-        sos_high_raw = zp2sos(z,p,k);
+        [z,p,k] = butter(6,[F_low_Raw F_high_Raw]/(FS/2),'bandpass');
+        sos_band_raw = zp2sos(z,p,k);
     
         % Filter for the Piezo signal
         PFS = round(Piezo_FS.(Fns_AL{1})(1));
-        [z,p,k] = butter(3,100/(PFS/2),'high');
-        sos_high_piezo = zp2sos(z,p,k);
+        [z,p,k] = butter(6,[F_low_Piezo F_high_Piezo]/(PFS/2),'bandpass');
+        sos_band_piezo = zp2sos(z,p,k);
         
         % create the output directoty
         Path2Wav = fullfile(Loggers_dir, 'VocExtracts');
@@ -88,7 +113,11 @@ else
         end
     
         try
-            load(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv');
+            if SaveBiosoundperFile
+                load(fullfile(WorkDir, DataFile.name),'BioSoundFilenames','NVocFile','vv');
+            else
+                load(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv');
+            end
             if exist('BioSoundCalls','var')
                 PrevData = input('Do you want to use previous data?');
             else
@@ -101,7 +130,9 @@ else
         end
         if ~PrevData
             BioSoundFilenames = cell(VocCall,2);
-            BioSoundCalls = cell(VocCall,2);
+            if ~SaveBiosoundperFile
+                BioSoundCalls = cell(VocCall,2);
+            end
             Firstcall = 1;
             NVocFile = 0;
         else
@@ -138,16 +169,25 @@ else
                             keyboard
                         end
                         WL = Raw_wave{VocInd(vv)}(IndOn:IndOff);
-                        FiltWL = filtfilt(sos_high_raw,1,WL);
+                        FiltWL = filtfilt(sos_band_raw,1,WL);
                         FiltWL = FiltWL-mean(FiltWL);
                         BioSoundFilenames{NVocFile,1} = fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.wav',FileVoc, BatID_local,ALNum,nn));
-                        audiowrite(BioSoundFilenames{NVocFile,1},FiltWL,FS);
-                        BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw);
+                        audiowrite(BioSoundFilenames{NVocFile,1},WL,FS);
+                        if SaveBiosoundperFile
+                            BioSoundCall = runBiosound(FiltWL, FS, F_high_Raw);
+                            save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,1}(1:end-4)),'BioSoundCall')
+                        else
+                            BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw);
+                        end
                         % Plot figures of biosound results for Microphone data
                         Fig1=figure(1);
                         clf
                         title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
-                        plotBiosound(BioSoundCalls{NVocFile,1}, F_high_Raw)
+                        if SaveBiosoundperFile
+                            plotBiosound(BioSoundCall, F_high_Raw)
+                        else
+                            plotBiosound(BioSoundCalls{NVocFile,1}, F_high_Raw)
+                        end
                         % Play the sound
                         if ManualPause
                             AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS); %#ok<TNMLP,UNRCH>
@@ -168,17 +208,26 @@ else
                         if any(abs(WL)>=1)
                             WL = WL./max(abs(WL)); % scale between 0 and 1 if exceeding 1
                         end
-                        FiltWL = filtfilt(sos_high_piezo,1,WL);
+                        FiltWL = filtfilt(sos_band_piezo,1,WL);
                         BioSoundFilenames{NVocFile,2} =fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Piezo.wav',FileVoc,BatID_local,ALNum,nn));
                         FSpiezo = round(Piezo_FS.(Fns_AL{ll})(VocInd(vv)));
-                        audiowrite(BioSoundFilenames{NVocFile,2},FiltWL,FSpiezo);
-                        BioSoundCalls{NVocFile,2} = runBiosound(FiltWL, FSpiezo, F_high_Piezo);
+                        audiowrite(BioSoundFilenames{NVocFile,2},WL,FSpiezo);
+                        if SaveBiosoundperFile
+                            BioSoundCall = runBiosound(FiltWL, FSpiezo, F_high_Piezo);
+                            save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,2}(1:end-4)),'BioSoundCall')
+                        else
+                            BioSoundCalls{NVocFile,2} = runBiosound(FiltWL, FSpiezo, F_high_Piezo);
+                        end
                         
                         % Plot figures of biosound results for piezo data
                         Fig2=figure(2);
                         clf
                         title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
-                        plotBiosound(BioSoundCalls{NVocFile,2}, F_high_Piezo,0)
+                        if SaveBiosoundperFile
+                            plotBiosound(BioSoundCall, F_high_Piezo,0)
+                        else
+                            plotBiosound(BioSoundCalls{NVocFile,2}, F_high_Piezo,0)
+                        end
                         % Play the sound
                         if ManualPause
                             AP=audioplayer(WL,FSpiezo); %#ok<TNMLP,UNRCH>
@@ -188,89 +237,100 @@ else
 
                         % Plot figures of dynamic jointly evaluated by piezo and
                         % microphone data
-                        Fig3 = figure(3); %#ok<NASGU>
-                        clf
-                        title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
-                        plotCallDynamic(BioSoundCalls{NVocFile,1}, BioSoundCalls{NVocFile,2})
-    %                     print(Fig3,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Dyn.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
-
+                        if PlotDyn
+                            Fig3 = figure(3); %#ok<NASGU>
+                            clf
+                            title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
+                            plotCallDynamic(BioSoundCalls{NVocFile,1}, BioSoundCalls{NVocFile,2})
+    %                       print(Fig3,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Dyn.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
+                        end
                     
                         % Guess for the call category
-                        try double(BioSoundCalls{NVocFile,1}.AmpPeriodP)
-                            if (BioSoundCalls{NVocFile,1}.AmpPeriodF<40.5) && (BioSoundCalls{NVocFile,1}.AmpPeriodF>34) && (BioSoundCalls{NVocFile,1}.AmpPeriodP>0.075)
-                                Guess ='Tr';
-                            else
-                                Guess ='Ba';
+                        if GuessCallType
+                            try double(BioSoundCalls{NVocFile,1}.AmpPeriodP)
+                                if (BioSoundCalls{NVocFile,1}.AmpPeriodF<40.5) && (BioSoundCalls{NVocFile,1}.AmpPeriodF>34) && (BioSoundCalls{NVocFile,1}.AmpPeriodP>0.075)
+                                    Guess ='Tr';
+                                else
+                                    Guess ='Ba';
+                                end
+                                
+                            catch
+                                Guess = 'Ba';
                             end
-
-                        catch
-                            Guess = 'Ba';
+                            %                 if ManualPause
+                            %                     Resp = input(sprintf('Is this a Trill (t) or a Bark (b)? Computer guess: %s. Leave empty if you agree',Guess),'s');
+                            Resp = [];
+                            if isempty(Resp)
+                                BioSoundCalls{NVocFile,1}.type = Guess;
+                                BioSoundCalls{NVocFile,2}.type = Guess;
+                            elseif strcmp(Resp, 't')
+                                BioSoundCalls{NVocFile,1}.type = 'Tr';
+                                BioSoundCalls{NVocFile,2}.type = 'Tr';
+                            elseif strcmp(Resp, 'b')
+                                BioSoundCalls{NVocFile,1}.type = 'Ba';
+                                BioSoundCalls{NVocFile,2}.type = 'Ba';
+                            end
+                            %                 end
                         end
-                        %                 if ManualPause
-                        %                     Resp = input(sprintf('Is this a Trill (t) or a Bark (b)? Computer guess: %s. Leave empty if you agree',Guess),'s');
-                        Resp = [];
-                        if isempty(Resp)
-                            BioSoundCalls{NVocFile,1}.type = Guess;
-                            BioSoundCalls{NVocFile,2}.type = Guess;
-                        elseif strcmp(Resp, 't')
-                            BioSoundCalls{NVocFile,1}.type = 'Tr';
-                            BioSoundCalls{NVocFile,2}.type = 'Tr';
-                        elseif strcmp(Resp, 'b')
-                            BioSoundCalls{NVocFile,1}.type = 'Ba';
-                            BioSoundCalls{NVocFile,2}.type = 'Ba';
-                        end
-                    %                 end
                     end
                 end
             end
         
             % save the values!
-            save(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','-append');
+            if ~SaveBiosoundperFile
+                save(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv','-append');
+            else
+                save(fullfile(WorkDir, DataFile.name), 'BioSoundFilenames','NVocFile','vv','-append');
+            end
             
         end
    
         % Turn off warning notifications for python 2 struct conversion
         warning('on', 'MATLAB:structOnObject')
-        % Transfer data bacn on the server
-        fprintf(1,'Transferring data from the local computer %s\n back on the server %s\n', WorkDir, DataFile.folder);
-        [s,m,e]=copyfile(fullfile(WorkDir, DataFile.name), DataFile.folder, 'f');
-        if ~s
-            TicTransfer = tic;
-            while toc(TicTransfer)<30*60
-                [s,m,e]=copyfile(fullfile(WorkDir, DataFile.name), DataFile.folder, 'f');
-                if s
-                    return
-                end
-            end
+        
+        if TransferLocal
+            % Transfer data back on the server
+            fprintf(1,'Transferring data from the local computer %s\n back on the server %s\n', WorkDir, DataFile.folder);
+            [s,m,e]=copyfile(fullfile(WorkDir, DataFile.name), DataFile.folder, 'f');
             if ~s
-                s %#ok<NOPRT>
-                m %#ok<NOPRT>
-                e %#ok<NOPRT>
-                error('File transfer did not occur correctly for %s\n Although we tried for 30min\n', DataFile.folder);
+                TicTransfer = tic;
+                while toc(TicTransfer)<30*60
+                    [s,m,e]=copyfile(fullfile(WorkDir, DataFile.name), DataFile.folder, 'f');
+                    if s
+                        return
+                    end
+                end
+                if ~s
+                    s %#ok<NOPRT>
+                    m %#ok<NOPRT>
+                    e %#ok<NOPRT>
+                    error('File transfer did not occur correctly for %s\n Although we tried for 30min\n', DataFile.folder);
+                else
+                    fprintf('Data transfered back on server in:\n%s\n',  DataFile.folder);
+                end
             else
                 fprintf('Data transfered back on server in:\n%s\n',  DataFile.folder);
             end
-        else
-            fprintf('Data transfered back on server in:\n%s\n',  DataFile.folder);
         end
     end
-    
-    if s  %erase local data
-        [sdel,mdel,edel]=rmdir(WorkDir, 's');
-        if ~sdel
-            TicErase = tic;
-            while toc(TicErase)<30*60
-                [sdel,mdel,edel]=rmdir(WorkDir, 's');
-                if sdel
-                    return
+    if TransferLocal
+        if s  %erase local data
+            [sdel,mdel,edel]=rmdir(WorkDir, 's');
+            if ~sdel
+                TicErase = tic;
+                while toc(TicErase)<30*60
+                    [sdel,mdel,edel]=rmdir(WorkDir, 's');
+                    if sdel
+                        return
+                    end
                 end
             end
-        end
-        if ~sdel
-            sdel %#ok<NOPRT>
-            mdel %#ok<NOPRT>
-            edel %#ok<NOPRT>
-            error('File erase did not occur correctly for %s\n Although we tried for 30min\n', WorkDir);
+            if ~sdel
+                sdel %#ok<NOPRT>
+                mdel %#ok<NOPRT>
+                edel %#ok<NOPRT>
+                error('File erase did not occur correctly for %s\n Although we tried for 30min\n', WorkDir);
+            end
         end
     end
 end
@@ -288,7 +348,7 @@ end
         Quartile_values = [0.25, 0.5, 0.75];
         % spectrogram parameters
         Spec_sample_rate = 1000; % sampling rate Hz
-        Freq_spacing = 50; % width of the frequency window for the FFT Hz
+        Freq_spacing = 100; % width of the frequency window for the FFT Hz
         Min_freq = 300; % high pass filter before FFT Hz
         Max_freq = F_high; % Low pass filter before FFT Hz
         % temporal enveloppe parameters
@@ -296,7 +356,7 @@ end
         Amp_sample_rate = 1000; % Hz
         % Fundamental parameters
         MaxFund = 4000;
-        MinFund = 300;
+        MinFund = 600;
         LowFc = 100; %100
         HighFc = 18000;% 15000
         MinSaliency = 0.6;
@@ -375,8 +435,10 @@ end
         % RMS to calculate Sal
         [Sal,t] = salEstimator(Y, FS, MinFund, MaxFund,RMSThresh);
         % check that t is same as BiosoundObj.to
-        if any(~(t==BiosoundObj.to))
+        if any(~(round(t)==round(double(BiosoundObj.to))))
             warning('Unexpected difference in time points')
+            SalB = double(BiosoundObj.sal); %#ok<NASGU>
+            TO = double(BiosoundObj.to); %#ok<NASGU>
             keyboard
         end
         
@@ -401,7 +463,7 @@ end
         BiosoundObj.F3 = double(BiosoundObj.F3);
         BiosoundObj.fpsd = double(BiosoundObj.fpsd);
         BiosoundObj.psd = double(BiosoundObj.psd);
-        BiosoundObj.sal = double(BiosoundObj.sal);
+%         BiosoundObj.sal = double(BiosoundObj.sal);
         BiosoundObj.sal = Sal;
         BiosoundObj.f0 = double(BiosoundObj.f0);
         BiosoundObj.f0_2 = double(BiosoundObj.f0_2);
@@ -420,7 +482,7 @@ end
         % Plot the results of biosound calculations
         subplot(2,1,1)
         ColorCode = get(groot,'DefaultAxesColorOrder');
-        DBNOISE =60;
+        DBNOISE =50;
         f_low = 0;
         logB = BiosoundObj.spectro;
         maxB = max(max(logB));
@@ -469,7 +531,16 @@ end
         end
         
         legend(Legend(IndLegend))
+        
+        yyaxis right
+        hold on
+        plot(double(BiosoundObj.to)*1000,double(BiosoundObj.sal),'m-','LineWidth',2)
+        hold on
+        plot(double(BiosoundObj.to)*1000,double(BiosoundObj.sal2),'m--','LineWidth',2)
+        ylabel('Pitch Saliency')
+        ylim([0 1])
         hold off
+        
         subplot(2,1,2)
         yyaxis left
         plot((1:length(double(BiosoundObj.sound)))/BiosoundObj.samprate*1000,double(BiosoundObj.sound), 'k-','LineWidth',2)
