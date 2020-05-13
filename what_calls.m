@@ -23,7 +23,7 @@ F_low_Piezo = 100;
 
 % Set to 1 if you want to manually pause after each vocalization and listen
 % to them
-ManualPause=0;
+ManualPause=1;
 
 % Import biosound library
 py.importlib.import_module('soundsig')
@@ -125,7 +125,7 @@ else
                 PrevData = 0;
             end
         catch
-            fprintf(1, 'No previous data, starting from scratch');
+            fprintf(1, 'No previous data, starting from scratch\n');
             PrevData = 0;
         end
         if ~PrevData
@@ -148,7 +148,12 @@ else
     
     
         for vv=Firstcall:NV
-            [~,FileVoc]=fileparts(VocFilename{VocInd(vv)});
+            if strfind(VocFilename{VocInd(vv)}, '/')
+                [~,FileVoc]=fileparts(VocFilename{VocInd(vv)});
+            else
+                ParseVocFile = strsplit(VocFilename{VocInd(vv)}, '\');
+                FileVoc = ParseVocFile{end};
+            end
             for ll=1:length(IndVocStartRaw_merged{VocInd(vv)})
                 % Logger number
                 AL_local = Fns_AL{ll};
@@ -182,12 +187,13 @@ else
                         % Plot figures of biosound results for Microphone data
                         Fig1=figure(1);
                         clf
-                        title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
                         if SaveBiosoundperFile
                             plotBiosound(BioSoundCall, F_high_Raw)
                         else
                             plotBiosound(BioSoundCalls{NVocFile,1}, F_high_Raw)
                         end
+                        subplot(2,1,1)
+                        title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
                         % Play the sound
                         if ManualPause
                             AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS); %#ok<TNMLP,UNRCH>
@@ -222,12 +228,13 @@ else
                         % Plot figures of biosound results for piezo data
                         Fig2=figure(2);
                         clf
-                        title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
                         if SaveBiosoundperFile
                             plotBiosound(BioSoundCall, F_high_Piezo,0)
                         else
                             plotBiosound(BioSoundCalls{NVocFile,2}, F_high_Piezo,0)
                         end
+                        subplot(2,1,1)
+                        title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
                         % Play the sound
                         if ManualPause
                             AP=audioplayer(WL,FSpiezo); %#ok<TNMLP,UNRCH>
@@ -367,7 +374,7 @@ end
         Method= 'Stack';
         
         % Pitch saliency parameter
-        RMSThresh = 0.05;
+        RMSThresh = 0.1;
         
         % create the biosound object
         BiosoundObj = py.soundsig.sound.BioSound(py.numpy.array(Y),pyargs('fs',FS));
@@ -480,7 +487,7 @@ end
             FormantPlot=1;
         end
         % Plot the results of biosound calculations
-        subplot(2,1,1)
+        ss1 = subplot(2,1,1);
         ColorCode = get(groot,'DefaultAxesColorOrder');
         DBNOISE =50;
         f_low = 0;
@@ -530,18 +537,18 @@ end
             end
         end
         
-        legend(Legend(IndLegend))
-        
         yyaxis right
         hold on
         plot(double(BiosoundObj.to)*1000,double(BiosoundObj.sal),'m-','LineWidth',2)
-        hold on
-        plot(double(BiosoundObj.to)*1000,double(BiosoundObj.sal2),'m--','LineWidth',2)
+        legend([Legend(IndLegend) 'Pitch Sal'], 'Location','southoutside','NumColumns',length(IndLegend)+1)
+%         hold on
+%         plot(double(BiosoundObj.to)*1000,double(BiosoundObj.sal2),'m--','LineWidth',2)
         ylabel('Pitch Saliency')
         ylim([0 1])
+        ss1.YColor = 'm';
         hold off
         
-        subplot(2,1,2)
+        ss2=subplot(2,1,2);
         yyaxis left
         plot((1:length(double(BiosoundObj.sound)))/BiosoundObj.samprate*1000,double(BiosoundObj.sound), 'k-','LineWidth',2)
         hold on
@@ -549,6 +556,7 @@ end
         YLIM = max(abs(YLIM)).*[-1 1];
         set(gca, 'YLim', YLIM)
         SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
+        ss2.YColor = 'k';
         yyaxis right
         plot(double(BiosoundObj.tAmp)*1000,double(SoundAmp), 'r-', 'LineWidth',2)
         YLIM = get(gca,'YLim');
@@ -556,7 +564,9 @@ end
         set(gca, 'YLim', YLIM)
         set(gca, 'XLim', v_axis(1:2))
         xlabel('Time (ms)')
+        ylabel('sound amplitude')
         title(sprintf('AmpPeriodicity = %.3f AmpPF = %.1f Hz',BiosoundObj.AmpPeriodP, BiosoundObj.AmpPeriodF))
+        ss2.YColor = 'r';
         hold off
     end
 

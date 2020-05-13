@@ -1,5 +1,5 @@
 function [sal,t] = salEstimator(SoundIn_filtered, FS, minFund, maxFund,RMSThresh)
-DebugFig=1;
+DebugFig=0;
 % Estimates the pitch
 % saliency (sal) 
 % soundIn is the sound pressure waveform.
@@ -22,7 +22,12 @@ if DebugFig
     fband = 100;            % Size of each frequency band in spectrogram, also determine time resolution
 end
 
-
+if DebugFig
+    % Calculate and plot the spectrogram    
+    figure(154)
+    clf
+    [ ~] = spec_only_bats(SoundIn_filtered, FS, DBNOISE, f_high, fband);
+end
 
 
 % Initializations and useful variables
@@ -144,7 +149,7 @@ for it = 1:nt
             title(sprintf('Autocorr for time point %d/%d Sal = %.2f',it,nt,pitchSaliency))
             xlabel('Time lag (ms)')
             ylabel('Autocorrelation')
-            pause()
+            pause(1)
         end
     end
 
@@ -153,10 +158,8 @@ for it = 1:nt
  
 end
 
-if DebugFig
-    % Calculate and plot the spectrogram    
-    figure()
-    [ ~] = spec_only_bats(SoundIn_filtered, FS, DBNOISE, f_high, fband);
+if DebugFig   
+    figure(154)
     % plot the pitch saliency on top
     hold on
     yyaxis right
@@ -164,7 +167,7 @@ if DebugFig
     ylabel('Pitch Saliency')
     ylim([0 1])
     hold off
-    pause()
+    pause(1)
 end
 
 
