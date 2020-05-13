@@ -110,7 +110,7 @@ end
 fprintf('\n*** Identify who is calling ***\n')
 WhoCall_dir = dir(fullfile(Logger_dir, sprintf('*%s_%s*whocalls*', Date, ExpStartTime)));
 if isempty(WhoCall_dir) || ForceWhoID
-    [IndVocStartRawMerged,~]=who_calls(AudioDataPath,Logger_dir,Date, ExpStartTime,200,1,1,0);
+    [IndVocStartRawMerged,~]=who_calls_playless(AudioDataPath,Logger_dir,Date, ExpStartTime,200,1,1,0);
 else
     fprintf('\n*** ALREADY DONE: Identify who is calling ***\n')
 end
