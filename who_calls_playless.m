@@ -226,13 +226,27 @@ else
             %% Now find onset/offset on microphone recording if there is no logger data
             ManCall=2;
             while (ManCall~=1) && (ManCall~=0)
-                ManCall = input('Did you hear vocalizations? yes (1) No (0) Play microphone and loggers (any other number)');
-                if (ManCall~=1) && (ManCall~=0)
+                ManCall = input('Did you hear vocalizations? yes (1) No (0) Play microphone and loggers (2) Play microphone (100) Play logger #x (x)');
+                if ManCall==2
                     play(PlayerMic)
                     pause(length(Raw_wave{vv})/FS +1)
                     pause(0.1)
                     for ll=1:length(AudioLogs)
-                        Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                        Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(2*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                        play(Player)
+                        pause(length(Raw_wave{vv})/FS +1)
+                    end
+                elseif ManCall==100
+                    play(PlayerMic)
+                    pause(length(Raw_wave{vv})/FS +1)
+                    pause(0.1)
+                elseif (ManCall~=1) && (ManCall~=0)
+                    FieldLog = sprintf('Logger%d',ManCall);
+                    ll = find(contains(Fns_AL,FieldLog));
+                    if isempty(ll)
+                        warning('Invalid Logger number, Logger %d does not exist',ManCall)
+                    else
+                        Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(2*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                         play(Player)
                         pause(length(Raw_wave{vv})/FS +1)
                     end
@@ -708,7 +722,7 @@ else
                         
                             if ManCall
                                 fprintf(1,'\nSound event detected on %s.',Fns_AL{ll})
-                                Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                                Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(2*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                 play(Player)
                                 pause(length(Raw_wave{vv})/FS +1)
                                 ManCall_logger=input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
@@ -809,7 +823,7 @@ else
                                 if ManCall &&  ManCall_logger
                                     Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    Listen again to that logger recording (any other number)\n');
                                     while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
-                                        Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                                        Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(2*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                         play(Player)
                                         pause(length(Raw_wave{vv})/FS +1)
                                         Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    listen again to that logger recording (any other number)\n');
