@@ -1,4 +1,4 @@
-function [IndVocStartRaw_merged, IndVocStopRaw_merged, IndVocStartPiezo_merge_local, IndVocStopPiezo_merge_local] = who_calls(Raw_dir, Loggers_dir, Date, ExpStartTime, MergeThresh, Manual,UseOld,CheckMicChannel, varargin)
+function [IndVocStartRaw_merged, IndVocStopRaw_merged, IndVocStartPiezo_merge_local, IndVocStopPiezo_merge_local] = who_calls_playless(Raw_dir, Loggers_dir, Date, ExpStartTime, MergeThresh, Manual,UseOld,CheckMicChannel, varargin)
 
 % optional parameter: Factor_RMS_Mic, Factor by which the RMS of the
 % band-pass filtered baseline signal is multiplied to obtained the
@@ -85,16 +85,16 @@ else
             keyboard
         end
         
-        Amp_env_LowPassLogVoc = cell(1,Nvoc);
-        Amp_env_HighPassLogVoc = cell(1,Nvoc);
-        Amp_env_Mic = cell(1,Nvoc);
-        LowPassLogVoc = cell(1,Nvoc);
+%         Amp_env_LowPassLogVoc = cell(1,Nvoc);
+%         Amp_env_HighPassLogVoc = cell(1,Nvoc);
+%         Amp_env_Mic = cell(1,Nvoc);
+%         LowPassLogVoc = cell(1,Nvoc);
         % LowPassMicVoc = cell(1,Nvoc);
         Fns_AL = fieldnames(Piezo_wave);
         IndVocStart_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers+microphone and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
         IndVocStop_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
-        IndNoiseStart_all = cell(1,Nvoc);
-        IndNoiseStop_all = cell(1,Nvoc);
+%         IndNoiseStart_all = cell(1,Nvoc);
+%         IndNoiseStop_all = cell(1,Nvoc);
         IndVocStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc)
         % a cell array of the size the number of loggers + 1 in case only one bat without a logger
         % or +2 incase no identification possible but you want to keep onset/offset of each voc and
@@ -102,10 +102,10 @@ else
         IndVocStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge
         IndVocStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording before merge
         IndVocStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording before merge
-        IndNoiseStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the raw recording before merge
-        IndNoiseStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge
-        IndNoiseStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording before merge
-        IndNoiseStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording before merge
+%         IndNoiseStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the raw recording before merge
+%         IndNoiseStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge
+%         IndNoiseStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording before merge
+%         IndNoiseStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording before merge
         IndVocStartRaw_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the raw recording
         IndVocStopRaw_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording
         IndVocStartPiezo_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording
@@ -142,9 +142,9 @@ else
         for vv=vv:Nvoc
             fprintf(1,'\n\n\n\nVoc sequence %d/%d\n',vv,Nvoc);
             %% First calculate the time varying RMS of the ambient microphone
-            Amp_env_LowPassLogVoc{vv} = cell(length(AudioLogs),1);
-            Amp_env_HighPassLogVoc{vv} = cell(length(AudioLogs),1);
-            LowPassLogVoc{vv} = cell(length(AudioLogs),1);
+            Amp_env_LowPassLogVoc = cell(length(AudioLogs),1);
+            Amp_env_HighPassLogVoc = cell(length(AudioLogs),1);
+            LowPassLogVoc = cell(length(AudioLogs),1);
             % Patch for previous error in the code
             if isempty(Raw_wave{vv})
                 SaveRawWave = 1;
@@ -154,7 +154,7 @@ else
             end
             % bandpass filter the ambient mic recording
             Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave{vv});
-            Amp_env_Mic{vv} = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
+            Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
             % Low passfilter the ambient mic recording (used for cross-correlation
             % but not done anymore
             %     LowPassMicVoc{vv} = filtfilt(sos_raw_low,1,Raw_wave{vv});
@@ -166,7 +166,7 @@ else
             [Raw_Spec.to, Raw_Spec.fo, Raw_Spec.logB] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
             hold on
             yyaxis right
-            plot((1:length(Amp_env_Mic{vv}))/Fs_env*1000, Amp_env_Mic{vv}, 'r-', 'LineWidth',2)
+            plot((1:length(Amp_env_Mic))/Fs_env*1000, Amp_env_Mic, 'r-', 'LineWidth',2)
             ylabel(sprintf('Amp\nMic'))
             title(sprintf('Voc %d/%d',vv,Nvoc))
             xlabel(' ')
@@ -190,24 +190,24 @@ else
                     sos_high = zp2sos(z,p,k);
                     % filter the loggers' signals
                     if sum(isnan(Piezo_wave.(Fns_AL{ll}){vv}))~=length(Piezo_wave.(Fns_AL{ll}){vv})
-                        LowPassLogVoc{vv}{ll} = (filtfilt(sos_low,1,Piezo_wave.(Fns_AL{ll}){vv})); % low-pass filter the voltage trace
+                        LowPassLogVoc{ll} = (filtfilt(sos_low,1,Piezo_wave.(Fns_AL{ll}){vv})); % low-pass filter the voltage trace
                         HighPassLogVoc = (filtfilt(sos_high,1,Piezo_wave.(Fns_AL{ll}){vv})); % high-pass filter the voltage trace
-                        Amp_env_LowPassLogVoc{vv}{ll}=running_rms(LowPassLogVoc{vv}{ll}, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
-                        Amp_env_HighPassLogVoc{vv}{ll}=running_rms(HighPassLogVoc, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
+                        Amp_env_LowPassLogVoc{ll}=running_rms(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
+                        Amp_env_HighPassLogVoc{ll}=running_rms(HighPassLogVoc, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
                     
                         % Plot the low pass filtered signal of each logger
                         figure(1)
                         subplot(length(AudioLogs)+2,1,ll+1)
-                        [~] = spec_only_bats(LowPassLogVoc{vv}{ll}, Piezo_FS.(Fns_AL{ll})(vv), DB_noise, FHigh_spec_Logger);
+                        [~] = spec_only_bats(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv), DB_noise, FHigh_spec_Logger);
                         if ll<length(AudioLogs)
                             xlabel(' '); % supress the x label output
                             set(gca,'XTick',[],'XTickLabel',{});
                         end
                         hold on
                         yyaxis right
-                        plot((1:length(Amp_env_LowPassLogVoc{vv}{ll}))/Fs_env*1000, Amp_env_LowPassLogVoc{vv}{ll}, 'b-','LineWidth', 2);
+                        plot((1:length(Amp_env_LowPassLogVoc{ll}))/Fs_env*1000, Amp_env_LowPassLogVoc{ll}, 'b-','LineWidth', 2);
                         hold on
-                        plot((1:length(Amp_env_HighPassLogVoc{vv}{ll}))/Fs_env*1000, Amp_env_HighPassLogVoc{vv}{ll}, 'r-','LineWidth',2);
+                        plot((1:length(Amp_env_HighPassLogVoc{ll}))/Fs_env*1000, Amp_env_HighPassLogVoc{ll}, 'r-','LineWidth',2);
                         ylabel(sprintf('Amp\n%s',Fns_AL{ll}([1:3 7:end])))
                         hold off
 %                         if Manual
@@ -217,8 +217,8 @@ else
 %                             pause(length(Raw_wave{vv})/FS +1)
 %                         end
                     else
-                        Amp_env_LowPassLogVoc{vv}{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})), Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
-                        Amp_env_HighPassLogVoc{vv}{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})), Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
+                        Amp_env_LowPassLogVoc{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})), Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
+                        Amp_env_HighPassLogVoc{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})), Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
                     end
                 end
             end
@@ -252,8 +252,24 @@ else
                     end
                 end
             end
+            
+            if ManCall==0
+                fprintf(1,'Manual input enforced: Noise (0)\n');
+                fprintf(1,'saving data...\n')
+                if ~isempty(dir(PreviousFile))
+                    save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'vv','-append');
+                else
+                    save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+                end
+                clf(F1)
+                if SaveRawWave
+                    save(DataFile, 'Raw_wave','-append')
+                end
+                continue
+            end
+                
                     
-            if sum(cellfun('isempty',(Amp_env_LowPassLogVoc{vv}))) == length(AudioLogs) % No logger data, just isolate onset/offset of vocalizations on the microphone
+            if sum(cellfun('isempty',(Amp_env_LowPassLogVoc))) == length(AudioLogs) % No logger data, just isolate onset/offset of vocalizations on the microphone
                 if ~Force_Save_onoffsets_mic
                     fprintf(1,'CANNOT DETERMINE OWNERSHIP NO DETECTION OF ONSET/OFFSET\nSet Force_Save_onoffsets_mic to 1 to force saving data\n')
                 else
@@ -263,9 +279,9 @@ else
                     clf(F2)
                     subplot(3,1,1)
                     if CheckMicChannel
-                        plot(Amp_env_Mic{vv}.*10^3,'LineWidth',2, 'Color', ColorCode(ll+1,:))
+                        plot(Amp_env_Mic.*10^3,'LineWidth',2, 'Color', ColorCode(ll+1,:))
                         hold on
-                        plot([0 length(Amp_env_Mic{vv})], (Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
+                        plot([0 length(Amp_env_Mic)], (Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
                         hold on
                     end
                     legend({'Microphone' 'voc detection threshold' 'voc detection threshold'})
@@ -276,16 +292,16 @@ else
                     IndVocStopRaw{vv} = cell(RowSize,1);
                     IndVocStart = cell(RowSize,1);
                     IndVocStop = cell(RowSize,1);
-                    IndNoiseStartRaw{vv} = cell(RowSize,1);
-                    IndNoiseStopRaw{vv} = cell(RowSize,1);
-                    IndNoiseStart = cell(RowSize,1);
-                    IndNoiseStop = cell(RowSize,1);
+%                     IndNoiseStartRaw{vv} = cell(RowSize,1);
+%                     IndNoiseStopRaw{vv} = cell(RowSize,1);
+%                     IndNoiseStart = cell(RowSize,1);
+%                     IndNoiseStop = cell(RowSize,1);
                     IndVocStartRaw_merge_local = cell(RowSize,1);
                     IndVocStopRaw_merge_local = cell(RowSize,1);
                     IndVocStartPiezo_merge_local = cell(RowSize,1);
                     IndVocStopPiezo_merge_local = cell(RowSize,1);
                 
-                    VocpMic = Amp_env_Mic{vv}>(Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
+                    VocpMic = Amp_env_Mic>(Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
                     VocpMic = reshape(VocpMic,1,length(VocpMic));
                     IndVocStart{RowSize} = strfind(VocpMic, ones(1,Consecutive_binsMic)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
                     if isempty(IndVocStart{RowSize})
@@ -389,10 +405,10 @@ else
                         end
                     
                         % Stash noise and only keep vocalizations
-                        IndNoiseStart{RowSize} = IndVocStart{RowSize}(~logical(NewCall1Noise0_temp));
-                        IndNoiseStop{RowSize} = IndVocStop{RowSize}(~logical(NewCall1Noise0_temp));
-                        IndNoiseStartRaw{vv}{RowSize} = round(IndNoiseStart{RowSize}/Fs_env*FS);
-                        IndNoiseStopRaw{vv}{RowSize} = round(IndNoiseStop{RowSize}/Fs_env*FS);
+%                         IndNoiseStart{RowSize} = IndVocStart{RowSize}(~logical(NewCall1Noise0_temp));
+%                         IndNoiseStop{RowSize} = IndVocStop{RowSize}(~logical(NewCall1Noise0_temp));
+%                         IndNoiseStartRaw{vv}{RowSize} = round(IndNoiseStart{RowSize}/Fs_env*FS);
+%                         IndNoiseStopRaw{vv}{RowSize} = round(IndNoiseStop{RowSize}/Fs_env*FS);
                         IndVocStart{RowSize} = IndVocStart{RowSize}(logical(NewCall1Noise0_temp));
                         IndVocStop{RowSize} = IndVocStop{RowSize}(logical(NewCall1Noise0_temp));
                         IndVocStartRaw{vv}{RowSize} = round(IndVocStart{RowSize}/Fs_env*FS);
@@ -457,16 +473,16 @@ else
                 %% There is some data on the logger, extract the id of the vocalizing bat
                 % Treat the case where some approximations of the calculations led to
                 % slight diffreent sizes of running RMS
-                Short = min(cellfun('length',Amp_env_LowPassLogVoc{vv}));
-                Long = max(cellfun('length',Amp_env_LowPassLogVoc{vv}));
+                Short = min(cellfun('length',Amp_env_LowPassLogVoc));
+                Long = max(cellfun('length',Amp_env_LowPassLogVoc));
                 if (Long-Short)>1
                     error('The length of vectors of running RMS are too different than expected, please check!\n')
                 elseif Long~=Short
-                    Amp_env_LowPassLogVoc{vv} = cellfun(@(X) X(1:Short), Amp_env_LowPassLogVoc{vv}, 'UniformOutput',false);
-                    Amp_env_HighPassLogVoc{vv} = cellfun(@(X) X(1:Short), Amp_env_HighPassLogVoc{vv}, 'UniformOutput',false);
+                    Amp_env_LowPassLogVoc = cellfun(@(X) X(1:Short), Amp_env_LowPassLogVoc, 'UniformOutput',false);
+                    Amp_env_HighPassLogVoc = cellfun(@(X) X(1:Short), Amp_env_HighPassLogVoc, 'UniformOutput',false);
                 end
-                Amp_env_LowPassLogVoc_MAT = cell2mat(Amp_env_LowPassLogVoc{vv});
-                Amp_env_HighPassLogVoc_MAT = cell2mat(Amp_env_HighPassLogVoc{vv});
+                Amp_env_LowPassLogVoc_MAT = cell2mat(Amp_env_LowPassLogVoc);
+                Amp_env_HighPassLogVoc_MAT = cell2mat(Amp_env_HighPassLogVoc);
                 RatioAmp = (Amp_env_LowPassLogVoc_MAT +1)./(Amp_env_HighPassLogVoc_MAT+1);
                 DiffAmp = Amp_env_LowPassLogVoc_MAT-Amp_env_HighPassLogVoc_MAT;
             
@@ -515,9 +531,9 @@ else
                 end
 
                 if CheckMicChannel
-                    plot(Amp_env_Mic{vv}.*10^3,'LineWidth',2, 'Color', ColorCode(ll+1,:))
+                    plot(Amp_env_Mic.*10^3,'LineWidth',2, 'Color', ColorCode(ll+1,:))
                     hold on
-                    plot([0 length(Amp_env_Mic{vv})], (Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
+                    plot([0 length(Amp_env_Mic)], (Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
                     hold on
                 end
                 legend({Fns_AL{:} 'Microphone' 'voc detection threshold' 'voc detection threshold'})
@@ -535,12 +551,12 @@ else
                 IndVocStopPiezo{vv} = cell(RowSize,1);
                 IndVocStart = cell(RowSize,1);
                 IndVocStop = cell(RowSize,1);
-                IndNoiseStartRaw{vv} = cell(RowSize,1);
-                IndNoiseStartPiezo{vv} = cell(RowSize,1);
-                IndNoiseStopRaw{vv} = cell(RowSize,1);
-                IndNoiseStopPiezo{vv} = cell(RowSize,1);
-                IndNoiseStart = cell(RowSize,1);
-                IndNoiseStop = cell(RowSize,1);
+%                 IndNoiseStartRaw{vv} = cell(RowSize,1);
+%                 IndNoiseStartPiezo{vv} = cell(RowSize,1);
+%                 IndNoiseStopRaw{vv} = cell(RowSize,1);
+%                 IndNoiseStopPiezo{vv} = cell(RowSize,1);
+%                 IndNoiseStart = cell(RowSize,1);
+%                 IndNoiseStop = cell(RowSize,1);
                 IndVocStartRaw_merge_local = cell(RowSize,1);
                 IndVocStopRaw_merge_local = cell(RowSize,1);
                 IndVocStartPiezo_merge_local = cell(RowSize,1);
@@ -551,7 +567,7 @@ else
                 for ll=1:RowSize
                     % This is the Microphone condition
                     if ll>length(AudioLogs) && CheckMicChannel % we are looking at the microphone data now
-                        VocpMic = Amp_env_Mic{vv}>(Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
+                        VocpMic = Amp_env_Mic>(Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
                         VocpMic = reshape(VocpMic,1,length(VocpMic));
                         IndVocStart{ll} = strfind(VocpMic, ones(1,Consecutive_binsMic)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
                         if isempty(IndVocStart{ll})
@@ -669,10 +685,10 @@ else
                         
                             % Stash noise and Only keep vocalizations that were
                             % not detected on piezos
-                            IndNoiseStart{ll} = IndVocStart{ll}(~logical(NewCall1OldCall0_temp));
-                            IndNoiseStop{ll} = IndVocStop{ll}(~logical(NewCall1OldCall0_temp));
-                            IndNoiseStartRaw{vv}{ll} = round(IndNoiseStart{ll}/Fs_env*FS);
-                            IndNoiseStopRaw{vv}{ll} = round(IndNoiseStop{ll}/Fs_env*FS);
+%                             IndNoiseStart{ll} = IndVocStart{ll}(~logical(NewCall1OldCall0_temp));
+%                             IndNoiseStop{ll} = IndVocStop{ll}(~logical(NewCall1OldCall0_temp));
+%                             IndNoiseStartRaw{vv}{ll} = round(IndNoiseStart{ll}/Fs_env*FS);
+%                             IndNoiseStopRaw{vv}{ll} = round(IndNoiseStop{ll}/Fs_env*FS);
                             IndVocStart{ll} = IndVocStart{ll}(logical(NewCall1OldCall0_temp));
                             IndVocStop{ll} = IndVocStop{ll}(logical(NewCall1OldCall0_temp));
                             IndVocStartRaw{vv}{ll} = round(IndVocStart{ll}/Fs_env*FS);
@@ -743,199 +759,200 @@ else
                             RMSRatio{ll} = nan(NV,1);
                             RMSDiff{ll} = nan(NV,1);
                             Call1Hear0_temp = nan(NV,1);
-                            if ManCall && ManCall_logger
-                                Call1Hear0_man = nan(NV,1);
-                            else
+                            if ~ManCall && ~ManCall_logger
                                 Call1Hear0_man = zeros(NV,1);
-                            end
-                            for ii=1:NV
-                                IVStop = find(Vocp(ll,IndVocStart{ll}(ii):end)==0, 1, 'first');
-                                if ~isempty(IVStop)
-                                    IndVocStop{ll}(ii) = IndVocStart{ll}(ii) + IVStop -1;
-                                else
-                                    IndVocStop{ll}(ii) = length(Vocp(ll,:));
-                                end
-                                % Plot the localization of that sound extract on figure 3
-                                % Duplicate the figure of the spectrogram for manual input purposes
-                                %                             if ii==1
-                                F3 = figure(3);
-                                clf(F3)
-                                maxB = max(max(Raw_Spec.logB));
-                                minB = maxB-DB_noise;
-                                imagesc(Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
-                                axis xy;
-                                caxis('manual');
-                                caxis([minB maxB]);
-                                cmap = spec_cmap();
-                                colormap(cmap);
-                                v_axis = axis;
-                                v_axis(3)=0;
-                                v_axis(4)=FHigh_spec;
-                                axis(v_axis);
-                                xlabel('time (ms)'), ylabel('Frequency');
-                                title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
-                                yyaxis right
-                                %                                 ylabel('Logger ID')
-                                %                                 set(gca, 'YTick', 1:ll, 'YTickLabel', Fns_AL, 'YLim', [0 (length(AudioLogs)+1)],'YDir', 'reverse')
-                                %                             end
-                                figure(3);
-                                hold on
-                                yyaxis right
-                                plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k:', 'LineWidth',2)
-                                hold off
-
-                                %                 IndVocStartRaw{ll}(ii) = round(IndVocStart{ll}(ii)/Fs_env*FS);
-                                %                 IndVocStopRaw{ll}(ii) = round(IndVocStop{ll}(ii)/Fs_env*FS);
-                                %                 IndVocStartPiezo{ll}(ii) = round(IndVocStart{ll}(ii)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
-                                %                 IndVocStopPiezo{ll}(ii) = round(IndVocStop{ll}(ii)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
-
-                                % Cross-correlate each sound extract with the raw trace and
-                                % check if it has a value of cross correlation high enough
-                                % to be kept as a vocalization  %% NOT Working :-(
-                                %                 Resamp_Filt_Logger_wav = resample(LowPassLogVoc{vv}{ll}(IndVocStartPiezo{ll}(ii):IndVocStopPiezo{ll}(ii)), 4*BandPassFilter(2),round(Piezo_FS.(Fns_AL{ll})(vv)));
-                                %                 Resamp_Filt_Raw_wav = resample(LowPassMicVoc{vv}(IndVocStartRaw{ll}(ii):IndVocStopRaw{ll}(ii)), 4*BandPassFilter(2),FS);
-                                %                 [Xcor_local,~] = xcorr(Resamp_Filt_Raw_wav,Resamp_Filt_Logger_wav, (Buffer*2)*4*BandPassFilter(2), 'unbiased');
-                                %                 Xcor{ll}(ii) = max(Xcor_local)/(var(Resamp_Filt_Raw_wav)*var(Resamp_Filt_Logger_wav))^0.5;
-
-                                % Calculate the Average RMS Ratio for each sound extract
-                                % and decide about the vocalization ownership
-                                RMSRatio{ll}(ii) = mean(RatioAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
-                                RMSDiff{ll}(ii) = mean(DiffAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
-                                %                     Call1Hear0_temp(ii) = RMSRatio{ll}(ii) > Factor_AmpRatio * RatioRMS.(Fns_AL{ll})(1);
-                                Call1Hear0_temp(ii) = RMSDiff{ll}(ii) > Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1);
-
-                                % update figure(3) with the decision
-                                figure(3)
-                                yyaxis right
-                                hold on
-                                if Call1Hear0_temp(ii)
-                                    text(IndVocStop{ll}(ii)/Fs_env*1000, ll, sprintf('%s calling',Fns_AL{ll}))
-                                else
-                                    text(IndVocStop{ll}(ii)/Fs_env*1000, ll, sprintf('%s hearing/noise',Fns_AL{ll}))
-                                end
-                                hold off
-                            
-                                if Call1Hear0_temp(ii)
-                                    fprintf('Computer guess for that sound element: %s calling\n',Fns_AL{ll});
-                                else
-                                    fprintf('Computer guess for that sound element: %s hearing/noise\n',Fns_AL{ll});
-                                end
-                                if ManCall &&  ManCall_logger
-                                    Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    Listen again to that logger recording (any other number)\n');
-                                    while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
-                                        Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolFactor*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
-                                        play(Player)
-                                        pause(length(Raw_wave{vv})/FS +1)
-                                        Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    listen again to that logger recording (any other number)\n');
-                                    end
-                                else
-                                    fprintf(1,'Manual input enforced: Noise (0)\n');
-                                end
-                                Agree = Call1Hear0_temp(ii)== Call1Hear0_man(ii);
-                                if ~Agree
-                                    Call1Hear0_temp(ii) = Call1Hear0_man(ii);
-                                    PiezoError = PiezoError + [1 1];
-                                    PiezoErrorType = PiezoErrorType + [Call1Hear0_temp(ii) ~Call1Hear0_temp(ii)];
-                                else
-                                    PiezoError = PiezoError + [0 1];
-                                end
-                            
-                            
-                                % update figure(3) with the decision
-                                figure(3)
-                                yyaxis right
-                                hold on
-                                if Call1Hear0_temp(ii)
-                                    plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-                                    text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, sprintf('%s calling',Fns_AL{ll}),'Color','r','FontWeight','bold')
-                                else
-                                    plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k-', 'LineWidth',2)
-                                    text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, sprintf('%s hearing',Fns_AL{ll}),'Color','r','FontWeight','bold')
-                                end
-                                hold off
-                            
-                            
-                            %                 figure(1)
-                            %                 subplot(length(AudioLogs)+2,1,ll+1)
-                            %                 hold on
-                            %                 yyaxis right
-                            %                 YLim = get(gca, 'YLim');
-                            %                 if Call1Hear0_temp{ll}(ii)
-                            %                     plot([IndVocStart{ll}(ii) IndVocStop{ll}(ii)]/Fs_env*1000, [YLim(2)*4/5 YLim(2)*4/5], 'k-', 'LineWidth',2)
-                            %                     subplot(length(AudioLogs)+2,1,length(AudioLogs)+2)
-                            %                     hold on
-                            %                     plot([IndVocStart{ll}(ii) IndVocStop{ll}(ii)]/Fs_env*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-                            %                     hold off
-                            %                 else
-                            %                     plot([IndVocStart{ll}(ii) IndVocStop{ll}(ii)]/Fs_env*1000, [YLim(2)*4/5 YLim(2)*4/5], 'LineStyle','-','Color',[0.8 0.8 0.8], 'LineWidth',2)
-                            %                 end
-                            %                 hold off
-                            
-                            end
-                        
-                            % Stash noise and Only keep vocalizations that were produced by the bat
-                            % according to the high RMSRatio value
-                            IndNoiseStart{ll} = IndVocStart{ll}(~logical(Call1Hear0_temp));
-                            IndNoiseStop{ll} = IndVocStop{ll}(~logical(Call1Hear0_temp));
-                            IndNoiseStartRaw{vv}{ll} = round(IndNoiseStart{ll}/Fs_env*FS);
-                            IndNoiseStartPiezo{vv}{ll} = round(IndNoiseStart{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
-                            IndNoiseStopRaw{vv}{ll} = round(IndNoiseStop{ll}/Fs_env*FS);
-                            IndNoiseStopPiezo{vv}{ll} = round(IndNoiseStop{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
-                            IndVocStart{ll} = IndVocStart{ll}(logical(Call1Hear0_temp));
-                            IndVocStop{ll} = IndVocStop{ll}(logical(Call1Hear0_temp));
-                            IndVocStartRaw{vv}{ll} = round(IndVocStart{ll}/Fs_env*FS);
-                            IndVocStartPiezo{vv}{ll} = round(IndVocStart{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
-                            IndVocStopRaw{vv}{ll} = round(IndVocStop{ll}/Fs_env*FS);
-                            IndVocStopPiezo{vv}{ll} = round(IndVocStop{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
-                            NV = sum(Call1Hear0_temp);
-
-                            if NV
-                                % Now merge detected vocalizations that are within MergeThresh
-                                Merge01 = (IndVocStart{ll}(2:end)-IndVocStop{ll}(1:(end-1)) < (MergeThresh/1000*Fs_env));
-                                NV = NV-sum(Merge01);
-                                IndVocStartRaw_merge_local{ll} = nan(1,NV);
-                                IndVocStopRaw_merge_local{ll} = nan(1,NV);
-                                IndVocStartPiezo_merge_local{ll} = nan(1,NV);
-                                IndVocStopPiezo_merge_local{ll} = nan(1,NV);
-                                CutInd = find(~Merge01);
-                                IndVocStartRaw_merge_local{ll}(1) = round(IndVocStart{ll}(1)/Fs_env*FS);
-                                IndVocStartPiezo_merge_local{ll}(1) = round(IndVocStart{ll}(1)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
-                                IndVocStopRaw_merge_local{ll}(end) = round(IndVocStop{ll}(end)/Fs_env*FS);
-                                IndVocStopPiezo_merge_local{ll}(end) = round(IndVocStop{ll}(end)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
-                                for cc=1:length(CutInd)
-                                    IndVocStopRaw_merge_local{ll}(cc) = round(IndVocStop{ll}( CutInd(cc))/Fs_env*FS);
-                                    IndVocStopPiezo_merge_local{ll}(cc) = round(IndVocStop{ll}(CutInd(cc))/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
-                                    IndVocStartRaw_merge_local{ll}(cc+1) = round(IndVocStart{ll}(CutInd(cc)+1)/Fs_env*FS);
-                                    IndVocStartPiezo_merge_local{ll}(cc+1) = round(IndVocStart{ll}(CutInd(cc)+1)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
-                                end
-
-                                % Now plot the onset/offset of each extract on the
-                                % spectrograms of the loggers
-                                figure(1)
+                            else
+                                Call1Hear0_man = nan(NV,1);
+                                
                                 for ii=1:NV
-                                    subplot(length(AudioLogs)+2,1,ll+1)
+                                    IVStop = find(Vocp(ll,IndVocStart{ll}(ii):end)==0, 1, 'first');
+                                    if ~isempty(IVStop)
+                                        IndVocStop{ll}(ii) = IndVocStart{ll}(ii) + IVStop -1;
+                                    else
+                                        IndVocStop{ll}(ii) = length(Vocp(ll,:));
+                                    end
+                                    % Plot the localization of that sound extract on figure 3
+                                    % Duplicate the figure of the spectrogram for manual input purposes
+                                    %                             if ii==1
+                                    F3 = figure(3);
+                                    clf(F3)
+                                    maxB = max(max(Raw_Spec.logB));
+                                    minB = maxB-DB_noise;
+                                    imagesc(Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
+                                    axis xy;
+                                    caxis('manual');
+                                    caxis([minB maxB]);
+                                    cmap = spec_cmap();
+                                    colormap(cmap);
+                                    v_axis = axis;
+                                    v_axis(3)=0;
+                                    v_axis(4)=FHigh_spec;
+                                    axis(v_axis);
+                                    xlabel('time (ms)'), ylabel('Frequency');
+                                    title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
+                                    yyaxis right
+                                    %                                 ylabel('Logger ID')
+                                    %                                 set(gca, 'YTick', 1:ll, 'YTickLabel', Fns_AL, 'YLim', [0 (length(AudioLogs)+1)],'YDir', 'reverse')
+                                    %                             end
+                                    figure(3);
                                     hold on
                                     yyaxis right
-                                    YLim = get(gca, 'YLim');
-                                    plot([IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000, [YLim(2)*4/5 YLim(2)*4/5], 'k-', 'LineWidth',2)
-                                    subplot(length(AudioLogs)+2,1,length(AudioLogs)+2)
-                                    hold on
-                                    plot([IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
+                                    plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k:', 'LineWidth',2)
                                     hold off
+                                    
+                                    %                 IndVocStartRaw{ll}(ii) = round(IndVocStart{ll}(ii)/Fs_env*FS);
+                                    %                 IndVocStopRaw{ll}(ii) = round(IndVocStop{ll}(ii)/Fs_env*FS);
+                                    %                 IndVocStartPiezo{ll}(ii) = round(IndVocStart{ll}(ii)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+                                    %                 IndVocStopPiezo{ll}(ii) = round(IndVocStop{ll}(ii)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+                                    
+                                    % Cross-correlate each sound extract with the raw trace and
+                                    % check if it has a value of cross correlation high enough
+                                    % to be kept as a vocalization  %% NOT Working :-(
+                                    %                 Resamp_Filt_Logger_wav = resample(LowPassLogVoc{vv}{ll}(IndVocStartPiezo{ll}(ii):IndVocStopPiezo{ll}(ii)), 4*BandPassFilter(2),round(Piezo_FS.(Fns_AL{ll})(vv)));
+                                    %                 Resamp_Filt_Raw_wav = resample(LowPassMicVoc{vv}(IndVocStartRaw{ll}(ii):IndVocStopRaw{ll}(ii)), 4*BandPassFilter(2),FS);
+                                    %                 [Xcor_local,~] = xcorr(Resamp_Filt_Raw_wav,Resamp_Filt_Logger_wav, (Buffer*2)*4*BandPassFilter(2), 'unbiased');
+                                    %                 Xcor{ll}(ii) = max(Xcor_local)/(var(Resamp_Filt_Raw_wav)*var(Resamp_Filt_Logger_wav))^0.5;
+                                    
+                                    % Calculate the Average RMS Ratio for each sound extract
+                                    % and decide about the vocalization ownership
+                                    RMSRatio{ll}(ii) = mean(RatioAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
+                                    RMSDiff{ll}(ii) = mean(DiffAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
+                                    %                     Call1Hear0_temp(ii) = RMSRatio{ll}(ii) > Factor_AmpRatio * RatioRMS.(Fns_AL{ll})(1);
+                                    Call1Hear0_temp(ii) = RMSDiff{ll}(ii) > Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1);
+                                    
+                                    % update figure(3) with the decision
+                                    figure(3)
+                                    yyaxis right
+                                    hold on
+                                    if Call1Hear0_temp(ii)
+                                        text(IndVocStop{ll}(ii)/Fs_env*1000, ll, sprintf('%s calling',Fns_AL{ll}))
+                                    else
+                                        text(IndVocStop{ll}(ii)/Fs_env*1000, ll, sprintf('%s hearing/noise',Fns_AL{ll}))
+                                    end
+                                    hold off
+                                    
+                                    if Call1Hear0_temp(ii)
+                                        fprintf('Computer guess for that sound element: %s calling\n',Fns_AL{ll});
+                                    else
+                                        fprintf('Computer guess for that sound element: %s hearing/noise\n',Fns_AL{ll});
+                                    end
+                                    if ManCall &&  ManCall_logger
+                                        Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    Listen again to that logger recording (any other number)\n');
+                                        while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
+                                            Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolFactor*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                                            play(Player)
+                                            pause(length(Raw_wave{vv})/FS +1)
+                                            Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    listen again to that logger recording (any other number)\n');
+                                        end
+                                    else
+                                        fprintf(1,'Manual input enforced: Noise (0)\n');
+                                    end
+                                    Agree = Call1Hear0_temp(ii)== Call1Hear0_man(ii);
+                                    if ~Agree
+                                        Call1Hear0_temp(ii) = Call1Hear0_man(ii);
+                                        PiezoError = PiezoError + [1 1];
+                                        PiezoErrorType = PiezoErrorType + [Call1Hear0_temp(ii) ~Call1Hear0_temp(ii)];
+                                    else
+                                        PiezoError = PiezoError + [0 1];
+                                    end
+                                    
+                                    
+                                    % update figure(3) with the decision
+                                    figure(3)
+                                    yyaxis right
+                                    hold on
+                                    if Call1Hear0_temp(ii)
+                                        plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
+                                        text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, sprintf('%s calling',Fns_AL{ll}),'Color','r','FontWeight','bold')
+                                    else
+                                        plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k-', 'LineWidth',2)
+                                        text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, sprintf('%s hearing',Fns_AL{ll}),'Color','r','FontWeight','bold')
+                                    end
+                                    hold off
+                                    
+                                    
+                                    %                 figure(1)
+                                    %                 subplot(length(AudioLogs)+2,1,ll+1)
+                                    %                 hold on
+                                    %                 yyaxis right
+                                    %                 YLim = get(gca, 'YLim');
+                                    %                 if Call1Hear0_temp{ll}(ii)
+                                    %                     plot([IndVocStart{ll}(ii) IndVocStop{ll}(ii)]/Fs_env*1000, [YLim(2)*4/5 YLim(2)*4/5], 'k-', 'LineWidth',2)
+                                    %                     subplot(length(AudioLogs)+2,1,length(AudioLogs)+2)
+                                    %                     hold on
+                                    %                     plot([IndVocStart{ll}(ii) IndVocStop{ll}(ii)]/Fs_env*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
+                                    %                     hold off
+                                    %                 else
+                                    %                     plot([IndVocStart{ll}(ii) IndVocStop{ll}(ii)]/Fs_env*1000, [YLim(2)*4/5 YLim(2)*4/5], 'LineStyle','-','Color',[0.8 0.8 0.8], 'LineWidth',2)
+                                    %                 end
+                                    %                 hold off
+                                    
                                 end
-
-                                %             subplot(length(AudioLogs)+2,1,ll+1)
-                                %             hold on
-                                %             yyaxis right
-                                %             YLim = get(gca, 'YLim');
-                                %             for ii=1:NV
-                                %                 if Call1Hear0{ll}(ii)
-                                %                     plot(round([IndVocStartRaw{ll}(ii) IndVocStopRaw{ll}(ii)]/FS*1000), [YLim(2)*4.5/5 YLim(2)*4.5/5], 'r-', 'LineWidth',2)
-                                %                 else
-                                %                     plot(round([IndVocStartRaw{ll}(ii) IndVocStopRaw{ll}(ii)]/FS*1000), [YLim(2)*4.5/5 YLim(2)*4.5/5], '-', 'LineWidth',2, 'Color',[1 0.5 0.5])
-                                %                 end
-                                %             end
-                                %             hold off
+                                
+                                % Stash noise and Only keep vocalizations that were produced by the bat
+                                % according to the high RMSRatio value
+                                %                             IndNoiseStart{ll} = IndVocStart{ll}(~logical(Call1Hear0_temp));
+                                %                             IndNoiseStop{ll} = IndVocStop{ll}(~logical(Call1Hear0_temp));
+                                %                             IndNoiseStartRaw{vv}{ll} = round(IndNoiseStart{ll}/Fs_env*FS);
+                                %                             IndNoiseStartPiezo{vv}{ll} = round(IndNoiseStart{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+                                %                             IndNoiseStopRaw{vv}{ll} = round(IndNoiseStop{ll}/Fs_env*FS);
+                                %                             IndNoiseStopPiezo{vv}{ll} = round(IndNoiseStop{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+                                IndVocStart{ll} = IndVocStart{ll}(logical(Call1Hear0_temp));
+                                IndVocStop{ll} = IndVocStop{ll}(logical(Call1Hear0_temp));
+                                IndVocStartRaw{vv}{ll} = round(IndVocStart{ll}/Fs_env*FS);
+                                IndVocStartPiezo{vv}{ll} = round(IndVocStart{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+                                IndVocStopRaw{vv}{ll} = round(IndVocStop{ll}/Fs_env*FS);
+                                IndVocStopPiezo{vv}{ll} = round(IndVocStop{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+                                NV = sum(Call1Hear0_temp);
+                                
+                                if NV
+                                    % Now merge detected vocalizations that are within MergeThresh
+                                    Merge01 = (IndVocStart{ll}(2:end)-IndVocStop{ll}(1:(end-1)) < (MergeThresh/1000*Fs_env));
+                                    NV = NV-sum(Merge01);
+                                    IndVocStartRaw_merge_local{ll} = nan(1,NV);
+                                    IndVocStopRaw_merge_local{ll} = nan(1,NV);
+                                    IndVocStartPiezo_merge_local{ll} = nan(1,NV);
+                                    IndVocStopPiezo_merge_local{ll} = nan(1,NV);
+                                    CutInd = find(~Merge01);
+                                    IndVocStartRaw_merge_local{ll}(1) = round(IndVocStart{ll}(1)/Fs_env*FS);
+                                    IndVocStartPiezo_merge_local{ll}(1) = round(IndVocStart{ll}(1)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+                                    IndVocStopRaw_merge_local{ll}(end) = round(IndVocStop{ll}(end)/Fs_env*FS);
+                                    IndVocStopPiezo_merge_local{ll}(end) = round(IndVocStop{ll}(end)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+                                    for cc=1:length(CutInd)
+                                        IndVocStopRaw_merge_local{ll}(cc) = round(IndVocStop{ll}( CutInd(cc))/Fs_env*FS);
+                                        IndVocStopPiezo_merge_local{ll}(cc) = round(IndVocStop{ll}(CutInd(cc))/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+                                        IndVocStartRaw_merge_local{ll}(cc+1) = round(IndVocStart{ll}(CutInd(cc)+1)/Fs_env*FS);
+                                        IndVocStartPiezo_merge_local{ll}(cc+1) = round(IndVocStart{ll}(CutInd(cc)+1)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+                                    end
+                                    
+                                    % Now plot the onset/offset of each extract on the
+                                    % spectrograms of the loggers
+                                    figure(1)
+                                    for ii=1:NV
+                                        subplot(length(AudioLogs)+2,1,ll+1)
+                                        hold on
+                                        yyaxis right
+                                        YLim = get(gca, 'YLim');
+                                        plot([IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000, [YLim(2)*4/5 YLim(2)*4/5], 'k-', 'LineWidth',2)
+                                        subplot(length(AudioLogs)+2,1,length(AudioLogs)+2)
+                                        hold on
+                                        plot([IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
+                                        hold off
+                                    end
+                                    
+                                    %             subplot(length(AudioLogs)+2,1,ll+1)
+                                    %             hold on
+                                    %             yyaxis right
+                                    %             YLim = get(gca, 'YLim');
+                                    %             for ii=1:NV
+                                    %                 if Call1Hear0{ll}(ii)
+                                    %                     plot(round([IndVocStartRaw{ll}(ii) IndVocStopRaw{ll}(ii)]/FS*1000), [YLim(2)*4.5/5 YLim(2)*4.5/5], 'r-', 'LineWidth',2)
+                                    %                 else
+                                    %                     plot(round([IndVocStartRaw{ll}(ii) IndVocStopRaw{ll}(ii)]/FS*1000), [YLim(2)*4.5/5 YLim(2)*4.5/5], '-', 'LineWidth',2, 'Color',[1 0.5 0.5])
+                                    %                 end
+                                    %             end
+                                    %             hold off
+                                end
                             end
                         end
                     end
