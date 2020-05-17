@@ -751,17 +751,17 @@ else
                                 fprintf(1,'\nSound event detected on %s\n',Fns_AL{ll});
                                 ManCall_logger = 0;
                             end
-                            IndVocStart_diffind = find(diff(IndVocStart{ll})>1);
-                            IndVocStart{ll} = [IndVocStart{ll}(1) IndVocStart{ll}(IndVocStart_diffind +1)]; % these two lines get rid of overlapping sequences that werer detected several times
-                            NV = length(IndVocStart{ll}); % This is the number of detected potential vocalization
-                            IndVocStop{ll} = nan(1,NV);
-                            %             Xcor{ll} = nan(NV,1);
-                            RMSRatio{ll} = nan(NV,1);
-                            RMSDiff{ll} = nan(NV,1);
-                            Call1Hear0_temp = nan(NV,1);
-                            if ~ManCall && ~ManCall_logger
-                                Call1Hear0_man = zeros(NV,1);
-                            else
+                            
+                            if ManCall && ManCall_logger
+                                IndVocStart_diffind = find(diff(IndVocStart{ll})>1);
+                                IndVocStart{ll} = [IndVocStart{ll}(1) IndVocStart{ll}(IndVocStart_diffind +1)]; % these two lines get rid of overlapping sequences that werer detected several times
+                                NV = length(IndVocStart{ll}); % This is the number of detected potential vocalization
+                                IndVocStop{ll} = nan(1,NV);
+                                %             Xcor{ll} = nan(NV,1);
+                                RMSRatio{ll} = nan(NV,1);
+                                RMSDiff{ll} = nan(NV,1);
+                                Call1Hear0_temp = nan(NV,1);
+
                                 Call1Hear0_man = nan(NV,1);
                                 
                                 for ii=1:NV
