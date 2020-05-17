@@ -138,6 +138,12 @@ else
         else
             vv=1;
         end
+        
+        % Check if that set of vocalizations was alread fully completed
+        if vv==Nvoc
+            % All done
+            continue
+        end
         %% Loop through vocalizations sequences and calculate amplitude envelopes
         for vv=vv:Nvoc
             fprintf(1,'\n\n\n\nVoc sequence %d/%d\n',vv,Nvoc);
