@@ -235,6 +235,9 @@ else
             ManCall=2;
             while (ManCall~=1) && (ManCall~=0)
                 ManCall = input('Did you hear vocalizations? yes (1) No (0) Play microphone and loggers (2) Play microphone (100) Play logger #x (x)');
+                if isempty(ManCall)
+                   continue
+                end
                 if ManCall==2
                     play(PlayerMic)
                     pause(length(Raw_wave{vv})/FS +1)
@@ -382,10 +385,16 @@ else
                             fprintf(1,'Computer guess for that sound element: New call on Mic\n');
                             if ManCall
                                 NewCall1Noise0_man(ii) = input('Indicate your choice: new call (1);    noise (0);    listen again to mic(any other number)\n');
+                                if isempty(NewCall1Noise0_man(ii))
+                                    NewCall1Noise0_man(ii) = 2;
+                                end
                                 while NewCallNoise0_man(ii)~=0 && NewCallNoise0_man(ii)~=1
                                     play(PlayerMic)
                                     pause(length(Raw_wave{vv})/FS +1)
                                     NewCall1Noise0_man(ii) = input('Indicate your choice: new call (1);    noise (0);    listen again to mic(any other number)\n');
+                                    if isempty(NewCall1Noise0_man(ii))
+                                        NewCall1Noise0_man(ii) = 2;
+                                    end
                                 end
                             else
                                 fprintf(1,'Manual input enforced: Noise (0)\n');
@@ -658,11 +667,17 @@ else
                                 end
                                 if ManCall
                                     NewCall1OldCall0_man(ii) = input('Indicate your choice: new call on Mic (1);    already known/noise (0);    listen to Mic again(any other number)\n');
+                                    if isempty(NewCall1OldCall0_man(ii))
+                                        NewCall1OldCall0_man(ii)=2;
+                                    end
                                     while NewCall1OldCall0_man(ii)~=0 && NewCall1OldCall0_man(ii)~=1
                                         PlayerMic= audioplayer((Raw_wave{vv} - mean(Raw_wave{vv}))/(std(Raw_wave{vv})/VolFactorMic), FS); %#ok<TNMLP>
                                         play(PlayerMic)
                                         pause(length(Raw_wave{vv})/FS +1)
                                         NewCall1OldCall0_man(ii) = input('Indicate your choice: new call on Mic (1);    already known/noise (0);    listen to mic again(any other number)\n');
+                                        if isempty(NewCall1OldCall0_man(ii))
+                                            NewCall1OldCall0_man(ii)=2;
+                                        end
                                     end
                                 else
                                     fprintf(1,'Manual input enforced: Noise (0)\n');
@@ -751,10 +766,16 @@ else
                                 play(Player)
                                 pause(length(Raw_wave{vv})/FS +1)
                                 ManCall_logger=input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
+                                if isempty(ManCall_logger)
+                                    ManCall_logger=2;
+                                end
                                 while ManCall_logger~=0 && ManCall_logger~=1
                                     play(Player)
                                     pause(length(Raw_wave{vv})/FS +1)
                                     ManCall_logger = input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
+                                    if isempty(ManCall_logger)
+                                        ManCall_logger=2;
+                                    end
                                 end
                             else
                                 fprintf(1,'\nSound event detected on %s\n',Fns_AL{ll});
@@ -847,11 +868,17 @@ else
                                     end
                                     if ManCall &&  ManCall_logger
                                         Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    Listen again to that logger recording (any other number)\n');
+                                        if isempty(Call1Hear0_man(ii))
+                                            Call1Hear0_man(ii)=2;
+                                        end
                                         while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
                                             Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                             play(Player)
                                             pause(length(Raw_wave{vv})/FS +1)
                                             Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    listen again to that logger recording (any other number)\n');
+                                            if isempty(Call1Hear0_man(ii))
+                                                Call1Hear0_man(ii)=2;
+                                            end
                                         end
                                     else
                                         fprintf(1,'Manual input enforced: Noise (0)\n');
