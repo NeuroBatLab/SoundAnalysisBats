@@ -1,4 +1,4 @@
-function [] = correctMicAllignment_beforeWhoCalls(RawWav_dir, Date, ExpStartTime)
+function [] = correctMicAllignment_beforeWhoCalls(Loggers_dir,RawWav_dir, Date, ExpStartTime)
 %% correctMicAllignment_beforeWhoCalls a function to correct the position of
 %% Logger detected extracts in continuous microphone recordings
 %% for MOTU recordings with vocOperant
@@ -122,9 +122,29 @@ end
 Voc_samp_idx = MicVoc_samp_idx;
 
 
-%% save and return the calculation results
+%% save the calculation results
 save(fullfile(RawWav_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_filename','Voc_samp_idx','MeanStdAmpRawExtract','MicVoc_File', '-append')
 
+%% Now save the raw_wave files
+Nvoc_all = length(ActiveVoc);
+if Nvoc_all>1000
+    Nvocs = [1000:1000:Nvoc_all (floor(Nvoc_all/1000)*1000+rem(Nvoc_all,1000))];
+else
+    Nvocs = Nvoc_all;
+end
+for NVOC_i = 1:(length(Nvocs)-1)
+    Voc_i_start = Nvocs(NVOC_i)+1;
+    Voc_i_stop = Nvocs(NVOC_i+1);
+    Nvoc = Voc_i_stop-Voc_i_start+1;
+    Raw_wave = cell(Nvoc,1);
+    for vv=Voc_i_start:Voc_i_stop
+        vv_out = vv-Voc_i_start+1;
+        % save the raw wavefrom
+        [Raw_wave{vv_out}, ~] = audioread(Voc_filename{vv});
+    end
+    VocFilename = Voc_filename(Voc_i_start:Voc_i_stop);
+    save(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData%d.mat', Date, ExpStartTime,NVOC_i)),'Raw_wave','VocFilename','-append');
+end
 fprintf(1,'Done correcting the Microphone allignment %d events were found\n',size(Voc_samp_idx,1))
 end
 
