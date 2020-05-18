@@ -128,9 +128,9 @@ save(fullfile(RawWav_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTim
 %% Now save the raw_wave files
 Nvoc_all = length(ActiveVoc);
 if Nvoc_all>1000
-    Nvocs = [1000:1000:Nvoc_all (floor(Nvoc_all/1000)*1000+rem(Nvoc_all,1000))];
+    Nvocs = [0 1000:1000:Nvoc_all (floor(Nvoc_all/1000)*1000+rem(Nvoc_all,1000))];
 else
-    Nvocs = Nvoc_all;
+    Nvocs = [0 Nvoc_all];
 end
 for NVOC_i = 1:(length(Nvocs)-1)
     Voc_i_start = Nvocs(NVOC_i)+1;
