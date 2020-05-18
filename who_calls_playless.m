@@ -236,6 +236,7 @@ else
             while (ManCall~=1) && (ManCall~=0)
                 ManCall = input('Did you hear vocalizations? yes (1) No (0) Play microphone and loggers (2) Play microphone (100) Play logger #x (x)');
                 if isempty(ManCall)
+                    ManCall=2;
                    continue
                 end
                 if ManCall==2
