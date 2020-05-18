@@ -607,6 +607,7 @@ sos_logger_band = zp2sos(z,p,k);
 
 % BioSoundUniqParam = nan(21553,23);
 BioSoundUniqParam = cell(1,NLoggers);
+EventSpectrograms = cell(1,NLoggers);
 % BioSoundUniqParam = nan(24770,21);
 ee_count = 0;
 % BioSoundParamNames = {'stdtime' 'meantime' 'skewtime' 'entropytime'...
@@ -651,6 +652,7 @@ parfor ll=1:NLoggers
     OldMicVoc_File = 0;
     TotEv = size(SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto})),1);
     BioSoundUniqParam{ll} = cell(1,TotEv);
+    EventSpectrograms{ll} = cell(1,TotEv);
     for ee=1:TotEv
         ee_count = ee_count+1;
         if rem(ee,100)==0
@@ -681,6 +683,7 @@ parfor ll=1:NLoggers
             [BioSoundUP,~] = run_acoustic_features(Logger_Data, FS_local, F_High, F_low, F_highSpec);
             
             BioSoundUniqParam{ll}{ee} = [BioSoundUP'; nan(5,1)];
+            EventSpectrograms{ll}{ee} = 
             % Add parameters regarding the microphone data
             
             if OldMicVoc_File~=MicVoc_File(ee)
