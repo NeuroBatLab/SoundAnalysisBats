@@ -26,12 +26,12 @@ else
     load(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'MeanStdAmpRawExtract','Voc_filename')
     Nvoc_all = length(Voc_filename);
     if Nvoc_all>1000
-        Nvocs = [1000:1000:Nvoc_all (floor(Nvoc_all/1000)*1000+rem(Nvoc_all,1000))];
+        Nvocs = [0 1000:1000:Nvoc_all (floor(Nvoc_all/1000)*1000+rem(Nvoc_all,1000))];
     else
-        Nvocs = Nvoc_all;
+        Nvocs = [0 Nvoc_all];
     end
     for df=1:length(DataFiles)
-        Nvoc = Nvocs(df);
+        Nvoc = Nvocs(df+1) - Nvocs(df);
         DataFile = fullfile(DataFiles(df).folder, DataFiles(df).name);
         load(DataFile, 'Piezo_wave', 'Piezo_FS',  'Raw_wave','FS', 'DiffRMS', 'AudioLogs', 'RMSLow','VocFilename');
         
@@ -154,7 +154,7 @@ else
             % Patch for previous error in the code
             if isempty(Raw_wave{vv})
                 SaveRawWave = 1;
-                [Raw_wave{vv}, FS] = audioread(Voc_filename{vv});
+                [Raw_wave{vv}, FS] = audioread(VocFilename{vv});
             else
                 SaveRawWave = 0;
             end
@@ -174,7 +174,7 @@ else
             yyaxis right
             plot((1:length(Amp_env_Mic))/Fs_env*1000, Amp_env_Mic, 'r-', 'LineWidth',2)
             ylabel(sprintf('Amp\nMic'))
-            title(sprintf('Voc %d/%d',vv,Nvoc))
+            title(sprintf('Voc %d/%d Set %d',vv,Nvoc, df))
             xlabel(' ')
             set(gca, 'XTick',[],'XTickLabel',{})
         
@@ -287,7 +287,7 @@ else
                     if CheckMicChannel
                         plot(Amp_env_Mic.*10^3,'LineWidth',2, 'Color', ColorCode(ll+1,:))
                         hold on
-                        plot([0 length(Amp_env_Mic)], (Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
+                        plot([0 length(Amp_env_Mic)], (Factor_RMS_Mic * MeanStdAmpRawExtract(Nvocs(df)+vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
                         hold on
                     end
                     legend({'Microphone' 'voc detection threshold' 'voc detection threshold'})
@@ -307,7 +307,7 @@ else
                     IndVocStartPiezo_merge_local = cell(RowSize,1);
                     IndVocStopPiezo_merge_local = cell(RowSize,1);
                 
-                    VocpMic = Amp_env_Mic>(Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
+                    VocpMic = Amp_env_Mic>(Factor_RMS_Mic * MeanStdAmpRawExtract(Nvocs(df)+vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
                     VocpMic = reshape(VocpMic,1,length(VocpMic));
                     IndVocStart{RowSize} = strfind(VocpMic, ones(1,Consecutive_binsMic)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
                     if isempty(IndVocStart{RowSize})
@@ -347,7 +347,7 @@ else
                             v_axis(4)=FHigh_spec;
                             axis(v_axis);                                
                             xlabel('time (ms)'), ylabel('Frequency');
-                            title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
+                            title(sprintf('Ambient Microphone Voc %d/%d Set %d',vv,Nvoc,df))
                             yyaxis right
                             %                                 ylabel('Logger ID')
                             %                                 set(gca, 'YTick', 1:RowSize, 'YTickLabel', [Fns_AL; 'Mic'], 'YLim', [0 (length(AudioLogs)+2)],'YDir', 'reverse')
@@ -539,7 +539,7 @@ else
                 if CheckMicChannel
                     plot(Amp_env_Mic.*10^3,'LineWidth',2, 'Color', ColorCode(ll+1,:))
                     hold on
-                    plot([0 length(Amp_env_Mic)], (Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
+                    plot([0 length(Amp_env_Mic)], (Factor_RMS_Mic * MeanStdAmpRawExtract(Nvocs(df)+vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
                     hold on
                 end
                 legend({Fns_AL{:} 'Microphone' 'voc detection threshold' 'voc detection threshold'})
@@ -573,7 +573,7 @@ else
                 for ll=1:RowSize
                     % This is the Microphone condition
                     if ll>length(AudioLogs) && CheckMicChannel % we are looking at the microphone data now
-                        VocpMic = Amp_env_Mic>(Factor_RMS_Mic * MeanStdAmpRawExtract(vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
+                        VocpMic = Amp_env_Mic>(Factor_RMS_Mic * MeanStdAmpRawExtract(Nvocs(df)+vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
                         VocpMic = reshape(VocpMic,1,length(VocpMic));
                         IndVocStart{ll} = strfind(VocpMic, ones(1,Consecutive_binsMic)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
                         if isempty(IndVocStart{ll})
@@ -614,7 +614,7 @@ else
                                 v_axis(4)=FHigh_spec;
                                 axis(v_axis);
                                 xlabel('time (ms)'), ylabel('Frequency');
-                                title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
+                                title(sprintf('Ambient Microphone Voc %d/%d Set %d',vv,Nvoc, df))
                                 yyaxis right
                                 %                                 ylabel('Logger ID')
                                 %                                 set(gca, 'YTick', 1:ll, 'YTickLabel', [Fns_AL; 'Mic'], 'YLim', [0 (length(AudioLogs)+2)],'YDir', 'reverse')
@@ -795,7 +795,7 @@ else
                                     v_axis(4)=FHigh_spec;
                                     axis(v_axis);
                                     xlabel('time (ms)'), ylabel('Frequency');
-                                    title(sprintf('Ambient Microphone Voc %d/%d',vv,Nvoc))
+                                    title(sprintf('Ambient Microphone Voc %d/%d Set %d',vv,Nvoc,df))
                                     yyaxis right
                                     %                                 ylabel('Logger ID')
                                     %                                 set(gca, 'YTick', 1:ll, 'YTickLabel', Fns_AL, 'YLim', [0 (length(AudioLogs)+1)],'YDir', 'reverse')
@@ -978,14 +978,14 @@ else
                 if strcmp(SaveFileType,'pdf')
                     if ManCall % Only save the RMS and spectro figures if there was a vocalization
                         fprintf(1,'saving figures...\n')
-                        print(F1,fullfile(Working_dir,sprintf('%s_%d_whocalls_spec_%d.pdf',FileVoc,vv, MergeThresh)),'-dpdf','-fillpage')
-                        saveas(F2,fullfile(Working_dir,sprintf('%s_%d_whocalls_RMS_%d.pdf',FileVoc,vv, MergeThresh)),'pdf')
+                        print(F1,fullfile(Working_dir,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
+                        saveas(F2,fullfile(Working_dir,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',FileVoc,vv, df,MergeThresh)),'pdf')
                     end
                 elseif strcmp(SaveFileType,'fig')
                     if ManCall % Only save the RMS and spectro figures if there was a vocalization
                         fprintf(1,'saving figures...\n')
-                        saveas(F1,fullfile(Working_dir,sprintf('%s_%d_whocalls_spec_%d.fig', FileVoc,vv, MergeThresh)))
-                        saveas(F2,fullfile(Working_dir,sprintf('%s_%d_whocalls_RMS_%d.fig', FileVoc,vv, MergeThresh)))
+                        saveas(F1,fullfile(Working_dir,sprintf('%s_%d_%d_whocalls_spec_%d.fig', FileVoc,vv, df,MergeThresh)))
+                        saveas(F2,fullfile(Working_dir,sprintf('%s_%d_%d_whocalls_RMS_%d.fig', FileVoc,vv, df,MergeThresh)))
                     end
                 end
                 if ManCall
