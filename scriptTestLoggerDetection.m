@@ -132,13 +132,13 @@ end
 % ManCallFiles = ManCallFile(1:voc_counter);
 % save('GroundTruthData.mat','ManCallFiles','ManCallSamples')
 % %% Massage the input of the automatic detection
-% 
+%
 % % Find the boundaries in ms in transceiver time of the section of sound that was
 % % manually analysed
 % Delay2FirstFile = Voc_samp_idx(1,1)./FS.*10^3; %in ms (Voc_samp_idx(1,1) is the first sample number of the first isolated section of sound in the first 10 min file analyzed here
 % OnsetBoundary = Voc_transc_time(1,1) - Delay2FirstFile; % (Voc_Transc_time(1,1), is the absolute time onset in transceiver time of the first isolated section of sound in the first 10 min file analyzed here
 % OffsetBoundary = OnsetBoundary + ManDur;
-% 
+%
 % % Select the events in the automatically detected results that are within
 % % the manually analysed window
 % for ll=1:NLoggers
@@ -146,7 +146,7 @@ end
 %     Idx_WBound = find(sum((allCallTimes{ll}>OnsetBoundary) .* (allCallTimes{ll}<OffsetBoundary), 2)>0); % any element that start or end within the boundaries is selected
 %     allCallTimes{ll} = allCallTimes{ll}(Idx_WBound,:);
 % end
-% 
+%
 % % %% Plot (interesting but too few vocalizations to see nicely things)
 % % % order of loggers in auto detected events
 % % Ord = [4 1:3];
@@ -206,7 +206,7 @@ for tt=1:length(RMSThresh)
         SoundEvent_TranscTime_ms.(sprintf('L%s',AllLoggers(ll).name(2:end))) = SE_TT_ms((SE_TT_ms(:,1)<MaxTranscTime),:);
         SoundEvent_LoggerSamp.(sprintf('L%s',AllLoggers(ll).name(2:end))) = SE_LS((SE_TT_ms(:,1)<MaxTranscTime),:);
     end
-     save(fullfile(Path2Results1, 'SoundEvent.mat'),'SoundEvent_LoggerSamp','SoundEvent_TranscTime_ms','LoggerEnvelopeAll','-append')
+    save(fullfile(Path2Results1, 'SoundEvent.mat'),'SoundEvent_LoggerSamp','SoundEvent_TranscTime_ms','LoggerEnvelopeAll','-append')
     % load(fullfile(Path2Data1, 'SoundEvent.mat')
     
     
@@ -238,7 +238,7 @@ for tt=1:length(RMSThresh)
         % Center the signal and clear the old data from memory
         Centered_piezo_signal = AD_count_double - mean(AD_count_double);
         clear AD_count_double
-%         CorrectAutoDetection01{tt}.(sprintf(AL_AutoId{ll_auto})) = zeros(size(SoundEvent_TranscTime_ms.(sprintf(AL_AutoId{ll_auto})),1),1);
+        %         CorrectAutoDetection01{tt}.(sprintf(AL_AutoId{ll_auto})) = zeros(size(SoundEvent_TranscTime_ms.(sprintf(AL_AutoId{ll_auto})),1),1);
         CorrectAutoDetection01{tt}{ll_auto} = zeros(size(SoundEvent_TranscTime_ms.(sprintf(AL_AutoId{ll_auto})),1),1);
         
         TotManCall = TotManCall+size(ManCallTranscTime_ms{ll},1);
@@ -257,57 +257,57 @@ for tt=1:length(RMSThresh)
                 fprintf('No automatic call detected\n')
                 disp(OnOffVoc)
                 MissedAutoDetection{tt}{ll} = [MissedAutoDetection{tt}{ll} vv];
-%                 if FigOn
-                    figure(1)
-                    clf
-
-                    % Plot the spectrogram of the sound extract
-                    DBNoise = 60; % amplitude parameter for the color scale of the spectro
-                    FHigh = 10000; % y axis max scale for the spectrogram
-                    x_start = round(ManCallLogSamp{ll}(vv,1)-Delay*10^(-3)*SamplingFreq{ll});
-                    x_stop = round(ManCallLogSamp{ll}(vv,2)+Delay*10^(-3)*SamplingFreq{ll});
-                    Raw = Centered_piezo_signal(x_start:x_stop);
-                    Raw_ramp = cosramp(Raw-mean(Raw), SamplingFreq{ll}*10*10^-3);
-                    [~] = spec_only_bats(Raw_ramp,SamplingFreq{ll},DBNoise, FHigh);
-                    caxis('manual');
-                    caxis([2 70]);
-                    ylim([-500 10000])
-                    hold on
-
-                    yyaxis right %% There is always a problem in the plot for allignment of the envelope that I attribute to the average sample frequency estimate... Teh onset/offset detection is correctly alligned though!
-                    x_start_env = round((ManCallLogSamp{ll}(vv,1)/SamplingFreq{ll}-Delay*10^(-3))*FS_env);
-                    %             x_start_env = round(x_start/SamplingFreq{ll}*FS_env);
-                    x_stop_env = round((ManCallLogSamp{ll}(vv,2)/SamplingFreq{ll}+Delay*10^(-3))*FS_env);
-                    %             x_stop_env = round(x_stop/SamplingFreq{ll}*FS_env);
-                    plot(LoggerEnvelopeAll.(sprintf(AL_AutoId{ll_auto}))(x_start_env:x_stop_env), '-k','LineWidth',2)
-                    hold on
-                    %             hline((RMSfactor * Noise))
-                    %             hold on
-                    ylim([-10 300])
-                    ylabel('Amplitude Envelope')
-
-                    AllignOn = ManCallLogSamp{ll}(vv,1)-Delay*10^(-3)*SamplingFreq{ll}; % in logger samples
-                    x_start_man = round(Delay*10^(-3)*FS_env);
-                    x_stop_man = round((ManCallLogSamp{ll}(vv,2)-AllignOn)/SamplingFreq{ll}*FS_env);
-                    plot([x_start_man x_stop_man], ones(2,1) * 1.5, 'g-', 'LineWidth',1)
-                    hold off
+                %                 if FigOn
+                figure(1)
+                clf
                 
-                    
-                    title(sprintf('%s  Voc %d/%d NOT DETECTED', AL_ManId{ll}, vv, size(ManCallTranscTime_ms{ll},1)))
-                    Player = audioplayer(Raw_ramp/std(Raw_ramp), SamplingFreq{ll});
-                    play(Player)
-                    pause()
-%                 end
+                % Plot the spectrogram of the sound extract
+                DBNoise = 60; % amplitude parameter for the color scale of the spectro
+                FHigh = 10000; % y axis max scale for the spectrogram
+                x_start = round(ManCallLogSamp{ll}(vv,1)-Delay*10^(-3)*SamplingFreq{ll});
+                x_stop = round(ManCallLogSamp{ll}(vv,2)+Delay*10^(-3)*SamplingFreq{ll});
+                Raw = Centered_piezo_signal(x_start:x_stop);
+                Raw_ramp = cosramp(Raw-mean(Raw), SamplingFreq{ll}*10*10^-3);
+                [~] = spec_only_bats(Raw_ramp,SamplingFreq{ll},DBNoise, FHigh);
+                caxis('manual');
+                caxis([2 70]);
+                ylim([-500 10000])
+                hold on
+                
+                yyaxis right %% There is always a problem in the plot for allignment of the envelope that I attribute to the average sample frequency estimate... Teh onset/offset detection is correctly alligned though!
+                x_start_env = round((ManCallLogSamp{ll}(vv,1)/SamplingFreq{ll}-Delay*10^(-3))*FS_env);
+                %             x_start_env = round(x_start/SamplingFreq{ll}*FS_env);
+                x_stop_env = round((ManCallLogSamp{ll}(vv,2)/SamplingFreq{ll}+Delay*10^(-3))*FS_env);
+                %             x_stop_env = round(x_stop/SamplingFreq{ll}*FS_env);
+                plot(LoggerEnvelopeAll.(sprintf(AL_AutoId{ll_auto}))(x_start_env:x_stop_env), '-k','LineWidth',2)
+                hold on
+                %             hline((RMSfactor * Noise))
+                %             hold on
+                ylim([-10 300])
+                ylabel('Amplitude Envelope')
+                
+                AllignOn = ManCallLogSamp{ll}(vv,1)-Delay*10^(-3)*SamplingFreq{ll}; % in logger samples
+                x_start_man = round(Delay*10^(-3)*FS_env);
+                x_stop_man = round((ManCallLogSamp{ll}(vv,2)-AllignOn)/SamplingFreq{ll}*FS_env);
+                plot([x_start_man x_stop_man], ones(2,1) * 1.5, 'g-', 'LineWidth',1)
+                hold off
+                
+                
+                title(sprintf('%s  Voc %d/%d NOT DETECTED', AL_ManId{ll}, vv, size(ManCallTranscTime_ms{ll},1)))
+                Player = audioplayer(Raw_ramp/std(Raw_ramp), SamplingFreq{ll});
+                play(Player)
+                pause()
+                %                 end
                 
             else
                 IdxAll = union(Idx_OnsetAuto,Idx_OffsetAuto);
-%                 CorrectAutoDetection01{tt}.(sprintf(AL_AutoId{ll_auto}))(IdxAll) = ones(size(IdxAll));
+                %                 CorrectAutoDetection01{tt}.(sprintf(AL_AutoId{ll_auto}))(IdxAll) = ones(size(IdxAll));
                 CorrectAutoDetection01{tt}{ll_auto}(IdxAll) = ones(size(IdxAll));
                 fprintf('%d events started during that vocalization\n',length(IdxAll))
                 if FigOn
                     figure(1)
                     clf
-
+                    
                     % Plot the spectrogram of the sound extract
                     DBNoise = 60; % amplitude parameter for the color scale of the spectro
                     FHigh = 10000; % y axis max scale for the spectrogram
@@ -320,7 +320,7 @@ for tt=1:length(RMSThresh)
                     caxis([2 70]);
                     ylim([-500 10000])
                     hold on
-
+                    
                     yyaxis right
                     x_start_env = round((ManCallLogSamp{ll}(vv,1)/SamplingFreq{ll}-Delay*10^(-3))*FS_env);
                     %             x_start_env = round(x_start/SamplingFreq{ll}*FS_env);
@@ -332,7 +332,7 @@ for tt=1:length(RMSThresh)
                     %             hold on
                     ylim([-10 300])
                     ylabel('Amplitude Envelope')
-
+                    
                     AllignOn = ManCallLogSamp{ll}(vv,1)-Delay*10^(-3)*SamplingFreq{ll}; % in logger samples
                     x_start_man = round(Delay*10^(-3)*FS_env);
                     x_stop_man = round((ManCallLogSamp{ll}(vv,2)-AllignOn)/SamplingFreq{ll}*FS_env);
@@ -348,18 +348,18 @@ for tt=1:length(RMSThresh)
                         hold on
                     end
                     hold off
-
-
+                    
+                    
                     title(sprintf('%s  Voc %d/%d', AL_ManId{ll}, vv, size(ManCallTranscTime_ms{ll},1)))
-                %             Player = audioplayer(Raw_ramp/std(Raw_ramp), SamplingFreq{ll});
-                %             play(Player)
-                %             pause()
+                    %             Player = audioplayer(Raw_ramp/std(Raw_ramp), SamplingFreq{ll});
+                    %             play(Player)
+                    %             pause()
                 end
             end
         end
     end
-
-
+    
+    
     TotMissedAutoCall(tt) = sum(cellfun('length',MissedAutoDetection{tt}));
     fprintf(1,'Missed call by the logger auto detection: %d/%d or %.1f%%\n', sum(cellfun('length',MissedAutoDetection{tt})),TotManCall,sum(cellfun('length',MissedAutoDetection{tt}))/TotManCall*100);
     fprintf(1,'Number of detected events from the logger %d, proportion of true calls %d/%d or %.1f%%\n',sum(cellfun('length',CorrectAutoDetection01{tt})),sum(cellfun(@sum,CorrectAutoDetection01{tt})),sum(cellfun('length',CorrectAutoDetection01{tt})),sum(cellfun(@sum,CorrectAutoDetection01{tt}))/sum(cellfun('length',CorrectAutoDetection01{tt}))*100);
@@ -375,33 +375,33 @@ for tt=1:length(RMSThresh)
     TotAutoDetection01(tt) = sum(cellfun(@length,CorrectAutoDetection01{tt}));
 end
 figure()
- subplot(2,1,1)
- plot(TotMissedAutoCall, 'LineWidth',2)
+subplot(2,1,1)
+plot(TotMissedAutoCall, 'LineWidth',2)
 %  hold on
 %  plot(TotCorrectAutoDetection01, 'LineWidth',2)
- hold on
- ylabel(sprintf('Number of Missed calls out of %d',TotManCall))
- set(gca,'XTick', 1:length(RMSThresh))
- set(gca,'XTickLabel', RMSThresh)
- xlabel('RMS threshold factor on logger envelope')
- hold off
- ylim([0 25])
- title('Logger detection')
- subplot(2,1,2)
- plot(TotMissedAutoCall/TotManCall*100, 'LineWidth',2)
- hold on
- plot(TotCorrectAutoDetection01./TotAutoDetection01.*100, 'LineWidth',2)
- ylabel('Percentage')
- ylim([0 10])
- yyaxis right
- hold on
- plot(100-TotCorrectAutoDetection01./TotAutoDetection01.*100, 'LineWidth',2)
- legend('Missed calls', 'Correct detection','False detection')
- set(gca,'XTick', 1:length(RMSThresh))
- set(gca,'XTickLabel', RMSThresh)
- ylabel('Percentage')
- xlabel('RMS threshold factor on logger envelope')
- ylim([80 100])
+hold on
+ylabel(sprintf('Number of Missed calls out of %d',TotManCall))
+set(gca,'XTick', 1:length(RMSThresh))
+set(gca,'XTickLabel', RMSThresh)
+xlabel('RMS threshold factor on logger envelope')
+hold off
+ylim([0 25])
+title('Logger detection')
+subplot(2,1,2)
+plot(TotMissedAutoCall/TotManCall*100, 'LineWidth',2)
+hold on
+plot(TotCorrectAutoDetection01./TotAutoDetection01.*100, 'LineWidth',2)
+ylabel('Percentage')
+ylim([0 10])
+yyaxis right
+hold on
+plot(100-TotCorrectAutoDetection01./TotAutoDetection01.*100, 'LineWidth',2)
+legend('Missed calls', 'Correct detection','False detection')
+set(gca,'XTick', 1:length(RMSThresh))
+set(gca,'XTickLabel', RMSThresh)
+ylabel('Percentage')
+xlabel('RMS threshold factor on logger envelope')
+ylim([80 100])
 hold off
 %%
 save(fullfile(Path2Results1, 'SoundEvent.mat'),'SoundEvent_LoggerSamp','SoundEvent_TranscTime_ms','LoggerEnvelopeAll', 'CorrectAutoDetection01','MissedAutoDetection','RMSThresh','Delay','-append')
@@ -469,7 +469,7 @@ for ll=1:NL
             mic_stop1 = length(RawWav_local);
             mic_stop2 = mic_stop - length(RawWav_local);
             RawWavDir2 = dir(fullfile(Path2Data2,sprintf('*mic1_%d.wav',MicVoc_File(ee)+1)));
-            if ~isempty(RawWavDir2) 
+            if ~isempty(RawWavDir2)
                 [RawWav_local2, FS_raw] = audioread(fullfile(RawWavDir2.folder, RawWavDir2.name));
                 Mic_Data = [RawWav_local(mic_start:mic_stop1); RawWav_local2(1:mic_stop2)];
                 OldMicVoc_File = MicVoc_File(ee)+1;
@@ -614,8 +614,8 @@ ee_count = 0;
 %         'kurtosistime' 'AmpPeriodF' 'AmpPeriodP' 'rms' 'maxAmp' 'stdspect'...
 %         'meanspect' 'skewspect' 'entropyspect' 'kurtosisspect' 'q1' 'q2' 'q3'...
 %         'fund' 'cvfund' 'minfund' 'maxfund' 'meansal' '01correct'};
-        
-    
+
+
 % Turn off warnings regarding Pyton to structure conversion
 % warning('off', 'MATLAB:structOnObject')
 
@@ -680,74 +680,74 @@ parfor ll=1:NLoggers
         Logger_Data = Logger_Data - mean(Logger_Data);
         
         
-            [BioSoundUP,~] = run_acoustic_features(Logger_Data, FS_local, F_High, F_low, F_highSpec);
-            
-            BioSoundUniqParam{ll}{ee} = [BioSoundUP'; nan(5,1)];
-            EventSpectrograms{ll}{ee} = 
-            % Add parameters regarding the microphone data
-            
-            if OldMicVoc_File~=MicVoc_File(ee)
-                RawWavDir = dir(fullfile(Path2Data2,sprintf('*RecOnly_mic1_%d.wav',MicVoc_File(ee))));
-                [RawWav_mic, FS_mic] = audioread(fullfile(RawWavDir.folder, RawWavDir.name));
-                OldMicVoc_File = MicVoc_File(ee);
-            end
-            mic_start = round(MicVoc_samp_idx(ee,1)-Buffer*FS_mic*10^-3);
-            mic_stop = round(MicVoc_samp_idx(ee,2)+Buffer*FS_mic*10^-3);
-            if mic_start<0 || mic_stop<0% call occur before microphone started recording
-                continue
-            end
+        [BioSoundUP,~,Spectro] = run_acoustic_features(Logger_Data, FS_local, F_High, F_low, F_highSpec);
         
-            if mic_stop>length(RawWav_mic) % this section is cut between 2 10 min recordings
-                mic_stop1 = length(RawWav_mic);
-                mic_stop2 = mic_stop - length(RawWav_mic);
-                RawWavDir2 = dir(fullfile(Path2Data2,sprintf('*RecOnly_mic1_%d.wav',MicVoc_File(ee)+1)));
-                if ~isempty(RawWavDir2) 
-                    [RawWav_local2, FS_mic] = audioread(fullfile(RawWavDir2.folder, RawWavDir2.name));
-                    Mic_Data = [RawWav_mic(mic_start:mic_stop1); RawWav_local2(1:mic_stop2)];
-                    OldMicVoc_File = MicVoc_File(ee)+1;
-                    RawWav_mic = RawWav_local2;
-                    RawWav_local2 = [];
-                else % that was the last recording from the microphone
-                    if mic_start>length(RawWav_mic) % call occur after microphone stopped recording
-                        continue
-                    end
-                    Mic_Data = RawWav_mic(mic_start:mic_stop1);
+        BioSoundUniqParam{ll}{ee} = [BioSoundUP'; nan(5,1)];
+        EventSpectrograms{ll}{ee} = Spectro.logB;
+        % Add parameters regarding the microphone data
+        
+        if OldMicVoc_File~=MicVoc_File(ee)
+            RawWavDir = dir(fullfile(Path2Data2,sprintf('*RecOnly_mic1_%d.wav',MicVoc_File(ee))));
+            [RawWav_mic, FS_mic] = audioread(fullfile(RawWavDir.folder, RawWavDir.name));
+            OldMicVoc_File = MicVoc_File(ee);
+        end
+        mic_start = round(MicVoc_samp_idx(ee,1)-Buffer*FS_mic*10^-3);
+        mic_stop = round(MicVoc_samp_idx(ee,2)+Buffer*FS_mic*10^-3);
+        if mic_start<0 || mic_stop<0% call occur before microphone started recording
+            continue
+        end
+        
+        if mic_stop>length(RawWav_mic) % this section is cut between 2 10 min recordings
+            mic_stop1 = length(RawWav_mic);
+            mic_stop2 = mic_stop - length(RawWav_mic);
+            RawWavDir2 = dir(fullfile(Path2Data2,sprintf('*RecOnly_mic1_%d.wav',MicVoc_File(ee)+1)));
+            if ~isempty(RawWavDir2)
+                [RawWav_local2, FS_mic] = audioread(fullfile(RawWavDir2.folder, RawWavDir2.name));
+                Mic_Data = [RawWav_mic(mic_start:mic_stop1); RawWav_local2(1:mic_stop2)];
+                OldMicVoc_File = MicVoc_File(ee)+1;
+                RawWav_mic = RawWav_local2;
+                RawWav_local2 = [];
+            else % that was the last recording from the microphone
+                if mic_start>length(RawWav_mic) % call occur after microphone stopped recording
+                    continue
                 end
-            else
-                Mic_Data = RawWav_mic(mic_start:mic_stop);
+                Mic_Data = RawWav_mic(mic_start:mic_stop1);
             end
-            % filter the data
-            Mic_Data = Mic_Data-mean(Mic_Data);
-            Filt_MicData = filtfilt(sos_mic_band,1,Mic_Data);
-            Filt_LoggerData = filtfilt(sos_logger_band,1,Logger_Data);
-            % Calculate the RMS in the microphone extract and check if it's
-            % above thershold
-            AmpEnv=envelope(Filt_MicData,FS_mic/FS_env,'rms');
-            BioSoundUniqParam{ll}{ee}(17)=std(Filt_MicData(Filt_MicData~=0));
-            BioSoundUniqParam{ll}{ee}(18) = max(AmpEnv);
-            BioSoundUniqParam{ll}{ee}(19) = mean(AmpEnv);
-            ResampFilt_MicData = resample(Filt_MicData,4*FHigh,FS_mic);
-            ResampFilt_LogData = resample(Filt_LoggerData,4*FHigh,FS_local);
-            if length(ResampFilt_MicData)~=length(ResampFilt_LogData)
-                OptLength = min(length(ResampFilt_MicData),length(ResampFilt_LogData));
-                ResampFilt_MicData = ResampFilt_MicData(1:OptLength);
-                ResampFilt_LogData = ResampFilt_LogData(1:OptLength);
-            end
-%             figure(10)
-%             clf
-%             title(sprintf('%s event %d/%d', AL_AutoId{ll}, ee, Nevents))
-%             subplot(2,1,1)
-%             [toM, foM, logBM,~] = spec_only_bats(ResampFilt_MicData,4*FHigh,DBNoise, FHigh,100,'Time_increment',0.005);
-%             subplot(2,1,2)
-%             [toL, foL, logBL,~] = spec_only_bats(ResampFilt_LogData,4*FHigh,DBNoise, FHigh,100,'Time_increment',0.005);
-%         
+        else
+            Mic_Data = RawWav_mic(mic_start:mic_stop);
+        end
+        % filter the data
+        Mic_Data = Mic_Data-mean(Mic_Data);
+        Filt_MicData = filtfilt(sos_mic_band,1,Mic_Data);
+        Filt_LoggerData = filtfilt(sos_logger_band,1,Logger_Data);
+        % Calculate the RMS in the microphone extract and check if it's
+        % above thershold
+        AmpEnv=envelope(Filt_MicData,FS_mic/FS_env,'rms');
+        BioSoundUniqParam{ll}{ee}(17)=std(Filt_MicData(Filt_MicData~=0));
+        BioSoundUniqParam{ll}{ee}(18) = max(AmpEnv);
+        BioSoundUniqParam{ll}{ee}(19) = mean(AmpEnv);
+        ResampFilt_MicData = resample(Filt_MicData,4*FHigh,FS_mic);
+        ResampFilt_LogData = resample(Filt_LoggerData,4*FHigh,FS_local);
+        if length(ResampFilt_MicData)~=length(ResampFilt_LogData)
+            OptLength = min(length(ResampFilt_MicData),length(ResampFilt_LogData));
+            ResampFilt_MicData = ResampFilt_MicData(1:OptLength);
+            ResampFilt_LogData = ResampFilt_LogData(1:OptLength);
+        end
+        %             figure(10)
+        %             clf
+        %             title(sprintf('%s event %d/%d', AL_AutoId{ll}, ee, Nevents))
+        %             subplot(2,1,1)
+        %             [toM, foM, logBM,~] = spec_only_bats(ResampFilt_MicData,4*FHigh,DBNoise, FHigh,100,'Time_increment',0.005);
+        %             subplot(2,1,2)
+        %             [toL, foL, logBL,~] = spec_only_bats(ResampFilt_LogData,4*FHigh,DBNoise, FHigh,100,'Time_increment',0.005);
+        %
         
-            % Do a cross correlation between the two signals
-            [Xcor,Lag] = xcorr(ResampFilt_MicData,ResampFilt_LogData, (2*Buffer*10^-3)*4*FHigh,'normalized'); % Running a cross correlation between the raw signal and each audio logger signal with a maximum lag equal to twice the Buffer size
-            BioSoundUniqParam{ll}{ee}(20) = max(abs(Xcor));
-           %kep track of ground truth 
-          BioSoundUniqParam{ll}{ee}(21) = CorrectAutoDetection01{1}{ll_auto}(ee);
-          %         audiowrite(fullfile(Data_out, sprintf('Sound_%s_%d_%d_%d_%d.wav', (sprintf(AL_AutoId{ll_auto})), ee, OnInd, OffInd,CorrectAutoDetection01.(sprintf(AL_AutoId{ll_auto}))(ee) )),Sound, FS_local);
+        % Do a cross correlation between the two signals
+        [Xcor,Lag] = xcorr(ResampFilt_MicData,ResampFilt_LogData, (2*Buffer*10^-3)*4*FHigh,'normalized'); % Running a cross correlation between the raw signal and each audio logger signal with a maximum lag equal to twice the Buffer size
+        BioSoundUniqParam{ll}{ee}(20) = max(abs(Xcor));
+        %kep track of ground truth
+        BioSoundUniqParam{ll}{ee}(21) = CorrectAutoDetection01{1}{ll_auto}(ee);
+        %         audiowrite(fullfile(Data_out, sprintf('Sound_%s_%d_%d_%d_%d.wav', (sprintf(AL_AutoId{ll_auto})), ee, OnInd, OffInd,CorrectAutoDetection01.(sprintf(AL_AutoId{ll_auto}))(ee) )),Sound, FS_local);
     end
 end
 BioSoundParamNames = {'MeanSaliency' 'MaxAmp' 'RMS' 'MeanTime' 'StdTime' 'KurtosisTime' 'SkewTime' 'EntropyTime' 'Q1' 'Q2' 'Q3' 'MeanSpec' 'StdSpec' 'KurtosisSpec' 'SkewSpec' 'EntropySpec' 'RMS' 'MaxAmp' 'MeanAmp' 'Corr_wave'};
@@ -765,6 +765,7 @@ for ll=1:NL
     BioSoundUniqParam{ll} = [BioSoundUniqParam{ll}{:}];
 end
 BioSoundUniqParam = [BioSoundUniqParam{:}]';
+EventSpectrograms = [EventSpectrograms{:}]';
 save(fullfile(Path2Results1, 'SoundEvent2.mat'),'BioSoundUniqParam', 'BioSoundParamNames','AL_AutoId','AL_ManId', 'MissedAutoDetection','TotManCall','CorrectAutoDetection01','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile','Delay','RMSThresh','SoundEvent_LoggerSamp','SoundEvent_TranscTime_ms','CorrectAutoDetection01','MissedAutoDetection','-append')
 
 %% Draw some scatters of the parameters
@@ -883,17 +884,17 @@ ylabel(sprintf('Posterior probability class %d', CompactSVMModelSplit.ClassNames
 
 fprintf(1,'Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', sum(~labels.*Y_test)/length(labels)*100, sum(~labels.*Y_test), length(labels)) % 2.5 %
 fprintf(1,'Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', sum(labels.*~Y_test)/length(labels)*100, sum(labels.*~Y_test), length(labels)) % 0.5%
- 
+
 % Now choose a less restrictive label attribution -> any sound with a
-% probability of being a vocalization (class 1) above 0.1 is labeled 
+% probability of being a vocalization (class 1) above 0.1 is labeled
 ProbaThresh = [0:0.001:0.04 0.05:0.05:0.5];
 PercMissVoc = nan(length(ProbaThresh),1);
 PercFalseDetect = nan(length(ProbaThresh),1);
 for pp=1:length(ProbaThresh)
     NewLabels = PostProbs(:,2)>=ProbaThresh(pp);
-%     PercMissVoc(pp) = sum(~NewLabels.*Y_test)/length(NewLabels)*100;
+    %     PercMissVoc(pp) = sum(~NewLabels.*Y_test)/length(NewLabels)*100;
     PercMissVoc(pp) = sum(~NewLabels.*Y_test)/sum(Y_test)*100;
-%     PercFalseDetect(pp) = sum(NewLabels.*~Y_test)/length(NewLabels)*100;
+    %     PercFalseDetect(pp) = sum(NewLabels.*~Y_test)/length(NewLabels)*100;
     PercFalseDetect(pp) = sum(NewLabels.*~Y_test)/sum(~Y_test)*100;
 end
 figure()
@@ -904,18 +905,18 @@ hold off
 xlabel('Threshold on Posterior probability of class 1 (vocalization)')
 ylabel('Percentage of error')
 legend('Missed Vocalizations', 'False Detection')
-% fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', ProbaThresh(4), PercMissVoc(4), round(length(labels)*PercMissVoc(4)/100), length(labels)) 
+% fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', ProbaThresh(4), PercMissVoc(4), round(length(labels)*PercMissVoc(4)/100), length(labels))
 fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', ProbaThresh(4), PercMissVoc(4), round(sum(Y_test)*PercMissVoc(4)/100), sum(Y_test))% 1.4-1.6%
 % fprintf(1,'With Threshold set at %f Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', ProbaThresh(4), PercFalseDetect(4), round(length(labels)*PercFalseDetect(4)/100), length(labels)) %1.4 - 1.9%
- fprintf(1,'With Threshold set at %f Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', ProbaThresh(4), PercFalseDetect(4), round(sum(~Y_test)*PercFalseDetect(4)/100), sum(~Y_test))
- fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', ProbaThresh(3), PercMissVoc(3), round(sum(Y_test)*PercMissVoc(3)/100), sum(Y_test))% 1.4-1.6%
- fprintf(1,'With Threshold set at %f Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', ProbaThresh(3), PercFalseDetect(3), round(sum(~Y_test)*PercFalseDetect(3)/100), sum(~Y_test))
- fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', ProbaThresh(2), PercMissVoc(2), round(sum(Y_test)*PercMissVoc(2)/100), sum(Y_test))% 1.4-1.6%
- fprintf(1,'With Threshold set at %f Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', ProbaThresh(2), PercFalseDetect(2), round(sum(~Y_test)*PercFalseDetect(2)/100), sum(~Y_test))
- % If threshold posterior probability set at 0.02, then false positive
- % brought down to 2-10% and % of missed vocalizations brought down to 1.7%
+fprintf(1,'With Threshold set at %f Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', ProbaThresh(4), PercFalseDetect(4), round(sum(~Y_test)*PercFalseDetect(4)/100), sum(~Y_test))
+fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', ProbaThresh(3), PercMissVoc(3), round(sum(Y_test)*PercMissVoc(3)/100), sum(Y_test))% 1.4-1.6%
+fprintf(1,'With Threshold set at %f Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', ProbaThresh(3), PercFalseDetect(3), round(sum(~Y_test)*PercFalseDetect(3)/100), sum(~Y_test))
+fprintf(1,'With Threshold set at %f Percentage of misses (vocalizations detected as noise): %.1f or %d/%d\n', ProbaThresh(2), PercMissVoc(2), round(sum(Y_test)*PercMissVoc(2)/100), sum(Y_test))% 1.4-1.6%
+fprintf(1,'With Threshold set at %f Percentage of false detection (noise detected as vocalizations): %.1f or %d/%d\n', ProbaThresh(2), PercFalseDetect(2), round(sum(~Y_test)*PercFalseDetect(2)/100), sum(~Y_test))
+% If threshold posterior probability set at 0.02, then false positive
+% brought down to 2-10% and % of missed vocalizations brought down to 1.7%
 
- %% Save the SVM model for use/prediction with other recordings
+%% Save the SVM model for use/prediction with other recordings
 Path2Results1 = '/Volumes/Julie4T/JuvenileRecordings151/20190927/audiologgers/GroundTruthResultsPipelineCheck';
 Data190927 = load(fullfile(Path2Results1, 'SoundEvent2.mat'));
 DataSet190927 = ~isnan(Data190927.BioSoundUniqParam(:,21));
@@ -941,7 +942,7 @@ whos('SVMModel','CompactSVMModel')
 % The CompactClassificationSVM classifier (CompactSVMModel) uses less space than the ClassificationSVM classifier (SVMModel) because SVMModel stores the data.
 % Estimate the optimal score-to-posterior-probability transformation function.
 CompactSVMModel = fitPosterior(CompactSVMModel,...
-    BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,21)) 
+    BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,21))
 save('/Users/elie/Documents/CODE/SoundAnalysisBats/SVMModelNoiseVoc_MicLog.mat', 'CompactSVMModel')
 
 
@@ -960,8 +961,11 @@ whos('SVMModel','CompactSVMModel')
 % The CompactClassificationSVM classifier (CompactSVMModel) uses less space than the ClassificationSVM classifier (SVMModel) because SVMModel stores the data.
 % Estimate the optimal score-to-posterior-probability transformation function.
 CompactSVMModel = fitPosterior(CompactSVMModel,...
-    BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,21)) 
+    BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,21))
 save('/Users/elie/Documents/CODE/SoundAnalysisBats/SVMModelNoiseVoc.mat', 'CompactSVMModel')
+
+%% Calculate and save the spectrograms of extracts to test a UMAP classifier on this dataset
+
 
 %% Test a UMAP projection on this dataset
 addpath /Users/elie/Documents/CODE/umap_1.4.1/umap
@@ -1096,7 +1100,7 @@ for tt=1:length(Thresh)
                 if FigOn
                     figure(1)
                     clf
-                
+                    
                     % Plot the spectrogram of the sound extract if requested
                     DBNoise = 60; % amplitude parameter for the color scale of the spectro
                     FHigh = 10000; % y axis max scale for the spectrogram
@@ -1181,149 +1185,149 @@ for tt=1:length(Thresh)
     fprintf(1,'Missed call by the microphone auto detection: %d/%d or %.1f%%\n', sum(cellfun('length',MissedMicAutoDetection{tt})),TotManCall,sum(cellfun('length',MissedMicAutoDetection{tt}))/TotManCall*100);
     fprintf(1,'Number of detected events from the microphone %d, proportion of true calls %d/%d or %.1f%%\n',length(MicCorrectAutoDetection01{tt}),sum(MicCorrectAutoDetection01{tt}),length(MicCorrectAutoDetection01{tt}),sum(MicCorrectAutoDetection01{tt})/length(MicCorrectAutoDetection01{tt})*100);
 end
- figure()
- subplot(2,1,1)
- plot(TotMissedMicCall, 'LineWidth',2)
- hold on
+figure()
+subplot(2,1,1)
+plot(TotMissedMicCall, 'LineWidth',2)
+hold on
 %  plot(cellfun(@sum,MicCorrectAutoDetection01), 'LineWidth',2)
 %  hold on
 %  legend('# Missed calls')
- set(gca,'XTick', 1:length(Thresh))
- set(gca,'XTickLabel', Thresh)
- xlabel('Threshold on mic envelope')
- ylabel(sprintf('Number of missed calls out of %d', TotManCall))
- hold off
- ylim([0 100])
- title('Microphone detection')
- subplot(2,1,2)
- plot(TotMissedMicCall/TotManCall*100, 'LineWidth',2)
- hold on
- plot(cellfun(@sum,MicCorrectAutoDetection01)./cellfun('length',MicCorrectAutoDetection01).*100, 'LineWidth',2)
- hold on
- ylabel('Percentage')
- yyaxis right
- plot(100-cellfun(@sum,MicCorrectAutoDetection01)./cellfun('length',MicCorrectAutoDetection01).*100, 'LineWidth',2)
- legend('missed calls', 'correct detection', 'false detection')
- set(gca,'XTick', 1:length(Thresh))
- set(gca,'XTickLabel', Thresh)
- xlabel('Threshold on mic envelope')
- ylabel('Percentage')
- ylim([80 100])
- yyaxis left
- ylim([0 20])
- hold off
- 
+set(gca,'XTick', 1:length(Thresh))
+set(gca,'XTickLabel', Thresh)
+xlabel('Threshold on mic envelope')
+ylabel(sprintf('Number of missed calls out of %d', TotManCall))
+hold off
+ylim([0 100])
+title('Microphone detection')
+subplot(2,1,2)
+plot(TotMissedMicCall/TotManCall*100, 'LineWidth',2)
+hold on
+plot(cellfun(@sum,MicCorrectAutoDetection01)./cellfun('length',MicCorrectAutoDetection01).*100, 'LineWidth',2)
+hold on
+ylabel('Percentage')
+yyaxis right
+plot(100-cellfun(@sum,MicCorrectAutoDetection01)./cellfun('length',MicCorrectAutoDetection01).*100, 'LineWidth',2)
+legend('missed calls', 'correct detection', 'false detection')
+set(gca,'XTick', 1:length(Thresh))
+set(gca,'XTickLabel', Thresh)
+xlabel('Threshold on mic envelope')
+ylabel('Percentage')
+ylim([80 100])
+yyaxis left
+ylim([0 20])
+hold off
+
 %% Internal functions
 function BiosoundObj = runBiosound(Y, FS, F_high)
-        % Hard coded parameters for biosound
-        % spectrogram parameters
-        Spec_sample_rate = 1000; % sampling rate Hz
-        Freq_spacing = 50; % width of the frequency window for the FFT Hz
-        Min_freq = 300; % high pass filter before FFT Hz
-        Max_freq = 50000; % Low pass filter before FFT Hz
-        % temporal enveloppe parameters
-        Cutoff_freq = 150; % Hz
-        Amp_sample_rate = 1000; % Hz
-        if nargin<3
-            % Spectrum parameters
-            F_high = 50000; % frequency of Low-pass filter Hz
-        end
-        % Fundamental parameters
-        MaxFund = 4000;
-        MinFund = 300;
-        LowFc = 100; %100
-        HighFc = 18000;% 15000
-        MinSaliency = 0.6;
-        DebugFigFundest = 0;
-        MinFormantFreq = 2000;
-        MaxFormantBW = 1000; %500
-        WindowFormant = 0.1;
-        Method= 'Stack';
-        
-        % create the biosound object
-        BiosoundObj = py.soundsig.sound.BioSound(py.numpy.array(Y),pyargs('fs',FS));
-        % methods(BiosoundFi, '-full') % this command plot all the methods with the available arguments
-        
-        % Calculate the RMS (lhs std(varargin))
-        BiosoundObj.rms = BiosoundObj.sound.std();
-        
-        % calculate the amplitude enveloppe
-        ampenv(BiosoundObj, Cutoff_freq,Amp_sample_rate);
-        
-        % Calculate the periodicity of the amplitude envelope
-        SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
-        [P,F] = pspectrum(SoundAmp,1000);
-        [PKS,LOCS]=findpeaks(P);
-        AmpPeriodF = F(LOCS(PKS == max(PKS))); % Frequency in hertz of the max peak
-        AmpPeriodP = max(PKS)/mean(SoundAmp.^2); % Proportion of power in the max peak of the spectrum
-        
-        % calculate the spectrum (lhs spectrum(self, f_high, pyargs))
-        spectrum(BiosoundObj, F_high)
-        % calculate the spectrogram (lhs spectroCalc(self, spec_sample_rate,
-        % freq_spacing, min_freq, max_freq, pyargs))
-        try % For very short sound, the Freq_spacing is too small, doubling if error
-            spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing, Min_freq,Max_freq)
-        catch
-            try 
-                spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing.*2, Min_freq,Max_freq)
-            catch
-                warning('Impossible to calculate spectrogram')
-                BiosoundObj.spectro = nan;
-            end
-        end
-        
-        % Calculate time varying spectralmean and spectral max
-        Spectro = double(BiosoundObj.spectro);
-        if ~isnan(Spectro)
-            Fo = double(BiosoundObj.fo);
-            TPoints = size(Spectro,2);
-            SpectralMean = nan(1,TPoints);
-            %         SpectralMax = nan(1,TPoints);
-            for tt=1:TPoints
-                %             SpectralMax(tt) = Fo(Spectro(:,tt)==max(Spectro(:,tt)));
-                PSDSpec = Spectro(:,tt)./(sum(Spectro(:,tt)));
-                SpectralMean(tt) = sum(PSDSpec' .* Fo);
-            end
-        else
-            SpectralMean = nan;
-        end
-        
-        % calculate the fundamental and related values (lhs fundest(self, maxFund,
-        % minFund, lowFc, highFc, minSaliency, debugFig, pyargs)
-        fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
-        
-        % convert biosound to a strcuture
-        BiosoundObj = struct(BiosoundObj);
-        % Add some fields
-        BiosoundObj.AmpPeriodF = AmpPeriodF;
-        BiosoundObj.AmpPeriodP = AmpPeriodP;
-        BiosoundObj.SpectralMean = SpectralMean;
-        %         BiosoundObj.SpectralMax = SpectralMax;
-        % convert all nmpy arrays to double to be able to save as matfiles
-        BiosoundObj.amp = SoundAmp;
-        BiosoundObj.tAmp = double(BiosoundObj.tAmp);
-        BiosoundObj.spectro = double(BiosoundObj.spectro);
-        BiosoundObj.to = double(BiosoundObj.to);
-        BiosoundObj.fo = double(BiosoundObj.fo);
-        BiosoundObj.F1 = double(BiosoundObj.F1);
-        BiosoundObj.F2 = double(BiosoundObj.F2);
-        BiosoundObj.F3 = double(BiosoundObj.F3);
-        BiosoundObj.fpsd = double(BiosoundObj.fpsd);
-        BiosoundObj.psd = double(BiosoundObj.psd);
-        BiosoundObj.sal = double(BiosoundObj.sal);
-        BiosoundObj.f0 = double(BiosoundObj.f0);
-        BiosoundObj.f0_2 = double(BiosoundObj.f0_2);
-        BiosoundObj.fund = double(BiosoundObj.fund);
-        BiosoundObj.cvfund = double(BiosoundObj.cvfund);
-        BiosoundObj.fund2 = double(BiosoundObj.fund2);
-        BiosoundObj.minfund = double(BiosoundObj.minfund);
-        BiosoundObj.maxfund = double(BiosoundObj.maxfund);
-        BiosoundObj.sound = double(BiosoundObj.sound);
-        BiosoundObj.wf = double(BiosoundObj.wf);
-        BiosoundObj.wt = double(BiosoundObj.wt);
-        BiosoundObj.mps = double(BiosoundObj.mps);
+% Hard coded parameters for biosound
+% spectrogram parameters
+Spec_sample_rate = 1000; % sampling rate Hz
+Freq_spacing = 50; % width of the frequency window for the FFT Hz
+Min_freq = 300; % high pass filter before FFT Hz
+Max_freq = 50000; % Low pass filter before FFT Hz
+% temporal enveloppe parameters
+Cutoff_freq = 150; % Hz
+Amp_sample_rate = 1000; % Hz
+if nargin<3
+    % Spectrum parameters
+    F_high = 50000; % frequency of Low-pass filter Hz
 end
-    
+% Fundamental parameters
+MaxFund = 4000;
+MinFund = 300;
+LowFc = 100; %100
+HighFc = 18000;% 15000
+MinSaliency = 0.6;
+DebugFigFundest = 0;
+MinFormantFreq = 2000;
+MaxFormantBW = 1000; %500
+WindowFormant = 0.1;
+Method= 'Stack';
+
+% create the biosound object
+BiosoundObj = py.soundsig.sound.BioSound(py.numpy.array(Y),pyargs('fs',FS));
+% methods(BiosoundFi, '-full') % this command plot all the methods with the available arguments
+
+% Calculate the RMS (lhs std(varargin))
+BiosoundObj.rms = BiosoundObj.sound.std();
+
+% calculate the amplitude enveloppe
+ampenv(BiosoundObj, Cutoff_freq,Amp_sample_rate);
+
+% Calculate the periodicity of the amplitude envelope
+SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
+[P,F] = pspectrum(SoundAmp,1000);
+[PKS,LOCS]=findpeaks(P);
+AmpPeriodF = F(LOCS(PKS == max(PKS))); % Frequency in hertz of the max peak
+AmpPeriodP = max(PKS)/mean(SoundAmp.^2); % Proportion of power in the max peak of the spectrum
+
+% calculate the spectrum (lhs spectrum(self, f_high, pyargs))
+spectrum(BiosoundObj, F_high)
+% calculate the spectrogram (lhs spectroCalc(self, spec_sample_rate,
+% freq_spacing, min_freq, max_freq, pyargs))
+try % For very short sound, the Freq_spacing is too small, doubling if error
+    spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing, Min_freq,Max_freq)
+catch
+    try
+        spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing.*2, Min_freq,Max_freq)
+    catch
+        warning('Impossible to calculate spectrogram')
+        BiosoundObj.spectro = nan;
+    end
+end
+
+% Calculate time varying spectralmean and spectral max
+Spectro = double(BiosoundObj.spectro);
+if ~isnan(Spectro)
+    Fo = double(BiosoundObj.fo);
+    TPoints = size(Spectro,2);
+    SpectralMean = nan(1,TPoints);
+    %         SpectralMax = nan(1,TPoints);
+    for tt=1:TPoints
+        %             SpectralMax(tt) = Fo(Spectro(:,tt)==max(Spectro(:,tt)));
+        PSDSpec = Spectro(:,tt)./(sum(Spectro(:,tt)));
+        SpectralMean(tt) = sum(PSDSpec' .* Fo);
+    end
+else
+    SpectralMean = nan;
+end
+
+% calculate the fundamental and related values (lhs fundest(self, maxFund,
+% minFund, lowFc, highFc, minSaliency, debugFig, pyargs)
+fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
+
+% convert biosound to a strcuture
+BiosoundObj = struct(BiosoundObj);
+% Add some fields
+BiosoundObj.AmpPeriodF = AmpPeriodF;
+BiosoundObj.AmpPeriodP = AmpPeriodP;
+BiosoundObj.SpectralMean = SpectralMean;
+%         BiosoundObj.SpectralMax = SpectralMax;
+% convert all nmpy arrays to double to be able to save as matfiles
+BiosoundObj.amp = SoundAmp;
+BiosoundObj.tAmp = double(BiosoundObj.tAmp);
+BiosoundObj.spectro = double(BiosoundObj.spectro);
+BiosoundObj.to = double(BiosoundObj.to);
+BiosoundObj.fo = double(BiosoundObj.fo);
+BiosoundObj.F1 = double(BiosoundObj.F1);
+BiosoundObj.F2 = double(BiosoundObj.F2);
+BiosoundObj.F3 = double(BiosoundObj.F3);
+BiosoundObj.fpsd = double(BiosoundObj.fpsd);
+BiosoundObj.psd = double(BiosoundObj.psd);
+BiosoundObj.sal = double(BiosoundObj.sal);
+BiosoundObj.f0 = double(BiosoundObj.f0);
+BiosoundObj.f0_2 = double(BiosoundObj.f0_2);
+BiosoundObj.fund = double(BiosoundObj.fund);
+BiosoundObj.cvfund = double(BiosoundObj.cvfund);
+BiosoundObj.fund2 = double(BiosoundObj.fund2);
+BiosoundObj.minfund = double(BiosoundObj.minfund);
+BiosoundObj.maxfund = double(BiosoundObj.maxfund);
+BiosoundObj.sound = double(BiosoundObj.sound);
+BiosoundObj.wf = double(BiosoundObj.wf);
+BiosoundObj.wt = double(BiosoundObj.wt);
+BiosoundObj.mps = double(BiosoundObj.mps);
+end
+
 function [MicVoc_samp_idx,MicAuto_transcTime]=mic2transc_time(RawWav_dir)
 AllFiles = dir(fullfile(RawWav_dir, 'Analyzed_auto','*.mat'));
 % find the date and expstart time
@@ -1377,4 +1381,4 @@ for ff=1:Nevents
     MicVoc_samp_idx(ff,:) =TTL.Mean_std_Pulse_samp_audio(MicVoc_File(ff),2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{MicVoc_File(ff)},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{MicVoc_File(ff)}) + TTL.Mean_std_Pulse_samp_audio(MicVoc_File(ff),1);
 end
 end
-    
+
