@@ -36,6 +36,7 @@ FBand = 50;
 DBNOISE = 50;
 if Spectro
     [to, fo, logB, ~] = spec_only_bats(Sound_filtered, FS, DBNOISE, F_highSpec, FBand);
+    Spectro = struct();
     Spectro.to = to;
     Spectro.fo = fo;
     Spectro.logB = logB;

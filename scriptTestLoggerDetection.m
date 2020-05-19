@@ -6,6 +6,7 @@
 % load(fullfile(Path2Data, '190623_1401_VocExtractData.mat'))
 % load(fullfile(Path2Audio, '190623_1401_VocExtractTimes.mat'))
 addpath(genpath('/Users/elie/Documents/CODE/SoundAnalysisBats'))
+addpath(genpath('/Users/elie/Documents/CODE/LoggerDataProcessing'))
 
 %% Load data manually extracted
 Path2Data1 = '/Volumes/Julie4T/JuvenileRecordings151/20190927/audiologgers';
@@ -22,7 +23,7 @@ Fs_env=1000; % in Hertz, should have been saved in who_calls.m to correctly conv
 FS_Piezo = 50000; % could also be retrieved from Piezo_FS
 
 %% Load the data saved of that script
-% load(fullfile(Path2Data1, 'SoundEvent.mat'))
+%  load(fullfile(Path2Results1, 'SoundEvent.mat'))
 %% Load the data of CoEd
 Path2Data1 = '/Volumes/Julie4T/LMC_CoEd/logger/20190603';
 Path2Results1 = '/Volumes/Julie4T/LMC_CoEd/logger/20190603/GroundTruthResultsRecOnly';
@@ -593,6 +594,8 @@ title('Mic CC_spectro')
 
 
 %% Now loop through the detected elements and calculate biosound
+WorkingDirSpectro = '/Users/elie/Documents/GroundTruthWorkDir';
+mkdir(WorkingDirSpectro)
 Buffer = 30;% time in ms to add before after each sound element such atht it's longer than the 23ms required for biosound to calculate fundamental and saliency parameters
 F_High = 5000;
 F_low = 100;
@@ -600,14 +603,19 @@ F_highSpec = 15000;
 Flow = 500;
 FHigh = 10000;
 DBNoise = 60;
+SpectroYN = 0;
 [z,p,k] = butter(6,[Flow FHigh]/(192000/2),'bandpass');
 sos_mic_band = zp2sos(z,p,k);
 [z,p,k] = butter(6,[Flow FHigh]/(50000/2),'bandpass');
-sos_logger_band = zp2sos(z,p,k);
+FS_env = 1000; %Sampling Frequency of the envelope as calculated by piezo_find_calls_logger
+AllLoggers = dir(fullfile(Path2Data1, '*ogger*'));
+DirFlags = [AllLoggers.isdir];
+% Extract only those that are directories.
+AllLoggers = AllLoggers(DirFlags);
+NL = length(AllLoggers);
 
 % BioSoundUniqParam = nan(21553,23);
 BioSoundUniqParam = cell(1,NLoggers);
-EventSpectrograms = cell(1,NLoggers);
 % BioSoundUniqParam = nan(24770,21);
 ee_count = 0;
 % BioSoundParamNames = {'stdtime' 'meantime' 'skewtime' 'entropytime'...
@@ -652,7 +660,6 @@ parfor ll=1:NLoggers
     OldMicVoc_File = 0;
     TotEv = size(SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto})),1);
     BioSoundUniqParam{ll} = cell(1,TotEv);
-    EventSpectrograms{ll} = cell(1,TotEv);
     for ee=1:TotEv
         ee_count = ee_count+1;
         if rem(ee,100)==0
@@ -662,11 +669,11 @@ parfor ll=1:NLoggers
         % find the sampling Frequency
         OnInd1 = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,1);
         OffInd1 = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,2);
-        FileIdx = find((Indices_of_first_and_last_samples(:,1)<OnInd1) .* (Indices_of_first_and_last_samples(:,2)>OffInd1));
-        if isempty(FileIdx) || (length(FileIdx)~=1) || FileIdx>length(Estimated_channelFS_Transceiver)
-            FS_local = round(nanmean(Estimated_channelFS_Transceiver));
+        FileIdx = find((DataL.Indices_of_first_and_last_samples(:,1)<OnInd1) .* (DataL.Indices_of_first_and_last_samples(:,2)>OffInd1));
+        if isempty(FileIdx) || (length(FileIdx)~=1) || FileIdx>length(DataL.Estimated_channelFS_Transceiver)
+            FS_local = round(nanmean(DataL.Estimated_channelFS_Transceiver));
         else
-            FS_local = round(Estimated_channelFS_Transceiver(FileIdx));
+            FS_local = round(DataL.Estimated_channelFS_Transceiver(FileIdx));
         end
         
         % extract the sound with Buffer ms before after the sound
@@ -680,12 +687,11 @@ parfor ll=1:NLoggers
         Logger_Data = Logger_Data - mean(Logger_Data);
         
         
-        [BioSoundUP,~,Spectro] = run_acoustic_features(Logger_Data, FS_local, F_High, F_low, F_highSpec);
+        [BioSoundUP,~] = run_acoustic_features(Logger_Data, FS_local, 'F_High',F_High, 'F_low',F_low, 'F_highSpec',F_highSpec,'Spectro',SpectroYN);
         
         BioSoundUniqParam{ll}{ee} = [BioSoundUP'; nan(5,1)];
-        EventSpectrograms{ll}{ee} = Spectro.logB;
-        % Add parameters regarding the microphone data
         
+        % Add parameters regarding the microphone data
         if OldMicVoc_File~=MicVoc_File(ee)
             RawWavDir = dir(fullfile(Path2Data2,sprintf('*RecOnly_mic1_%d.wav',MicVoc_File(ee))));
             [RawWav_mic, FS_mic] = audioread(fullfile(RawWavDir.folder, RawWavDir.name));
@@ -765,8 +771,102 @@ for ll=1:NL
     BioSoundUniqParam{ll} = [BioSoundUniqParam{ll}{:}];
 end
 BioSoundUniqParam = [BioSoundUniqParam{:}]';
-EventSpectrograms = [EventSpectrograms{:}]';
 save(fullfile(Path2Results1, 'SoundEvent2.mat'),'BioSoundUniqParam', 'BioSoundParamNames','AL_AutoId','AL_ManId', 'MissedAutoDetection','TotManCall','CorrectAutoDetection01','NLoggers','ManCallTranscTime_ms','ManCallMicSamp','ManCallLogSamp', 'SamplingFreq','ManCallMicFile','Delay','RMSThresh','SoundEvent_LoggerSamp','SoundEvent_TranscTime_ms','CorrectAutoDetection01','MissedAutoDetection','-append')
+
+%% Now loop through the detected elements and calculate/save spectro
+WorkingDirSpectro = '/Users/elie/Documents/GroundTruthWorkDir';
+mkdir(WorkingDirSpectro)
+load(fullfile(Path2Results1, 'SoundEvent.mat'))
+Buffer = 0;% time in ms to add before after each sound element such atht it's longer than the 23ms required for biosound to calculate fundamental and saliency parameters
+F_low = 100;
+F_highSpec = 15000;
+Flow = 500;
+FHigh = 10000;
+FBand = 50;
+DBNOISE = 50;
+
+[z,p,k] = butter(6,[F_low F_highSpec]/(50000/2),'bandpass');
+sos_band_piezo = zp2sos(z,p,k);
+
+
+FS_env = 1000; %Sampling Frequency of the envelope as calculated by piezo_find_calls_logger
+AllLoggers = dir(fullfile(Path2Data1, '*ogger*'));
+DirFlags = [AllLoggers.isdir];
+% Extract only those that are directories.
+AllLoggers = AllLoggers(DirFlags);
+NL = length(AllLoggers);
+
+% BioSoundParamNames = {'stdtime' 'meantime' 'skewtime' 'entropytime'...
+%         'kurtosistime' 'AmpPeriodF' 'AmpPeriodP' 'rms' 'maxAmp' 'stdspect'...
+%         'meanspect' 'skewspect' 'entropyspect' 'kurtosisspect' 'q1' 'q2' 'q3'...
+%         'fund' 'cvfund' 'minfund' 'maxfund' 'meansal' '01correct'};
+% load(fullfile(Path2Results1,'190927_1014_VocExtractData.mat'),'Piezo_wave')
+load(fullfile(Path2Results1,'190603_1447_VocExtractData.mat'),'Piezo_wave')
+AL_AutoId = fieldnames(SoundEvent_TranscTime_ms); % Names of the audioLoggers
+AL_ManId = fieldnames(Piezo_wave); % Names of the audioLoggers
+clear Piezo_wave
+for ll=1:NLoggers
+    ll_auto = contains(AL_AutoId, AL_ManId{ll});
+    fprintf(1, '*** %s %d/%d ****\n',AL_ManId{ll}, ll, NLoggers)
+    % Load the raw signal
+    Data_directory = fullfile(AllLoggers(ll).folder,AL_ManId{ll}, 'extracted_data');
+    File = dir(fullfile(Data_directory, '*CSC0*'));
+    if isempty(File)
+        error('Data file not found');
+    end
+    Filepath = fullfile(File.folder, File.name);
+    DataL=load(Filepath, 'AD_count_int16', 'Indices_of_first_and_last_samples','Estimated_channelFS_Transceiver');
+    AD_count_double = double(DataL.AD_count_int16);
+    DataL.AD_count_int16 = [];
+    % Center the signal and clear the old data from memory
+    Centered_piezo_signal = AD_count_double - mean(AD_count_double);
+    AD_count_double=[];
+    
+    % convert transceiver time to audio samp files
+    Nevents = size(SoundEvent_TranscTime_ms.(sprintf(AL_AutoId{ll_auto})),1);
+    [MicVoc_samp_idx,MicVoc_File]=transc_time2micsamp(Path2Data2,SoundEvent_TranscTime_ms.(sprintf(AL_AutoId{ll_auto})));
+    
+    
+    % Loop through sound events
+    OldMicVoc_File = 0;
+    TotEv = size(SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto})),1);
+    for ee=1:TotEv
+        if isnan(CorrectAutoDetection01{1}{ll_auto}(ee)) % only keep data for which we have groundtruth
+            continue
+        end
+        if rem(ee,100)==0
+            fprintf(1, 'Event %d/%d\n', ee,TotEv)
+        end
+        
+        % find the sampling Frequency
+        OnInd1 = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,1);
+        OffInd1 = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,2);
+        FileIdx = find((DataL.Indices_of_first_and_last_samples(:,1)<OnInd1) .* (DataL.Indices_of_first_and_last_samples(:,2)>OffInd1));
+        if isempty(FileIdx) || (length(FileIdx)~=1) || FileIdx>length(DataL.Estimated_channelFS_Transceiver)
+            FS_local = round(nanmean(DataL.Estimated_channelFS_Transceiver));
+        else
+            FS_local = round(DataL.Estimated_channelFS_Transceiver(FileIdx));
+        end
+        
+        % extract the sound with Buffer ms before after the sound
+        OnInd_logger = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,1) - round(FS_local*Buffer*10^-3);
+        OffInd_logger = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,2) + round(FS_local*Buffer*10^-3);
+        if OnInd_logger<0
+            OffInd_logger = OffInd_logger-OnInd_logger;
+            OnInd_logger=1;
+        end
+        Logger_Data = Centered_piezo_signal(OnInd_logger : OffInd_logger);
+        Logger_Data = Logger_Data - mean(Logger_Data);
+        
+        % Spectrogram
+        Sound_filtered = filtfilt(sos_band_piezo,1,Logger_Data);
+
+        [to, fo, logB, ~] = spec_only_bats(Sound_filtered, FS_local, DBNOISE, F_highSpec, FBand);
+%         save(fullfile(WorkingDirSpectro,sprintf('20190927_%s_%d_%d.mat',AL_ManId{ll},ee,CorrectAutoDetection01{1}{ll_auto}(ee))), 'logB', 'to', 'fo')% CorrectAutoDetection01{1}{ll_auto}(ee) is the ground truth here
+        save(fullfile(WorkingDirSpectro,sprintf('20190603_%s_%d_%d.mat',AL_ManId{ll},ee,CorrectAutoDetection01{1}{ll_auto}(ee))), 'logB', 'to', 'fo')% CorrectAutoDetection01{1}{ll_auto}(ee) is the ground truth here
+    end
+end
+
 
 %% Draw some scatters of the parameters
 DatasetVoc = BioSoundUniqParam(:,21)==1;
