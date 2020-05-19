@@ -1027,6 +1027,7 @@ DataSet190603 = ~isnan(Data190603.BioSoundUniqParam(:,21));
 Data190603.BioSoundUniqParam = Data190603.BioSoundUniqParam(DataSet190603,:);
 
 BioSoundUniqParam = [Data190603.BioSoundUniqParam; Data190927.BioSoundUniqParam];
+BioSoundParamNames = Data190927.BioSoundParamNames;
 
 UsefulParams = 1:20;
 % Try a support vector machine classifier (linear) Binary SVM
@@ -1064,18 +1065,25 @@ CompactSVMModel = fitPosterior(CompactSVMModel,...
     BioSoundUniqParam(:,UsefulParams),BioSoundUniqParam(:,21))
 save('/Users/elie/Documents/CODE/SoundAnalysisBats/SVMModelNoiseVoc.mat', 'CompactSVMModel')
 
-%% Calculate and save the spectrograms of extracts to test a UMAP classifier on this dataset
-
 
 %% Test a UMAP projection on this dataset
 addpath /Users/elie/Documents/CODE/umap_1.4.1/umap
 addpath /Users/elie/Documents/CODE/umap_1.4.1/util
 javaaddpath('/Users/elie/Documents/CODE/umap_1.4.1/umap/umap.jar')
+UsefulParams = [1:16 21];
 fprintf(1,'\n\n ***** Distance Euclidean *****\n')
-[Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(:,UsefulParams));
+RandomSet = randperm(size(BioSoundUniqParam,1));
+TrainingSet = RandomSet(1:round(0.8*size(BioSoundUniqParam,1)));
+TestingSet = RandomSet((round(0.8*size(BioSoundUniqParam,1))+1) :end);
+[Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(TrainingSet,UsefulParams),'parameter_names',BioSoundParamNames(UsefulParams),'ask_to_save_template',true,'label_column',length(UsefulParams),'save_template_file',fullfile(Path2Results1,'UMAP_templateNoiseVoc.mat'), 'metric','euclidean');
 figure()
 scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam(:,21) zeros(size(Reduction,1),2)],'filled')
 title('Euclidean distance')
+
+[Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(TestingSet,UsefulParams(1:end-1)),'parameter_names',BioSoundParamNames(UsefulParams),'label_column',length(UsefulParams),'template_file',fullfile(Path2Results1,'UMAP_templateNoiseVoc.mat'), 'metric','euclidean','match_supervisors',1,'qf_dissimilarity', true);
+
+
+
 
 [Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(:,UsefulParams),'metric','cosine');
 figure()
