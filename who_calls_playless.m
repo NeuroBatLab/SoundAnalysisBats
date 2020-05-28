@@ -24,12 +24,12 @@ if nargin<5
 end
 
 
+Working_dir_read = fullfile(Working_dir, 'read');
+Working_dir_write = fullfile(Working_dir, 'write');
 
-if ~exist(Working_dir,'dir')
+if ~strcmp(Loggers_dir,Working_dir) && ~exist(Working_dir,'dir')
     mkdir(Working_dir)
-    Working_dir_read = fullfile(Working_dir, 'read');
     mkdir(Working_dir_read)
-    Working_dir_write = fullfile(Working_dir, 'write');
     mkdir(Working_dir_write)
 elseif strcmp(Loggers_dir,Working_dir)
     Working_dir_read = Loggers_dir;
