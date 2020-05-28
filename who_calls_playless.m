@@ -8,8 +8,32 @@ VolFactorMic=3;
 pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic','SaveFileType'};
 dflts  = {3,Loggers_dir,0,'pdf'};
 [Factor_RMS_Mic,Working_dir,Force_Save_onoffsets_mic,SaveFileType] = internal.stats.parseArgs(pnames,dflts,varargin{:});
+
+if nargin<8
+    CheckMicChannel = 0;
+end
+
+if nargin<7
+    UseOld = 0;
+end
+if nargin<6
+    Manual=0;
+end
+if nargin<5
+    MergeThresh = 500; % any 2 detected call spaced by less than MergeThresh ms are merged
+end
+
+
+
 if ~exist(Working_dir,'dir')
     mkdir(Working_dir)
+    Working_dir_read = fullfile(Working_dir, 'read');
+    mkdir(Working_dir_read)
+    Working_dir_write = fullfile(Working_dir, 'write');
+    mkdir(Working_dir_write)
+elseif strcmp(Loggers_dir,Working_dir)
+    Working_dir_read = Loggers_dir;
+    Working_dir_write = Loggers_dir;
 end
 DataFiles = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData*.mat', Date, ExpStartTime)));
 
@@ -32,9 +56,6 @@ else
         Nvocs = [0 Nvoc_all];
     end
     for df=1:length(DataFiles)
-        Nvoc = Nvocs(df+1) - Nvocs(df);
-        DataFile = fullfile(DataFiles(df).folder, DataFiles(df).name);
-        load(DataFile, 'Piezo_wave', 'Piezo_FS',  'Raw_wave','FS', 'DiffRMS', 'AudioLogs', 'RMSLow','VocFilename');
         
         %% Identify sound elements in each vocalization extract and decide of the vocalizer
         % Output corresponds to onset and offset indices of each vocal element in
@@ -52,83 +73,13 @@ else
         % and the other one low pass filtered at 5kHz. The vocalizer will have
         % the highest energy of all vocalizers and will have more energy in the
         % lower compare to higher filtered signal
-        if nargin<8
-            CheckMicChannel = 0;
-        end
-
-        if nargin<7
-            UseOld = 0;
-        end
-        if nargin<6
-            Manual=0;
-        end
-        if nargin<5
-            MergeThresh = 500; % any 2 detected call spaced by less than MergeThresh ms are merged
-        end
-
-        % parameters
-        Consecutive_binsMic = 10; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
-        Consecutive_binsPiezo = 15; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
-        Factor_RMS_low = 1.5.*ones(length(AudioLogs),1); % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on piezos
-        % Factor_AmpRatio = 1.5; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
-        Factor_AmpDiff = 50; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
-        DB_noise = 60; % Noise threshold for the spectrogram colormap
-        FHigh_spec = 90000; % Max frequency (Hz) for the raw data spectrogram
-        FHigh_spec_Logger = 10000; % Max frequency (Hz) for the raw data spectrogram
-        BandPassFilter = [1000 5000 9900]; % Frequency bands chosen for digital signal processing
-        Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
-        Fs_env = 1000; % Sample frequency of the enveloppe
-        % Buffer=100; % Maximum lag calculated for the cross correlation in ms, not used in that code for identification puposes but still calculated as of now
-
-        % Initialize variables
-        if Nvoc ~= length(Raw_wave)
-            warning('Looks like there might be an issue there!! Check variables!!')
-            keyboard
-        end
         
-%         Amp_env_LowPassLogVoc = cell(1,Nvoc);
-%         Amp_env_HighPassLogVoc = cell(1,Nvoc);
-%         Amp_env_Mic = cell(1,Nvoc);
-%         LowPassLogVoc = cell(1,Nvoc);
-        % LowPassMicVoc = cell(1,Nvoc);
-        Fns_AL = fieldnames(Piezo_wave);
-        IndVocStart_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers+microphone and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
-        IndVocStop_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
-%         IndNoiseStart_all = cell(1,Nvoc);
-%         IndNoiseStop_all = cell(1,Nvoc);
-        IndVocStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc)
-        % a cell array of the size the number of loggers + 1 in case only one bat without a logger
-        % or +2 incase no identification possible but you want to keep onset/offset of each voc and
-        % for each logger the index onset of when the animal start vocalizing in the raw recording before merge
-        IndVocStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge
-        IndVocStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording before merge
-        IndVocStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording before merge
-%         IndNoiseStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the raw recording before merge
-%         IndNoiseStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge
-%         IndNoiseStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording before merge
-%         IndNoiseStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording before merge
-        IndVocStartRaw_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the raw recording
-        IndVocStopRaw_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording
-        IndVocStartPiezo_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording
-        IndVocStopPiezo_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording
-        RMSRatio_all = cell(1,Nvoc);
-        RMSDiff_all = cell(1,Nvoc);
-        MicError = [0 0];% first element = number of corrections. second = number of detection (question)
-        MicErrorType = [0 0];% first element false negative (detected as noise or already detected when it is a new call), second element false positive (vice versa)
-        PiezoError = [0 0];% first element = number of corrections. second = number of detection (question)
-        PiezoErrorType = [0 0]; % first element false negative (detected as noise or hearing when it is a new call), second element false positive (vice versa)
+        Nvoc = Nvocs(df+1) - Nvocs(df);
+        DataFile = fullfile(DataFiles(df).folder, DataFiles(df).name);
         
-        if df==1
-            % design filters of raw ambient recording, bandpass and low pass which was
-            % used for the cross correlation
-            [z,p,k] = butter(6,[BandPassFilter(1) 90000]/(FS/2),'bandpass');
-            sos_raw_band = zp2sos(z,p,k);
-            % [z,p,k] = butter(6,BandPassFilter(1:2)/(FS/2),'bandpass');
-            % sos_raw_low = zp2sos(z,p,k);
-        end
-        PreviousFile = fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime, df,MergeThresh));
+        PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime, df,MergeThresh));
         if ~isfile(PreviousFile)
-            PreviousFile = fullfile(Working_dir, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime,MergeThresh));
+            PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime,MergeThresh));
         end
         if ~isempty(dir(PreviousFile)) && UseOld
 %             load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
@@ -145,7 +96,86 @@ else
         if vv==Nvoc
             % All done
             continue
+        else
+            if ~strcmp(Working_dir_write,Loggers_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df).name))
+                fprintf(1,'Bringing data locally from the server\n')
+                [s,m,e]=copyfile(DataFile, Working_dir_read, 'f');
+                if ~s
+                    fprintf(1,'File transfer did not occur correctly\n')
+                    keyboard
+                else
+                    DataFile = fullfile(Working_dir_read,DataFiles(df).name);
+                end
+            end
+            load(DataFile,'Piezo_wave', 'Raw_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
         end
+        
+        Fns_AL = fieldnames(Piezo_wave);
+        
+        % parameters
+        Consecutive_binsMic = 10; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
+        Consecutive_binsPiezo = 15; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
+        Factor_RMS_low = 1.5.*ones(length(AudioLogs),1); % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on piezos
+        % Factor_AmpRatio = 1.5; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
+        Factor_AmpDiff = 50; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
+        DB_noise = 60; % Noise threshold for the spectrogram colormap
+        FHigh_spec = 90000; % Max frequency (Hz) for the raw data spectrogram
+        FHigh_spec_Logger = 10000; % Max frequency (Hz) for the raw data spectrogram
+        BandPassFilter = [1000 5000 9900]; % Frequency bands chosen for digital signal processing
+        Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
+        Fs_env = 1000; % Sample frequency of the enveloppe
+        % Buffer=100; % Maximum lag calculated for the cross correlation in ms, not used in that code for identification puposes but still calculated as of now
+
+        if df==1
+            % design filters of raw ambient recording, bandpass and low pass which was
+            % used for the cross correlation
+            [z,p,k] = butter(6,[BandPassFilter(1) 90000]/(FS/2),'bandpass');
+            sos_raw_band = zp2sos(z,p,k);
+            % [z,p,k] = butter(6,BandPassFilter(1:2)/(FS/2),'bandpass');
+            % sos_raw_low = zp2sos(z,p,k);
+        end
+        
+        % Initialize variables
+        if Nvoc ~= length(Raw_wave)
+            warning('Looks like there might be an issue there!! Check variables!!')
+            keyboard
+        end
+        
+        if vv==1 % We need to initialize variables!
+            %         Amp_env_LowPassLogVoc = cell(1,Nvoc);
+            %         Amp_env_HighPassLogVoc = cell(1,Nvoc);
+            %         Amp_env_Mic = cell(1,Nvoc);
+            %         LowPassLogVoc = cell(1,Nvoc);
+            % LowPassMicVoc = cell(1,Nvoc);
+            
+            IndVocStart_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers+microphone and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
+            IndVocStop_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
+            %         IndNoiseStart_all = cell(1,Nvoc);
+            %         IndNoiseStop_all = cell(1,Nvoc);
+            IndVocStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc)
+            % a cell array of the size the number of loggers + 1 in case only one bat without a logger
+            % or +2 incase no identification possible but you want to keep onset/offset of each voc and
+            % for each logger the index onset of when the animal start vocalizing in the raw recording before merge
+            IndVocStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge
+            IndVocStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording before merge
+            IndVocStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording before merge
+            %         IndNoiseStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the raw recording before merge
+            %         IndNoiseStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge
+            %         IndNoiseStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording before merge
+            %         IndNoiseStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording before merge
+            IndVocStartRaw_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the raw recording
+            IndVocStopRaw_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording
+            IndVocStartPiezo_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording
+            IndVocStopPiezo_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording
+            RMSRatio_all = cell(1,Nvoc);
+            RMSDiff_all = cell(1,Nvoc);
+            MicError = [0 0];% first element = number of corrections. second = number of detection (question)
+            MicErrorType = [0 0];% first element false negative (detected as noise or already detected when it is a new call), second element false positive (vice versa)
+            PiezoError = [0 0];% first element = number of corrections. second = number of detection (question)
+            PiezoErrorType = [0 0]; % first element false negative (detected as noise or hearing when it is a new call), second element false positive (vice versa)
+            
+        end
+        
         %% Loop through vocalizations sequences and calculate amplitude envelopes
         for vv=vv:Nvoc
             fprintf(1,'\n\n\n\nVoc sequence %d/%d\n',vv,Nvoc);
@@ -269,10 +299,10 @@ else
                 fprintf(1,'Manual input enforced: Noise (0)\n');
                 fprintf(1,'saving data...\n')
                 if ~isempty(dir(PreviousFile))
-                    save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'vv','-append');
+                    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'vv','-append');
                 else
 %                     save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
-                    save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+                    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
                 end
                 clf(F1)
                 if SaveRawWave
@@ -471,14 +501,14 @@ else
                     [~,FileVoc]=fileparts(VocFilename{vv});
                     fprintf(1,'saving figures...\n')
                     if strcmp(SaveFileType,'pdf')
-                        print(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
+                        print(F1,fullfile(Working_dir_write,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
                         if ManCall % Only save the RMS figure if there was a vocalization
-                            saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
+                            saveas(F2,fullfile(Working_dir_write,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
                         end
                     elseif strcmp(SaveFileType,'fig')
-                        saveas(F1,fullfile(Working_dir,sprintf('%s_whocalls_spec_%d.fig', FileVoc, MergeThresh)))
+                        saveas(F1,fullfile(Working_dir_write,sprintf('%s_whocalls_spec_%d.fig', FileVoc, MergeThresh)))
                         if ManCall % Only save the RMS figure if there was a vocalization
-                            saveas(F2,fullfile(Working_dir,sprintf('%s_whocalls_RMS_%d.fig', FileVoc, MergeThresh)))
+                            saveas(F2,fullfile(Working_dir_write,sprintf('%s_whocalls_RMS_%d.fig', FileVoc, MergeThresh)))
                         end
                     end
                     if ManCall
@@ -1009,14 +1039,14 @@ else
                 if strcmp(SaveFileType,'pdf')
                     if ManCall % Only save the RMS and spectro figures if there was a vocalization
                         fprintf(1,'saving figures...\n')
-                        print(F1,fullfile(Working_dir,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
-                        saveas(F2,fullfile(Working_dir,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',FileVoc,vv, df,MergeThresh)),'pdf')
+                        print(F1,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
+                        saveas(F2,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',FileVoc,vv, df,MergeThresh)),'pdf')
                     end
                 elseif strcmp(SaveFileType,'fig')
                     if ManCall % Only save the RMS and spectro figures if there was a vocalization
                         fprintf(1,'saving figures...\n')
-                        saveas(F1,fullfile(Working_dir,sprintf('%s_%d_%d_whocalls_spec_%d.fig', FileVoc,vv, df,MergeThresh)))
-                        saveas(F2,fullfile(Working_dir,sprintf('%s_%d_%d_whocalls_RMS_%d.fig', FileVoc,vv, df,MergeThresh)))
+                        saveas(F1,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig', FileVoc,vv, df,MergeThresh)))
+                        saveas(F2,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig', FileVoc,vv, df,MergeThresh)))
                     end
                 end
                 if ManCall
@@ -1040,26 +1070,37 @@ else
             fprintf(1,'saving data...\n')
             if ~isempty(dir(PreviousFile))
 %                 save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
-                  save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
+                  save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
             else
 %                 save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
-                save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+                save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
             end
             if SaveRawWave
                 save(DataFile, 'Raw_wave','-append')
             end
         end
+        if SaveRawWave
+            [s2,m,e]=copyfile(DataFile, fullfile(DataFiles(df).folder,DataFiles(df).name), 'f');
+            if ~s2
+                fprintf(1,'File transfer did not occur correctly\n')
+                keyboard
+            end
+            if s2  %erase local data
+                [sdel,mdel,edel]=rmdir(DataFile, 's');
+            end
+        end
     end
-    if ~strcmp(Working_dir,Loggers_dir)
+    if ~strcmp(Working_dir_write,Loggers_dir)
         fprintf(1,'Transferring data back on the server\n')
-        [s,m,e]=copyfile(fullfile(Working_dir,'*'), Loggers_dir, 'f');
-        if ~s
+        [s1,m,e]=copyfile(fullfile(Working_dir_write,'*'), Loggers_dir, 'f');
+        if ~s1
             fprintf(1,'File transfer did not occur correctly\n')
             keyboard
         end
-        if s  %erase local data
-            [sdel,mdel,edel]=rmdir(Working_dir, 's');
+        if s1  %erase local data
+            [sdel,mdel,edel]=rmdir(Working_dir_write, 's');
         end
+        
     end
    
 end

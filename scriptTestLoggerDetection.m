@@ -1080,7 +1080,7 @@ figure()
 scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam(:,21) zeros(size(Reduction,1),2)],'filled')
 title('Euclidean distance')
 
-[Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(TestingSet,UsefulParams(1:end-1)),'parameter_names',BioSoundParamNames(UsefulParams),'label_column',length(UsefulParams),'template_file',fullfile(Path2Results1,'UMAP_templateNoiseVoc.mat'), 'metric','euclidean','match_supervisors',1,'qf_dissimilarity', true);
+[Reduction,UMAP,ClustID]= run_umap(BioSouwhondUniqParam(TestingSet,UsefulParams(1:end-1)),'parameter_names',BioSoundParamNames(UsefulParams),'label_column',length(UsefulParams),'template_file',fullfile(Path2Results1,'UMAP_templateNoiseVoc.mat'), 'metric','euclidean','match_supervisors',1,'qf_dissimilarity', true);
 
 
 
