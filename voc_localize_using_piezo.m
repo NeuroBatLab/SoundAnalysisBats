@@ -189,7 +189,7 @@ parfor ll=1:NL
         Logger_Sound = Centered_piezo_signal(OnIndBuff : OffIndBuff);
         Logger_Sound = Logger_Sound - mean(Logger_Sound);
         
-        AcousticParams_temp = run_acoustic_features(Logger_Sound, FS_logger_voc_unmerged{ll}(ee), F_high, F_low, F_highSpec);
+        [AcousticParams_temp,~] = run_acoustic_features(Logger_Sound, FS_logger_voc_unmerged{ll}(ee), 'F_high',F_high, 'F_low', F_low, 'F_highSpec',F_highSpec);
         AcousticParams{ll}(1:length(AcousticParams_temp),ee) = AcousticParams_temp';
         LoggerID_unmerged{ll}{ee} = ALField_Id{ll};
         Voc_loggerSamp_Idx_unmerged{ll}(:,ee) = [OnInd; OffInd];
