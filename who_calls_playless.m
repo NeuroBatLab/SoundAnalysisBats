@@ -50,8 +50,13 @@ else
     DataFiles = DataFiles(logical(Gdf));
     load(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'MeanStdAmpRawExtract','Voc_filename')
     Nvoc_all = length(Voc_filename);
-    if Nvoc_all>1000
-        Nvocs = [0 1000:1000:Nvoc_all (floor(Nvoc_all/1000)*1000+rem(Nvoc_all,1000))];
+    DataFile = fullfile(DataFiles(1).folder, DataFiles(1).name);
+    load(DataFile, 'VocMaxNum')
+    if ~exist('VocMaxNum','var')
+        VocMaxNum=1000;
+    end
+    if Nvoc_all>VocMaxNum
+        Nvocs = [0 VocMaxNum:VocMaxNum:Nvoc_all (floor(Nvoc_all/VocMaxNum)*VocMaxNum+rem(Nvoc_all,VocMaxNum))];
     else
         Nvocs = [0 Nvoc_all];
     end
@@ -196,7 +201,7 @@ else
             LowPassLogVoc = cell(length(AudioLogs),1);
             % Patch for previous error in the code
             if vv<=maxvv
-                Raw_wave_nn = Raw_wave{vv - minvv -1};
+                Raw_wave_nn = Raw_wave{vv - (minvv -1)};
             else
                 clear Raw_wave Piezo_wave
                 load(DataFile,'Raw_wave')
