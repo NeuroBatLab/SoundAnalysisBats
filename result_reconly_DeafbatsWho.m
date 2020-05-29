@@ -1,5 +1,6 @@
 BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
 BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\';
+WorkingDir = 'C:\Users\BatLab\Documents\DeafWhoWorkDir\';
 % Path2RecordingTable = 'C:\Users\BatLab\Google Drive\JuvenileRecordings\DeafRecordingsNWAF155_Log.xlsx';
 % TTLFolder = 'C:\Users\BatLab\Google Drive\JuvenileRecordings';
 
@@ -59,13 +60,13 @@ for ee=1:NExpe
         continue
     end
     Filepath = fullfile(ParamFile.folder, ParamFile.name);
-    NCalls = result_reconly_DbatsWho(Filepath);
+    NCalls = result_reconly_DbatsWho(Filepath, WorkingDir);
     fprintf(FidWho, '%s\t%s\t%s\t%d\n',ParamFile.name(1:4),ParamFile.name(6:11),ParamFile.name(13:16),NCalls);
 end
 fclose(FidWho);
 
 %% INTERNAL FUNCTION
-function [NCalls] = result_reconly_DbatsWho(Path2ParamFile,Logger_dir)
+function [NCalls] = result_reconly_DbatsWho(Path2ParamFile,WorkingDir,Logger_dir)
 ForceWhoID = 1; % In case the identification of bats was already done but you want to re-do it again
 
 close all
@@ -75,7 +76,7 @@ close all
 Date = DataFile(6:11);
 ExpStartTime = DataFile(13:16);
 
-if nargin<2
+if nargin<3
     % Set the path to logger data
     Logger_dir = fullfile(AudioDataPath(1:(strfind(AudioDataPath, 'audio')-1)), 'audiologgers');
         
@@ -110,7 +111,7 @@ end
 fprintf('\n*** Identify who is calling ***\n')
 WhoCall_dir = dir(fullfile(Logger_dir, sprintf('*%s_%s*whocalls*', Date, ExpStartTime)));
 if isempty(WhoCall_dir) || ForceWhoID
-    [IndVocStartRawMerged,~]=who_calls_playless(AudioDataPath,Logger_dir,Date, ExpStartTime,200,1,1,0);
+    [IndVocStartRawMerged,~]=who_calls_playless(AudioDataPath,Logger_dir,Date, ExpStartTime,200,1,1,0,'Working_dir',WorkingDir);
 else
     fprintf('\n*** ALREADY DONE: Identify who is calling ***\n')
 end

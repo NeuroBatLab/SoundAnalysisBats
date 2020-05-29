@@ -145,7 +145,7 @@ else
         Fs_env = 1000; % Sample frequency of the enveloppe
         % Buffer=100; % Maximum lag calculated for the cross correlation in ms, not used in that code for identification puposes but still calculated as of now
 
-        if df==1
+        if df==1 || ~exist('sos_raw_band', 'var')
             % design filters of raw ambient recording, bandpass and low pass which was
             % used for the cross correlation
             [z,p,k] = butter(6,[BandPassFilter(1) 90000]/(FS/2),'bandpass');
