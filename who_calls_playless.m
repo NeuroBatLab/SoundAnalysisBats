@@ -107,7 +107,21 @@ else
                     DataFile = fullfile(Working_dir_read,DataFiles(df).name);
                 end
             end
-            load(DataFile,'Piezo_wave', 'Raw_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
+            try
+                load(DataFile,'Piezo_wave', 'Raw_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
+                if Nvoc ~= length(Raw_wave)
+                    warning('Looks like there might be an issue there!! Check variables!!')
+                    keyboard
+                end
+                minvv = 1;
+                maxvv = Nvoc;
+            catch % problem of memory, we're going to chunck file loading
+                load(DataFile,'Raw_wave')
+                minvv = floor(vv/100)*100 +1;
+                maxvv = ceil(vv/100)*100;
+                Raw_wave = Raw_wave(minvv:maxvv);
+                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
+            end 
         end
         
         Fns_AL = fieldnames(Piezo_wave);
@@ -136,10 +150,7 @@ else
         end
         
         % Initialize variables
-        if Nvoc ~= length(Raw_wave)
-            warning('Looks like there might be an issue there!! Check variables!!')
-            keyboard
-        end
+        
         
         if vv==1 % We need to initialize variables!
             %         Amp_env_LowPassLogVoc = cell(1,Nvoc);
@@ -184,14 +195,28 @@ else
             Amp_env_HighPassLogVoc = cell(length(AudioLogs),1);
             LowPassLogVoc = cell(length(AudioLogs),1);
             % Patch for previous error in the code
-            if isempty(Raw_wave{vv})
+            if vv<=maxvv
+                Raw_wave_nn = Raw_wave{vv - minvv -1};
+            else
+                clear Raw_wave Piezo_wave
+                load(DataFile,'Raw_wave')
+                minvv = floor(vv/100)*100 +1;
+                maxvv = ceil(vv/100)*100;
+                Raw_wave = Raw_wave(minvv:maxvv);
+                load(DataFile,'Piezo_wave')
+                Raw_wave_nn = Raw_wave{vv - minvv -1};
+            end
+                
+            if isempty(Raw_wave_nn)
+                warning('That should not be empty now!!')
+                keyboard
                 SaveRawWave = 1;
                 [Raw_wave{vv}, FS] = audioread(VocFilename{vv});
             else
                 SaveRawWave = 0;
             end
             % bandpass filter the ambient mic recording
-            Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave{vv});
+            Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
             Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
             % Low passfilter the ambient mic recording (used for cross-correlation
             % but not done anymore
@@ -212,9 +237,9 @@ else
         
             if Manual
                 pause(0.1)
-                PlayerMic= audioplayer((Raw_wave{vv} - mean(Raw_wave{vv}))/(std(Raw_wave{vv})/VolFactorMic), FS); %#ok<TNMLP>
+                PlayerMic= audioplayer((Raw_wave_nn - mean(Raw_wave_nn))/(std(Raw_wave_nn)/VolFactorMic), FS); %#ok<TNMLP>
                 play(PlayerMic)
-                pause(length(Raw_wave{vv})/FS +1)
+                pause(length(Raw_wave_nn)/FS +1)
             end
             %% Loop through the loggers and calculate envelopes
             for ll=1:length(AudioLogs)
@@ -271,16 +296,16 @@ else
                 end
                 if ManCall==2
                     play(PlayerMic)
-                    pause(length(Raw_wave{vv})/FS +1)
+                    pause(length(Raw_wave_nn)/FS +1)
                     pause(0.1)
                     for ll=1:length(AudioLogs)
                         Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                         play(Player)
-                        pause(length(Raw_wave{vv})/FS +1)
+                        pause(length(Raw_wave_nn)/FS +1)
                     end
                 elseif ManCall==100
                     play(PlayerMic)
-                    pause(length(Raw_wave{vv})/FS +1)
+                    pause(length(Raw_wave_nn)/FS +1)
                     pause(0.1)
                 elseif (ManCall~=1) && (ManCall~=0)
                     FieldLog = sprintf('Logger%d',ManCall);
@@ -290,7 +315,7 @@ else
                     else
                         Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                         play(Player)
-                        pause(length(Raw_wave{vv})/FS +1)
+                        pause(length(Raw_wave_nn)/FS +1)
                     end
                 end
             end
@@ -306,6 +331,8 @@ else
                 end
                 clf(F1)
                 if SaveRawWave
+                    warning('Highly not recommended!! We are chuncking the loading, you might loose the entire Raw_wave data here')
+                    keyboard
                     save(DataFile, 'Raw_wave','-append')
                 end
                 continue
@@ -421,7 +448,7 @@ else
                                 end
                                 while NewCallNoise0_man(ii)~=0 && NewCallNoise0_man(ii)~=1
                                     play(PlayerMic)
-                                    pause(length(Raw_wave{vv})/FS +1)
+                                    pause(length(Raw_wave_nn)/FS +1)
                                     NewCall1Noise0_man(ii) = input('Indicate your choice: new call (1);    noise (0);    listen again to mic(any other number)\n');
                                     if isempty(NewCall1Noise0_man(ii))
                                         NewCall1Noise0_man(ii) = 2;
@@ -702,9 +729,9 @@ else
                                         NewCall1OldCall0_man(ii)=2;
                                     end
                                     while NewCall1OldCall0_man(ii)~=0 && NewCall1OldCall0_man(ii)~=1
-                                        PlayerMic= audioplayer((Raw_wave{vv} - mean(Raw_wave{vv}))/(std(Raw_wave{vv})/VolFactorMic), FS); %#ok<TNMLP>
+                                        PlayerMic= audioplayer((Raw_wave_nn - mean(Raw_wave_nn))/(std(Raw_wave_nn)/VolFactorMic), FS); %#ok<TNMLP>
                                         play(PlayerMic)
-                                        pause(length(Raw_wave{vv})/FS +1)
+                                        pause(length(Raw_wave_nn)/FS +1)
                                         NewCall1OldCall0_man(ii) = input('Indicate your choice: new call on Mic (1);    already known/noise (0);    listen to mic again(any other number)\n');
                                         if isempty(NewCall1OldCall0_man(ii))
                                             NewCall1OldCall0_man(ii)=2;
@@ -795,14 +822,14 @@ else
                                 fprintf(1,'\nSound event detected on %s.',Fns_AL{ll})
                                 Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                 play(Player)
-                                pause(length(Raw_wave{vv})/FS +1)
+                                pause(length(Raw_wave_nn)/FS +1)
                                 ManCall_logger=input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
                                 if isempty(ManCall_logger)
                                     ManCall_logger=2;
                                 end
                                 while ManCall_logger~=0 && ManCall_logger~=1
                                     play(Player)
-                                    pause(length(Raw_wave{vv})/FS +1)
+                                    pause(length(Raw_wave_nn)/FS +1)
                                     ManCall_logger = input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
                                     if isempty(ManCall_logger)
                                         ManCall_logger=2;
@@ -905,7 +932,7 @@ else
                                         while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
                                             Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                             play(Player)
-                                            pause(length(Raw_wave{vv})/FS +1)
+                                            pause(length(Raw_wave_nn)/FS +1)
                                             Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    listen again to that logger recording (any other number)\n');
                                             if isempty(Call1Hear0_man(ii))
                                                 Call1Hear0_man(ii)=2;
@@ -1076,6 +1103,8 @@ else
                 save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
             end
             if SaveRawWave
+                warning('Make sure you want to change that variable!! NOT recommended here as we are chuncking the loading!!!')
+                keyboard
                 save(DataFile, 'Raw_wave','-append')
             end
         end
