@@ -107,21 +107,21 @@ else
                     DataFile = fullfile(Working_dir_read,DataFiles(df).name);
                 end
             end
-            try
-                load(DataFile,'Piezo_wave', 'Raw_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
-                if Nvoc ~= length(Raw_wave)
-                    warning('Looks like there might be an issue there!! Check variables!!')
-                    keyboard
-                end
+            load(DataFile,'Raw_wave')
+            if Nvoc ~= length(Raw_wave)
+                warning('Looks like there might be an issue there!! Check variables!!')
+                keyboard
+            end
+            if Nvoc<=100
                 minvv = 1;
                 maxvv = Nvoc;
-            catch % problem of memory, we're going to chunck file loading
-                load(DataFile,'Raw_wave')
+                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
+            else % often problem of memory, we're going to chunck file loading
                 minvv = floor(vv/100)*100 +1;
                 maxvv = ceil(vv/100)*100;
                 Raw_wave = Raw_wave(minvv:maxvv);
                 load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
-            end 
+            end
         end
         
         Fns_AL = fieldnames(Piezo_wave);
