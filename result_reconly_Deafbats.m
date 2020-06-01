@@ -31,42 +31,45 @@ end
 
 for dd=1:NDates
     ParamFile = dir(fullfile(DatesDir(dd).folder, DatesDir(dd).name,'audio','*RecOnly_param.txt'));
-    fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', DatesDir(dd).name,dd,NDates,ParamFile.name)
-    % Check that the file was not already treated
-    BatsID = ParamFile.name(1:4);
-    Date = ParamFile.name(6:11);
-    Time = ParamFile.name(13:16);
-    if ~isempty(DoneList)
-        Done = sum(contains(DoneList{1},BatsID) .* contains(DoneList{2},Date) .* contains(DoneList{3},Time));
-    else
-        Done=0;
-    end
-    if Done
-        fprintf(1, '   -> Data already processed\n')
-        continue
-    end
-    Filepath = fullfile(ParamFile.folder, ParamFile.name);
-    % check that the experiment has data!~
-    fid = fopen(Filepath);
-    data = textscan(fid,'%s','Delimiter', '\t');
-    fclose(fid);
-    
-    % FIND THE LINE of your data
-    IndexLine = find(contains(data{1}, 'Task stops at'));
-    if ~isempty(IndexLine)
-        IndexChar = strfind(data{1}{IndexLine},'after');
-        IndexChar2 = strfind(data{1}{IndexLine},'seconds');
-        
-        % find the data into that line
-        Temp = str2double(data{1}{IndexLine}((IndexChar + 6):(IndexChar2-2)));
-        if Temp<600
-            fprintf(1, '   -> Data too short\n')
+    Nsessions = length(ParamFile);
+    for nn=1:Nsessions
+        fprintf(1, '\n\n\n Date: %s, experiment %d/%d, session %d/%d\n%s\n', DatesDir(dd).name,dd,NDates,nn,Nsessions,ParamFile.name)
+        % Check that the file was not already treated
+        BatsID = ParamFile(nn).name(1:4);
+        Date = ParamFile(nn).name(6:11);
+        Time = ParamFile(nn).name(13:16);
+        if ~isempty(DoneList)
+            Done = sum(contains(DoneList{1},BatsID) .* contains(DoneList{2},Date) .* contains(DoneList{3},Time));
+        else
+            Done=0;
+        end
+        if Done
+            fprintf(1, '   -> Data already processed\n')
             continue
         end
+        Filepath = fullfile(ParamFile(nn).folder, ParamFile(nn).name);
+        % check that the experiment has data!~
+        fid = fopen(Filepath);
+        data = textscan(fid,'%s','Delimiter', '\t');
+        fclose(fid);
+    
+        % FIND THE LINE of your data
+        IndexLine = find(contains(data{1}, 'Task stops at'));
+        if ~isempty(IndexLine)
+            IndexChar = strfind(data{1}{IndexLine},'after');
+            IndexChar2 = strfind(data{1}{IndexLine},'seconds');
+        
+            % find the data into that line
+            Temp = str2double(data{1}{IndexLine}((IndexChar + 6):(IndexChar2-2)));
+            if Temp<600
+                fprintf(1, '   -> Data too short\n')
+                continue
+            end
+        end
+        ProcessedOK = result_reconly_Dbats(Filepath,Path2RecordingTable,TTLFolder);
+        Ind_ = strfind(ParamFile(nn).name, '_param');
+        fprintf(Fid, '%s\t%s\t%s\t%.1f\t%d\n',ParamFile(nn).name(1:4),ParamFile(nn).name(6:11),ParamFile(nn).name(13:16),Temp,ProcessedOK);
     end
-    ProcessedOK = result_reconly_Dbats(Filepath,Path2RecordingTable,TTLFolder);
-    Ind_ = strfind(ParamFile.name, '_param');
-    fprintf(Fid, '%s\t%s\t%s\t%.1f\t%d\n',ParamFile.name(1:4),ParamFile.name(6:11),ParamFile.name(13:16),Temp,ProcessedOK);
 end
 fclose(Fid);
 
