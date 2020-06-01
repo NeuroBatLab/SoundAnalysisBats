@@ -776,8 +776,7 @@ save(fullfile(Path2Results1, 'SoundEvent2.mat'),'BioSoundUniqParam', 'BioSoundPa
 %% Now loop through the detected elements and calculate/save spectro
 WorkingDirSpectro = '/Users/elie/Documents/GroundTruthWorkDir';
 mkdir(WorkingDirSpectro)
-load(fullfile(Path2Results1, 'SoundEvent.mat'))
-Buffer = 0;% time in ms to add before after each sound element such atht it's longer than the 23ms required for biosound to calculate fundamental and saliency parameters
+Buffer = 30;% time in ms to add before after each sound element such atht it's longer than the 23ms required for biosound to calculate fundamental and saliency parameters
 F_low = 100;
 F_highSpec = 15000;
 Flow = 500;
@@ -790,6 +789,11 @@ sos_band_piezo = zp2sos(z,p,k);
 
 
 FS_env = 1000; %Sampling Frequency of the envelope as calculated by piezo_find_calls_logger
+
+Path2Data1 = '/Volumes/Julie4T/JuvenileRecordings151/20190927/audiologgers';
+Path2Data2 = '/Volumes/Julie4T/JuvenileRecordings151/20190927/audio';
+Path2Results1 = '/Volumes/Julie4T/JuvenileRecordings151/20190927/audiologgers/GroundTruthResultsPipelineCheck';
+load(fullfile(Path2Results1, 'SoundEvent.mat'))
 AllLoggers = dir(fullfile(Path2Data1, '*ogger*'));
 DirFlags = [AllLoggers.isdir];
 % Extract only those that are directories.
@@ -800,11 +804,12 @@ NL = length(AllLoggers);
 %         'kurtosistime' 'AmpPeriodF' 'AmpPeriodP' 'rms' 'maxAmp' 'stdspect'...
 %         'meanspect' 'skewspect' 'entropyspect' 'kurtosisspect' 'q1' 'q2' 'q3'...
 %         'fund' 'cvfund' 'minfund' 'maxfund' 'meansal' '01correct'};
-% load(fullfile(Path2Results1,'190927_1014_VocExtractData.mat'),'Piezo_wave')
-load(fullfile(Path2Results1,'190603_1447_VocExtractData.mat'),'Piezo_wave')
+load(fullfile(Path2Results1,'190927_1014_VocExtractData.mat'),'Piezo_wave')
+% load(fullfile(Path2Results1,'190603_1447_VocExtractData.mat'),'Piezo_wave')
 AL_AutoId = fieldnames(SoundEvent_TranscTime_ms); % Names of the audioLoggers
 AL_ManId = fieldnames(Piezo_wave); % Names of the audioLoggers
 clear Piezo_wave
+SpectroFilename1 = cell(1,NLoggers);
 for ll=1:NLoggers
     ll_auto = contains(AL_AutoId, AL_ManId{ll});
     fprintf(1, '*** %s %d/%d ****\n',AL_ManId{ll}, ll, NLoggers)
@@ -830,6 +835,7 @@ for ll=1:NLoggers
     % Loop through sound events
     OldMicVoc_File = 0;
     TotEv = size(SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto})),1);
+    SpectroFilename1{ll} = cell(1,TotEv);
     for ee=1:TotEv
         if isnan(CorrectAutoDetection01{1}{ll_auto}(ee)) % only keep data for which we have groundtruth
             continue
@@ -862,11 +868,122 @@ for ll=1:NLoggers
         Sound_filtered = filtfilt(sos_band_piezo,1,Logger_Data);
 
         [to, fo, logB, ~] = spec_only_bats(Sound_filtered, FS_local, DBNOISE, F_highSpec, FBand);
+%         SpectroFilename{ll}{ee} = fullfile(WorkingDirSpectro,sprintf('20190603_%s_%d_%d.mat',AL_ManId{ll},ee,CorrectAutoDetection01{1}{ll_auto}(ee)));
+        SpectroFilename1{ll}{ee} = fullfile(WorkingDirSpectro,sprintf('20190927_%s_%d_%d.mat',AL_ManId{ll},ee,CorrectAutoDetection01{1}{ll_auto}(ee)));
 %         save(fullfile(WorkingDirSpectro,sprintf('20190927_%s_%d_%d.mat',AL_ManId{ll},ee,CorrectAutoDetection01{1}{ll_auto}(ee))), 'logB', 'to', 'fo')% CorrectAutoDetection01{1}{ll_auto}(ee) is the ground truth here
-        save(fullfile(WorkingDirSpectro,sprintf('20190603_%s_%d_%d.mat',AL_ManId{ll},ee,CorrectAutoDetection01{1}{ll_auto}(ee))), 'logB', 'to', 'fo')% CorrectAutoDetection01{1}{ll_auto}(ee) is the ground truth here
+        save(SpectroFilename1{ll}{ee}, 'logB', 'to', 'fo','Sound_filtered')% CorrectAutoDetection01{1}{ll_auto}(ee) is the ground truth here
     end
+    
 end
+SpectroFilename1 = [SpectroFilename1{:}];
+save(fullfile(WorkingDirSpectro, 'UMAPSpectro.mat'),'SpectroFilename1')
 
+
+Path2Results1 = '/Volumes/Julie4T/LMC_CoEd/logger/20190603/GroundTruthResultsRecOnly';
+Path2Data1 = '/Volumes/Julie4T/LMC_CoEd/logger/20190603';
+Path2Data2 = '/Volumes/Julie4T/LMC_CoEd/audio/20190603';
+load(fullfile(Path2Results1, 'SoundEvent.mat'))
+AllLoggers = dir(fullfile(Path2Data1, '*ogger*'));
+DirFlags = [AllLoggers.isdir];
+% Extract only those that are directories.
+AllLoggers = AllLoggers(DirFlags);
+NL = length(AllLoggers);
+
+% BioSoundParamNames = {'stdtime' 'meantime' 'skewtime' 'entropytime'...
+%         'kurtosistime' 'AmpPeriodF' 'AmpPeriodP' 'rms' 'maxAmp' 'stdspect'...
+%         'meanspect' 'skewspect' 'entropyspect' 'kurtosisspect' 'q1' 'q2' 'q3'...
+%         'fund' 'cvfund' 'minfund' 'maxfund' 'meansal' '01correct'};
+% load(fullfile(Path2Results1,'190927_1014_VocExtractData.mat'),'Piezo_wave')
+load(fullfile(Path2Results1,'190603_1447_VocExtractData.mat'),'Piezo_wave')
+AL_AutoId = fieldnames(SoundEvent_TranscTime_ms); % Names of the audioLoggers
+AL_ManId = fieldnames(Piezo_wave); % Names of the audioLoggers
+clear Piezo_wave
+SpectroFilename2 = cell(1,NLoggers);
+for ll=1:NLoggers
+    ll_auto = contains(AL_AutoId, AL_ManId{ll});
+    fprintf(1, '*** %s %d/%d ****\n',AL_ManId{ll}, ll, NLoggers)
+    % Load the raw signal
+    Data_directory = fullfile(AllLoggers(ll).folder,AL_ManId{ll}, 'extracted_data');
+    File = dir(fullfile(Data_directory, '*CSC0*'));
+    if isempty(File)
+        error('Data file not found');
+    end
+    Filepath = fullfile(File.folder, File.name);
+    DataL=load(Filepath, 'AD_count_int16', 'Indices_of_first_and_last_samples','Estimated_channelFS_Transceiver');
+    AD_count_double = double(DataL.AD_count_int16);
+    DataL.AD_count_int16 = [];
+    % Center the signal and clear the old data from memory
+    Centered_piezo_signal = AD_count_double - mean(AD_count_double);
+    AD_count_double=[];
+    
+    % convert transceiver time to audio samp files
+    Nevents = size(SoundEvent_TranscTime_ms.(sprintf(AL_AutoId{ll_auto})),1);
+    [MicVoc_samp_idx,MicVoc_File]=transc_time2micsamp(Path2Data2,SoundEvent_TranscTime_ms.(sprintf(AL_AutoId{ll_auto})));
+    
+    
+    % Loop through sound events
+    OldMicVoc_File = 0;
+    TotEv = size(SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto})),1);
+    SpectroFilename2{ll} = cell(1,TotEv);
+    for ee=1:TotEv
+        if isnan(CorrectAutoDetection01{1}{ll_auto}(ee)) % only keep data for which we have groundtruth
+            continue
+        end
+        if rem(ee,100)==0
+            fprintf(1, 'Event %d/%d\n', ee,TotEv)
+        end
+        
+        % find the sampling Frequency
+        OnInd1 = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,1);
+        OffInd1 = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,2);
+        FileIdx = find((DataL.Indices_of_first_and_last_samples(:,1)<OnInd1) .* (DataL.Indices_of_first_and_last_samples(:,2)>OffInd1));
+        if isempty(FileIdx) || (length(FileIdx)~=1) || FileIdx>length(DataL.Estimated_channelFS_Transceiver)
+            FS_local = round(nanmean(DataL.Estimated_channelFS_Transceiver));
+        else
+            FS_local = round(DataL.Estimated_channelFS_Transceiver(FileIdx));
+        end
+        
+        % extract the sound with Buffer ms before after the sound
+        OnInd_logger = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,1) - round(FS_local*Buffer*10^-3);
+        OffInd_logger = SoundEvent_LoggerSamp.(sprintf(AL_AutoId{ll_auto}))(ee,2) + round(FS_local*Buffer*10^-3);
+        if OnInd_logger<0
+            OffInd_logger = OffInd_logger-OnInd_logger;
+            OnInd_logger=1;
+        end
+        Logger_Data = Centered_piezo_signal(OnInd_logger : OffInd_logger);
+        Logger_Data = Logger_Data - mean(Logger_Data);
+        
+        % Spectrogram
+        Sound_filtered = filtfilt(sos_band_piezo,1,Logger_Data);
+
+        [to, fo, logB, ~] = spec_only_bats(Sound_filtered, FS_local, DBNOISE, F_highSpec, FBand);
+        SpectroFilename2{ll}{ee} = fullfile(WorkingDirSpectro,sprintf('20190603_%s_%d_%d.mat',AL_ManId{ll},ee,CorrectAutoDetection01{1}{ll_auto}(ee)));
+%         SpectroFilename{ll}{ee} = fullfile(WorkingDirSpectro,sprintf('20190927_%s_%d_%d.mat',AL_ManId{ll},ee,CorrectAutoDetection01{1}{ll_auto}(ee)));
+%         save(fullfile(WorkingDirSpectro,sprintf('20190927_%s_%d_%d.mat',AL_ManId{ll},ee,CorrectAutoDetection01{1}{ll_auto}(ee))), 'logB', 'to', 'fo')% CorrectAutoDetection01{1}{ll_auto}(ee) is the ground truth here
+        save(SpectroFilename2{ll}{ee}, 'logB', 'to', 'fo','Sound_filtered')% CorrectAutoDetection01{1}{ll_auto}(ee) is the ground truth here
+    end
+    
+end
+SpectroFilename2 = [SpectroFilename2{:}];
+SpectroFilename = [SpectroFilename1 SpectroFilename2];
+save(fullfile(WorkingDirSpectro, 'UMAPSpectro.mat'),'SpectroFilename2','SpectroFilename', '-append')
+
+
+
+%% Construct a matrix of dynamic time warping distance between sound events
+NTotEvents = length(SpectroFilename);
+DTWmat = nan(NTotEvents, NTotEvents);
+for ee1=1:NTotEvents
+    TempDTW = cell(1,NTotEvents-ee1);
+    Spectro1 = load(fullfile(SpectroFilename{ee1}), 'logB');
+    parfor ee2 = (ee1+1) : NTotEvents
+        Spectro2 = load(fullfile(SpectroFilename{ee2}), 'logB');
+        TempDTW{ee2} = dtw(Spectro1.logB, Spectro2.logB)
+    end
+    DTWmat(ee1,(ee1+1) : NTotEvents) = [TempDTW{:}];
+    DTWmat((ee1+1) : NTotEvents,ee1) = [TempDTW{:}];
+end
+save(fullfile(WorkingDirSpectro, 'UMAPSpectro.mat'),'DTWmat','-append')
 
 %% Draw some scatters of the parameters
 DatasetVoc = BioSoundUniqParam(:,21)==1;
@@ -1067,21 +1184,31 @@ save('/Users/elie/Documents/CODE/SoundAnalysisBats/SVMModelNoiseVoc.mat', 'Compa
 
 
 %% Test a UMAP projection on this dataset
-addpath /Users/elie/Documents/CODE/umap_1.4.1/umap
-addpath /Users/elie/Documents/CODE/umap_1.4.1/util
-javaaddpath('/Users/elie/Documents/CODE/umap_1.4.1/umap/umap.jar')
+addpath /Users/elie/Documents/CODE/umapDistribution/umap
+addpath /Users/elie/Documents/CODE/umapDistribution/util
+javaaddpath('/Users/elie/Documents/CODE/umapDistribution/umap/umap.jar')
 UsefulParams = [1:16 21];
 fprintf(1,'\n\n ***** Distance Euclidean *****\n')
 RandomSet = randperm(size(BioSoundUniqParam,1));
 TrainingSet = RandomSet(1:round(0.8*size(BioSoundUniqParam,1)));
 TestingSet = RandomSet((round(0.8*size(BioSoundUniqParam,1))+1) :end);
-[Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(TrainingSet,UsefulParams),'parameter_names',BioSoundParamNames(UsefulParams),'ask_to_save_template',true,'label_column',length(UsefulParams),'save_template_file',fullfile(Path2Results1,'UMAP_templateNoiseVoc.mat'), 'metric','euclidean');
+% [Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(TrainingSet,UsefulParams),'parameter_names',BioSoundParamNames(UsefulParams(1:(end-1))),'label_column',length(UsefulParams),'save_template_file',fullfile(Path2Results1,'UMAP_templateNoiseVoc.mat'), 'metric','euclidean','label_file', fullfile(Path2Results1,'NoiseCallLabels.properties.txt'), 'target_weight',0.6);
+[Reduction,UMAP]= run_umap(BioSoundUniqParam(TrainingSet,UsefulParams),'parameter_names',BioSoundParamNames(UsefulParams(1:(end-1))),'label_column',length(UsefulParams),'save_template_file',fullfile(Path2Results1,'UMAP_templateNoiseVoc.mat'), 'metric','euclidean', 'target_weight',0.6);
 figure()
-scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam(:,21) zeros(size(Reduction,1),2)],'filled')
+scatter(Reduction(:,1), Reduction(:,2),5,[BioSoundUniqParam(TrainingSet,21) zeros(size(Reduction,1),2)],'filled')
 title('Euclidean distance')
 
-[Reduction,UMAP,ClustID]= run_umap(BioSouwhondUniqParam(TestingSet,UsefulParams(1:end-1)),'parameter_names',BioSoundParamNames(UsefulParams),'label_column',length(UsefulParams),'template_file',fullfile(Path2Results1,'UMAP_templateNoiseVoc.mat'), 'metric','euclidean','match_supervisors',1,'qf_dissimilarity', true);
+[ReductionTest,UMAPTest, ClustIDTest]= run_umap(BioSoundUniqParam(TestingSet,UsefulParams(1:end-1)),'parameter_names',BioSoundParamNames(UsefulParams(1:(end-1))),'template_file',fullfile(Path2Results1,'UMAP_templateNoiseVoc.mat'), 'metric','euclidean','match_supervisors',1,'qf_tree',true,'qf_dissimilarity', true);
+figure()
+scatter(ReductionTest(:,1), ReductionTest(:,2),5,[BioSoundUniqParam(TestingSet,21) zeros(size(ReductionTest,1),2)],'filled')
+title('Euclidean distance')
 
+
+
+[Reduction,UMAP,ClustID]= run_umap(BioSoundUniqParam(TrainingSet,UsefulParams),'parameter_names',BioSoundParamNames(UsefulParams(1:(end-1))),'label_column',length(UsefulParams),'save_template_file',fullfile(Path2Results1,'UMAP_templateNoiseVoc.mat'), 'metric','euclidean','target_weight',0.6,'n_component',3);
+figure()
+scatter3(Reduction(:,1), Reduction(:,2),Reduction(:,3),5,[BioSoundUniqParam(TrainingSet,21) zeros(size(Reduction,1),2)],'filled')
+title('Euclidean distance')
 
 
 
