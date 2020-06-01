@@ -122,10 +122,15 @@ else
                 maxvv = Nvoc;
                 load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
             else % often problem of memory, we're going to chunck file loading
-                minvv = floor(vv/100)*100 +1;
-                maxvv = ceil(vv/100)*100;
-                if maxvv<minvv
-                    maxvv = ceil((vv+1)/100)*100;
+                if ~mod(vv,100)
+                    minvv=floor((vv-1)/100)*100 +1;
+                    maxvv=ceil(vv/100)*100;
+                else
+                    minvv = floor(vv/100)*100 +1;
+                    maxvv = ceil(vv/100)*100;
+                    if maxvv<minvv
+                        maxvv = ceil((vv+1)/100)*100;
+                    end
                 end
                 Raw_wave = Raw_wave(minvv:maxvv);
                 load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
@@ -208,11 +213,19 @@ else
             else
                 clear Raw_wave Piezo_wave
                 load(DataFile,'Raw_wave')
-                minvv = floor(vv/100)*100 +1;
-                maxvv = ceil((vv+1)/100)*100;
+                if ~mod(vv,100)
+                    minvv=floor((vv-1)/100)*100 +1;
+                    maxvv=ceil(vv/100)*100;
+                else
+                    minvv = floor(vv/100)*100 +1;
+                    maxvv = ceil(vv/100)*100;
+                    if maxvv<minvv
+                        maxvv = ceil((vv+1)/100)*100;
+                    end
+                end
                 Raw_wave = Raw_wave(minvv:maxvv);
                 load(DataFile,'Piezo_wave')
-                Raw_wave_nn = Raw_wave{vv - minvv -1};
+                Raw_wave_nn = Raw_wave{vv - (minvv -1)};
             end
                 
             if isempty(Raw_wave_nn)
