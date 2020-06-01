@@ -124,6 +124,9 @@ else
             else % often problem of memory, we're going to chunck file loading
                 minvv = floor(vv/100)*100 +1;
                 maxvv = ceil(vv/100)*100;
+                if maxvv<minvv
+                    maxvv = ceil((vv+1)/100)*100;
+                end
                 Raw_wave = Raw_wave(minvv:maxvv);
                 load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
             end
@@ -206,7 +209,7 @@ else
                 clear Raw_wave Piezo_wave
                 load(DataFile,'Raw_wave')
                 minvv = floor(vv/100)*100 +1;
-                maxvv = ceil(vv/100)*100;
+                maxvv = ceil((vv+1)/100)*100;
                 Raw_wave = Raw_wave(minvv:maxvv);
                 load(DataFile,'Piezo_wave')
                 Raw_wave_nn = Raw_wave{vv - minvv -1};
