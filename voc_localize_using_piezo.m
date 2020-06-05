@@ -124,7 +124,7 @@ if MicData
 end
     
     
-parfor ll=1:NL
+parfor ll=1:NL % parfor
     fprintf(1, '*** Sort Voc from Noise %s %d/%d ****\n',ALField_Id{ll}, ll, NL)
     % Load the raw signal
     Data_directory = fullfile(AllLoggers(ll).folder,AllLoggers(ll).name, 'extracted_data');
@@ -198,7 +198,7 @@ parfor ll=1:NL
         if MicData
             % Add parameters regarding the microphone data
             if OldMicVoc_File~=MVF(ee)
-                RawWavDir = dir(fullfile(RawWav_dir,sprintf('*RecOnly*mic1_%d.wav',MVF(ee))));
+                RawWavDir = dir(fullfile(RawWav_dir,sprintf('*%s_%s_RecOnly*mic1_%d.wav',Date, ExpStartTime,MVF(ee))));
                 [RawWav_mic, FS_mic] = audioread(fullfile(RawWavDir.folder, RawWavDir.name));
                 OldMicVoc_File = MVF(ee);
             end
@@ -211,7 +211,7 @@ parfor ll=1:NL
             if mic_stop>length(RawWav_mic) % this section is cut between 2 10 min recordings
                 mic_stop1 = length(RawWav_mic);
                 mic_stop2 = mic_stop - length(RawWav_mic);
-                RawWavDir2 = dir(fullfile(RawWav_dir,sprintf('*RecOnly*mic1_%d.wav',MVF(ee)+1)));
+                RawWavDir2 = dir(fullfile(RawWav_dir,sprintf('*%s_%s_RecOnly*mic1_%d.wav',Date,ExpStartTime,MVF(ee)+1)));
                 if ~isempty(RawWavDir2) 
                     [RawWav_local2, FS_mic] = audioread(fullfile(RawWavDir2.folder, RawWavDir2.name));
                     Mic_Sound = [RawWav_mic(mic_start:mic_stop1); RawWav_local2(1:mic_stop2)];
