@@ -33,7 +33,7 @@ for dd=1:NDates
     ParamFile = dir(fullfile(DatesDir(dd).folder, DatesDir(dd).name,'audio','*RecOnly_param.txt'));
     Nsessions = length(ParamFile);
     for nn=1:Nsessions
-        fprintf(1, '\n\n\n Date: %s, experiment %d/%d, session %d/%d\n%s\n', DatesDir(dd).name,dd,NDates,nn,Nsessions,ParamFile.name)
+        fprintf(1, '\n\n\n Date: %s, experiment %d/%d, session %d/%d\n%s\n', DatesDir(dd).name,dd,NDates,nn,Nsessions,ParamFile(nn).name)
         % Check that the file was not already treated
         BatsID = ParamFile(nn).name(1:4);
         Date = ParamFile(nn).name(6:11);
