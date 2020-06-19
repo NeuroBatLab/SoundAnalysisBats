@@ -27,7 +27,7 @@ end
 Working_dir_read = fullfile(Working_dir, 'read');
 Working_dir_write = fullfile(Working_dir, 'write');
 
-if ~strcmp(Loggers_dir,Working_dir) && ~exist(Working_dir,'dir')
+if ~strcmp(Loggers_dir,Working_dir) && (~exist(Working_dir,'dir') || ~exist(Working_dir_read,'dir') || ~exist(Working_dir_write,'dir'))
     mkdir(Working_dir)
     mkdir(Working_dir_read)
     mkdir(Working_dir_write)
