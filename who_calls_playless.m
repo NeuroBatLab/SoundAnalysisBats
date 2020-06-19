@@ -132,7 +132,7 @@ else
                         maxvv = ceil((vv+1)/100)*100;
                     end
                 end
-                Raw_wave = Raw_wave(minvv:maxvv);
+                Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
                 load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
             end
         end
@@ -223,7 +223,7 @@ else
                         maxvv = ceil((vv+1)/100)*100;
                     end
                 end
-                Raw_wave = Raw_wave(minvv:maxvv);
+                Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
                 load(DataFile,'Piezo_wave')
                 Raw_wave_nn = Raw_wave{vv - (minvv -1)};
             end
