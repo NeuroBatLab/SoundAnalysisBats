@@ -330,7 +330,7 @@ else
                     pause(0.1)
                 elseif (ManCall~=1) && (ManCall~=0)
                     FieldLog = sprintf('Logger%d',ManCall);
-                    ll = find(contains(Fns_AL,FieldLog));
+                    ll = find(strcmp(FieldLog, Fns_AL));
                     if isempty(ll)
                         warning('Invalid Logger number, Logger %d does not exist',ManCall)
                     else
