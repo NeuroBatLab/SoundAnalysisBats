@@ -23,6 +23,14 @@ switch expType
         T = readtable([dataDir 'documents\recording_logs.csv']);
         dateIdx = T.Date==expDate & strcmp(T.Session,sessionType);
         T = T(dateIdx,:);
+    case 'adult_social'
+        dataDir = 'Y:\users\maimon\adult_social_recording\';
+        logger_base_dir = dataDir;
+        audio_base_dir = dataDir;
+        audio_dir_str = ['audio\' sessionType '\ch1\'];
+        T = readtable(fullfile(dataDir,'documents\recording_logs.csv'));
+        dateIdx = T.Date==expDate & strcmp(T.Session,sessionType);
+        T = T(dateIdx,:);
     case 'operant_adult_recording'
         dataDir = 'Y:\users\maimon\adult_operant_recording\';
         logger_base_dir = dataDir;
