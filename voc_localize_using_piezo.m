@@ -140,7 +140,7 @@ parfor ll=1:NL % parfor
     
     if MicData
         % convert transceiver time to audio samp files
-        [MVSI,MVF]=transc_time2micsamp(RawWav_dir,SoundEvent_TranscTime_ms{ll});
+        [MVSI,MVF]=transc_time2micsamp(RawWav_dir,Date, ExpStartTime,SoundEvent_TranscTime_ms{ll});
         OldMicVoc_File = 0;
     end
     % Loop through sound events
@@ -386,7 +386,7 @@ if MicData
     fprintf(1,'Extracting vocalization sequences from microphone and save\n')
     
     % convert transceiver time to audio samp files
-    [MicVoc_samp_idx,MicVoc_File]=transc_time2micsamp(RawWav_dir,Voc_transc_time);
+    [MicVoc_samp_idx,MicVoc_File]=transc_time2micsamp(RawWav_dir, Date, ExpStartTime,Voc_transc_time);
     MeanStdAmpRawExtract = MeanStdAmpRawFile(MicVoc_File,:);
     
     for ee=1:TotEvents_merged
@@ -498,11 +498,7 @@ end
 
 %% INTERNAL FUNCTION
 
-function [MicVoc_samp_idx,MicVoc_File]=transc_time2micsamp(RawWav_dir,OnOffTranscTime_ms)
-AllFiles = dir(fullfile(RawWav_dir, '*RecOnly*.wav'));
-% find the date and expstart time
-Date = AllFiles(1).name(6:11);
-ExpStartTime = AllFiles(1).name(13:16);
+function [MicVoc_samp_idx,MicVoc_File]=transc_time2micsamp(RawWav_dir,Date, ExpStartTime,OnOffTranscTime_ms)
 TTL_dir = dir(fullfile(RawWav_dir,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
 TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
 

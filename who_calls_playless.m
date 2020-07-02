@@ -27,7 +27,7 @@ end
 Working_dir_read = fullfile(Working_dir, 'read');
 Working_dir_write = fullfile(Working_dir, 'write');
 
-if ~strcmp(Loggers_dir,Working_dir) && ~exist(Working_dir,'dir')
+if ~strcmp(Loggers_dir,Working_dir) && (~exist(Working_dir,'dir') || ~exist(Working_dir_read,'dir') || ~exist(Working_dir_write,'dir'))
     mkdir(Working_dir)
     mkdir(Working_dir_read)
     mkdir(Working_dir_write)
@@ -132,7 +132,7 @@ else
                         maxvv = ceil((vv+1)/100)*100;
                     end
                 end
-                Raw_wave = Raw_wave(minvv:maxvv);
+                Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
                 load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
             end
         end
@@ -223,7 +223,7 @@ else
                         maxvv = ceil((vv+1)/100)*100;
                     end
                 end
-                Raw_wave = Raw_wave(minvv:maxvv);
+                Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
                 load(DataFile,'Piezo_wave')
                 Raw_wave_nn = Raw_wave{vv - (minvv -1)};
             end
@@ -330,7 +330,7 @@ else
                     pause(0.1)
                 elseif (ManCall~=1) && (ManCall~=0)
                     FieldLog = sprintf('Logger%d',ManCall);
-                    ll = find(contains(Fns_AL,FieldLog));
+                    ll = find(strcmp(FieldLog, Fns_AL));
                     if isempty(ll)
                         warning('Invalid Logger number, Logger %d does not exist',ManCall)
                     else
