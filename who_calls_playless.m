@@ -356,7 +356,7 @@ else
                     if isempty(ll)
                         warning('Invalid Logger number, Logger %d does not exist',ManCall)
                     else
-                        Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                        Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-nanmean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*nanstd(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                         play(Player)
                         pause(length(Raw_wave_nn)/FS +1)
                     end
@@ -863,7 +863,7 @@ else
                         
                             if ManCall
                                 fprintf(1,'\nSound event detected on %s.',Fns_AL{ll})
-                                Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                                Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-nanmean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*nanstd(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                 play(Player)
                                 pause(length(Raw_wave_nn)/FS +1)
                                 ManCall_logger=input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
@@ -973,7 +973,7 @@ else
                                             Call1Hear0_man(ii)=2;
                                         end
                                         while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
-                                            Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*std(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                                            Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-nanmean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*nanstd(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                             play(Player)
                                             pause(length(Raw_wave_nn)/FS +1)
                                             Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    listen again to that logger recording (any other number)\n');
