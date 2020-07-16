@@ -262,6 +262,11 @@ else
                 play(PlayerMic)
                 pause(length(Raw_wave_nn)/FS +1)
             end
+            %% Loop through the loggers and check the extracts length
+            LengthLoggersData = nan(length(AudioLogs),1);
+            for ll=1:length(AudioLogs)
+                LengthLoggersData(ll) = length(Piezo_wave.(Fns_AL{ll}){vv});
+            end
             %% Loop through the loggers and calculate envelopes
             for ll=1:length(AudioLogs)
                 if isnan(Piezo_FS.(Fns_AL{ll})(vv)) || isempty(Piezo_wave.(Fns_AL{ll}){vv})
@@ -274,15 +279,24 @@ else
                     sos_high = zp2sos(z,p,k);
                     % filter the loggers' signals
                     if sum(isnan(Piezo_wave.(Fns_AL{ll}){vv}))~=length(Piezo_wave.(Fns_AL{ll}){vv})
-                        % replace NaN by zeros so the filter can work
-                        if sum(isnan(Piezo_wave.(Fns_AL{ll}){vv}))
-                            InputPiezo = Piezo_wave.(Fns_AL{ll}){vv};
+                        % replace NaN by zeros so the filter can work and
+                        % check the length of extracts
+                        InputPiezo = Piezo_wave.(Fns_AL{ll}){vv};
+                        if sum(isnan(InputPiezo))
                             InputPiezo(isnan(InputPiezo))=0;
+                            if length(InputPiezo)>min(LengthLoggersData)
+                                warning('Piezo data have different durations!\n Logger %s data is truncated for analysis\n',Fns_AL{ll})
+                                InputPiezo = InputPiezo(1:min(LengthLoggersData));
+                            end
                             LowPassLogVoc{ll} = (filtfilt(sos_low,1,InputPiezo)); % low-pass filter the voltage trace
                             HighPassLogVoc = (filtfilt(sos_high,1,InputPiezo)); % high-pass filter the voltage trace
                         else
-                            LowPassLogVoc{ll} = (filtfilt(sos_low,1,Piezo_wave.(Fns_AL{ll}){vv})); % low-pass filter the voltage trace
-                            HighPassLogVoc = (filtfilt(sos_high,1,Piezo_wave.(Fns_AL{ll}){vv})); % high-pass filter the voltage trace
+                            if length(InputPiezo)>min(LengthLoggersData)
+                                warning('Piezo data have different durations!\n Logger %s data is truncated for analysis\n',Fns_AL{ll})
+                                InputPiezo = InputPiezo(1:min(LengthLoggersData));
+                            end
+                            LowPassLogVoc{ll} = (filtfilt(sos_low,1,InputPiezo)); % low-pass filter the voltage trace
+                            HighPassLogVoc = (filtfilt(sos_high,1,InputPiezo)); % high-pass filter the voltage trace
                         end
                         Amp_env_LowPassLogVoc{ll}=running_rms(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
                         Amp_env_HighPassLogVoc{ll}=running_rms(HighPassLogVoc, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
