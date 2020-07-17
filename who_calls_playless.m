@@ -47,7 +47,7 @@ else
             Gdf(df)=1;
         end
     end
-    DataFiles = DataFiles(logical(Gdf));
+    DataFiles = DataFiles(logical(Gdf)); %%% REORDER FILES IN CHRONOLOGICAL ORDER!!!
     load(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'MeanStdAmpRawExtract','Voc_filename')
     Nvoc_all = length(Voc_filename);
     DataFile = fullfile(DataFiles(1).folder, DataFiles(1).name);
