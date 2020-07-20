@@ -71,15 +71,37 @@ else
     AL_info = [];
 end
 AL_idx = contains(T.Properties.VariableNames,'AL');
+bat_num_idx = contains(T.Properties.VariableNames,'Bat_');
 logger_nums = T{1,AL_idx};
+batNums = T{1,bat_num_idx};
 
 logger_nums = logger_nums(~isnan(logger_nums));
+nLogger = length(logger_nums);
 % logger_nums = setdiff(logger_nums,cast(T.malfunction_loggers{:},'double'));
 
 logger_dir = fullfile(logger_base_dir,dateStr,'audiologgers');
-for logger_k = 1:length(logger_nums)
+missing_loggers = false(1,nLogger);
+for logger_k = 1:nLogger
     data_fname = dir(fullfile(logger_dir, ['logger' num2str(logger_nums(logger_k))],'extracted_data','*CSC0.mat'));
-    tsData(logger_k) = load(fullfile(data_fname.folder,data_fname.name));
+    if ~isempty(data_fname)
+        tsData(logger_k) = load(fullfile(data_fname.folder,data_fname.name));
+    else
+        missing_loggers(logger_k) = true;
+        fprintf('Could not find data for logger #%d\n',logger_nums(logger_k));
+    end
+end
+
+if any(missing_loggers)
+   fieldNames = fieldnames(tsData);
+   empty_ts_data_struct = cell(length(fieldNames),1);
+   empty_ts_data_struct = cell2struct(empty_ts_data_struct,fieldNames);
+   for logger_k = find(missing_loggers)
+       tsData(logger_k) = empty_ts_data_struct;
+       tsData(logger_k).logger_serial_number = num2str(logger_nums(logger_k));
+       tsData(logger_k).Bat_id = num2str(batNums(logger_k));
+       tsData(logger_k).Indices_of_first_and_last_samples = zeros(0,2);
+       tsData(logger_k).logger_type = 'Audi';
+   end
 end
 
 end
