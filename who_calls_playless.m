@@ -4,7 +4,7 @@ function [IndVocStartRaw_merged, IndVocStopRaw_merged, IndVocStartPiezo_merge_lo
 % band-pass filtered baseline signal is multiplied to obtained the
 % threshold of vocalization detection on Microphone
 VolDenominatorLogger=5;
-VolFactorMic=3;
+VolFactorMic=0.5;
 pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic','SaveFileType'};
 dflts  = {3,Loggers_dir,0,'pdf'};
 [Factor_RMS_Mic,Working_dir,Force_Save_onoffsets_mic,SaveFileType] = internal.stats.parseArgs(pnames,dflts,varargin{:});
@@ -160,6 +160,16 @@ else
             sos_raw_band = zp2sos(z,p,k);
             % [z,p,k] = butter(6,BandPassFilter(1:2)/(FS/2),'bandpass');
             % sos_raw_low = zp2sos(z,p,k);
+            [z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
+            sos_raw_band_listen = zp2sos(z,p,k);
+        end
+        
+        
+        if df==1 || ~exist('sos_raw_band_listen', 'var')
+            % design filters of raw ambient recording, bandpass, for
+            % listening 
+            [z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
+            sos_raw_band_listen = zp2sos(z,p,k);
         end
         
         % Initialize variables
@@ -202,7 +212,7 @@ else
         
         %% Loop through vocalizations sequences and calculate amplitude envelopes
         for vv=vv:Nvoc
-            fprintf(1,'\n\n\n\nVoc sequence %d/%d\n',vv,Nvoc);
+            fprintf(1,'\n\n\n\nVoc sequence %d/%d Set %d/%d\n',vv,Nvoc, df, length(DataFiles));
             %% First calculate the time varying RMS of the ambient microphone
             Amp_env_LowPassLogVoc = cell(length(AudioLogs),1);
             Amp_env_HighPassLogVoc = cell(length(AudioLogs),1);
@@ -252,13 +262,15 @@ else
             yyaxis right
             plot((1:length(Amp_env_Mic))/Fs_env*1000, Amp_env_Mic, 'r-', 'LineWidth',2)
             ylabel(sprintf('Amp\nMic'))
-            title(sprintf('Voc %d/%d Set %d',vv,Nvoc, df))
+            title(sprintf('Voc %d/%d Set %d/%d',vv,Nvoc, df,length(DataFiles)))
             xlabel(' ')
             set(gca, 'XTick',[],'XTickLabel',{})
         
             if Manual
                 pause(0.1)
-                PlayerMic= audioplayer((Raw_wave_nn - mean(Raw_wave_nn))/(std(Raw_wave_nn)/VolFactorMic), FS); %#ok<TNMLP>
+                Raw_listen = filtfilt(sos_raw_band_listen,1,Raw_wave_nn);
+                SampleMic = resample((Raw_listen - mean(Raw_listen))/(std(Raw_listen)/VolFactorMic),FS/4,FS);
+                PlayerMic= audioplayer(SampleMic, FS/4,24); %#ok<TNMLP>
                 play(PlayerMic)
                 pause(length(Raw_wave_nn)/FS +1)
             end
@@ -454,7 +466,7 @@ else
                             v_axis(4)=FHigh_spec;
                             axis(v_axis);                                
                             xlabel('time (ms)'), ylabel('Frequency');
-                            title(sprintf('Ambient Microphone Voc %d/%d Set %d',vv,Nvoc,df))
+                            title(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc,df,length(DataFiles)))
                             yyaxis right
                             %                                 ylabel('Logger ID')
                             %                                 set(gca, 'YTick', 1:RowSize, 'YTickLabel', [Fns_AL; 'Mic'], 'YLim', [0 (length(AudioLogs)+2)],'YDir', 'reverse')
@@ -727,7 +739,7 @@ else
                                 v_axis(4)=FHigh_spec;
                                 axis(v_axis);
                                 xlabel('time (ms)'), ylabel('Frequency');
-                                title(sprintf('Ambient Microphone Voc %d/%d Set %d',vv,Nvoc, df))
+                                title(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc, df,length(DataFiles)))
                                 yyaxis right
                                 %                                 ylabel('Logger ID')
                                 %                                 set(gca, 'YTick', 1:ll, 'YTickLabel', [Fns_AL; 'Mic'], 'YLim', [0 (length(AudioLogs)+2)],'YDir', 'reverse')
@@ -772,7 +784,9 @@ else
                                         NewCall1OldCall0_man(ii)=2;
                                     end
                                     while NewCall1OldCall0_man(ii)~=0 && NewCall1OldCall0_man(ii)~=1
-                                        PlayerMic= audioplayer((Raw_wave_nn - mean(Raw_wave_nn))/(std(Raw_wave_nn)/VolFactorMic), FS); %#ok<TNMLP>
+                                        Raw_listen = filtfilt(sos_raw_band_listen,1,Raw_wave_nn);
+                                        SampleMic = resample((Raw_listen - mean(Raw_listen))/(std(Raw_listen)/VolFactorMic),FS/4,FS);
+                                        PlayerMic= audioplayer(SampleMic, FS/4,24); %#ok<TNMLP>
                                         play(PlayerMic)
                                         pause(length(Raw_wave_nn)/FS +1)
                                         NewCall1OldCall0_man(ii) = input('Indicate your choice: new call on Mic (1);    already known/noise (0);    listen to mic again(any other number)\n');
@@ -920,7 +934,7 @@ else
                                     v_axis(4)=FHigh_spec;
                                     axis(v_axis);
                                     xlabel('time (ms)'), ylabel('Frequency');
-                                    title(sprintf('Ambient Microphone Voc %d/%d Set %d',vv,Nvoc,df))
+                                    title(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc,df,length(DataFiles)))
                                     yyaxis right
                                     %                                 ylabel('Logger ID')
                                     %                                 set(gca, 'YTick', 1:ll, 'YTickLabel', Fns_AL, 'YLim', [0 (length(AudioLogs)+1)],'YDir', 'reverse')
