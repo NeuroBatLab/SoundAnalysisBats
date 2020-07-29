@@ -47,7 +47,16 @@ else
             Gdf(df)=1;
         end
     end
-    DataFiles = DataFiles(logical(Gdf)); %%% REORDER FILES IN CHRONOLOGICAL ORDER!!!
+    DataFiles = DataFiles(logical(Gdf));
+    % gather File indices to reorder them
+    IndDataFiles = nan(length(DataFiles),1);
+    for nfile = 1:length(DataFiles)
+        IndData = strfind(DataFiles(nfile).name, 'Data') + length('Data');
+        IndDot = strfind(DataFiles(nfile).name, '.') - 1;
+        IndDataFiles(nfile) = str2double(DataFiles(nfile).name(IndData:IndDot));
+    end
+    [~,AscendOrd] = sort(IndDataFiles);
+    DataFiles = DataFiles(AscendOrd);
     load(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'MeanStdAmpRawExtract','Voc_filename')
     Nvoc_all = length(Voc_filename);
     DataFile = fullfile(DataFiles(1).folder, DataFiles(1).name);
@@ -344,6 +353,7 @@ else
             %% Now find onset/offset on microphone recording if there is no logger data
             ManCall=2;
             while (ManCall~=1) && (ManCall~=0)
+                commandwindow
                 ManCall = input('Did you hear vocalizations? yes (1) No (0) Play microphone and loggers (2) Play microphone (100) Play logger #x (x)');
                 if isempty(ManCall)
                     ManCall=2;
