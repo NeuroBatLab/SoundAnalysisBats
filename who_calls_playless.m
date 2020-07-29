@@ -509,6 +509,7 @@ else
                             if ManCall
                                 TempIn = input('Indicate your choice: new call (1);    noise (0);    listen again to mic(any other number)\n');
                                 if isempty(TempIn)
+                                    fprintf(1, 'NO ENTRY GIVEN, playing again the sound and asking the same question\n')
                                     NewCall1Noise0_man(ii) = 2;
                                 else
                                     NewCall1Noise0_man(ii) = TempIn;
@@ -518,6 +519,7 @@ else
                                     pause(length(Raw_wave_nn)/FS +1)
                                     TempIn = input('Indicate your choice: new call (1);    noise (0);    listen again to mic(any other number)\n');
                                     if isempty(TempIn)
+                                        fprintf(1, 'NO ENTRY GIVEN, playing again the sound and asking the same question\n')
                                         NewCall1Noise0_man(ii) = 2;
                                     else
                                         NewCall1Noise0_man(ii) = TempIn;
@@ -795,6 +797,7 @@ else
                                 if ManCall
                                     TempIn = input('Indicate your choice: new call on Mic (1);    already known/noise (0);    listen to Mic again(any other number)\n');
                                     if isempty(TempIn)
+                                        fprintf(1, 'NO ENTRY GIVEN, playing again the sound and asking the same question\n')
                                         NewCall1OldCall0_man(ii)=2;
                                     else
                                         NewCall1OldCall0_man(ii) = TempIn;
@@ -807,6 +810,7 @@ else
                                         pause(length(Raw_wave_nn)/FS +1)
                                         TempIn = input('Indicate your choice: new call on Mic (1);    already known/noise (0);    listen to mic again(any other number)\n');
                                         if isempty(TempIn)
+                                            fprintf(1, 'NO ENTRY GIVEN, playing again the sound and asking the same question\n')
                                             NewCall1OldCall0_man(ii)=2;
                                         else
                                             NewCall1OldCall0_man(ii) = TempIn;
@@ -1014,6 +1018,7 @@ else
                                             pause(length(Raw_wave_nn)/FS +1)
                                             TempIn = input('Indicate your choice: calling (1);    hearing/noise (0);    listen again to that logger recording (any other number)\n');
                                             if isempty(TempIn)
+                                                fprintf(1, 'NO ENTRY GIVEN, playing again the sound and asking the same question\n')
                                                 Call1Hear0_man(ii)=2;
                                             else
                                                 Call1Hear0_man(ii) = TempIn;
