@@ -507,16 +507,20 @@ else
 
                             fprintf(1,'Computer guess for that sound element: New call on Mic\n');
                             if ManCall
-                                NewCall1Noise0_man(ii) = input('Indicate your choice: new call (1);    noise (0);    listen again to mic(any other number)\n');
-                                if isempty(NewCall1Noise0_man(ii))
+                                TempIn = input('Indicate your choice: new call (1);    noise (0);    listen again to mic(any other number)\n');
+                                if isempty(TempIn)
                                     NewCall1Noise0_man(ii) = 2;
+                                else
+                                    NewCall1Noise0_man(ii) = TempIn;
                                 end
                                 while NewCallNoise0_man(ii)~=0 && NewCallNoise0_man(ii)~=1
                                     play(PlayerMic)
                                     pause(length(Raw_wave_nn)/FS +1)
-                                    NewCall1Noise0_man(ii) = input('Indicate your choice: new call (1);    noise (0);    listen again to mic(any other number)\n');
-                                    if isempty(NewCall1Noise0_man(ii))
+                                    TempIn = input('Indicate your choice: new call (1);    noise (0);    listen again to mic(any other number)\n');
+                                    if isempty(TempIn)
                                         NewCall1Noise0_man(ii) = 2;
+                                    else
+                                        NewCall1Noise0_man(ii) = TempIn;
                                     end
                                 end
                             else
@@ -789,9 +793,11 @@ else
                                     fprintf(1,'\nComputer guess for that sound element: Call already attributed\n');
                                 end
                                 if ManCall
-                                    NewCall1OldCall0_man(ii) = input('Indicate your choice: new call on Mic (1);    already known/noise (0);    listen to Mic again(any other number)\n');
-                                    if isempty(NewCall1OldCall0_man(ii))
+                                    TempIn = input('Indicate your choice: new call on Mic (1);    already known/noise (0);    listen to Mic again(any other number)\n');
+                                    if isempty(TempIn)
                                         NewCall1OldCall0_man(ii)=2;
+                                    else
+                                        NewCall1OldCall0_man(ii) = TempIn;
                                     end
                                     while NewCall1OldCall0_man(ii)~=0 && NewCall1OldCall0_man(ii)~=1
                                         Raw_listen = filtfilt(sos_raw_band_listen,1,Raw_wave_nn);
@@ -799,9 +805,11 @@ else
                                         PlayerMic= audioplayer(SampleMic, FS/4,24); %#ok<TNMLP>
                                         play(PlayerMic)
                                         pause(length(Raw_wave_nn)/FS +1)
-                                        NewCall1OldCall0_man(ii) = input('Indicate your choice: new call on Mic (1);    already known/noise (0);    listen to mic again(any other number)\n');
-                                        if isempty(NewCall1OldCall0_man(ii))
+                                        TempIn = input('Indicate your choice: new call on Mic (1);    already known/noise (0);    listen to mic again(any other number)\n');
+                                        if isempty(TempIn)
                                             NewCall1OldCall0_man(ii)=2;
+                                        else
+                                            NewCall1OldCall0_man(ii) = TempIn;
                                         end
                                     end
                                 else
@@ -992,17 +1000,23 @@ else
                                         fprintf('Computer guess for that sound element: %s hearing/noise\n',Fns_AL{ll});
                                     end
                                     if ManCall &&  ManCall_logger
-                                        Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    Listen again to that logger recording (any other number)\n');
-                                        if isempty(Call1Hear0_man(ii))
+                                        TempIn = input('Indicate your choice: calling (1);    hearing/noise (0);    Listen again to that logger recording (any other number)\n');
+                                         
+                                        if isempty(TempIn)
+                                            fprintf(1, 'NO ENTRY GIVEN, playing again the sound and asking the same question\n')
                                             Call1Hear0_man(ii)=2;
+                                        else
+                                            Call1Hear0_man(ii) = TempIn;
                                         end
                                         while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
                                             Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-nanmean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*nanstd(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                             play(Player)
                                             pause(length(Raw_wave_nn)/FS +1)
-                                            Call1Hear0_man(ii) = input('Indicate your choice: calling (1);    hearing/noise (0);    listen again to that logger recording (any other number)\n');
-                                            if isempty(Call1Hear0_man(ii))
+                                            TempIn = input('Indicate your choice: calling (1);    hearing/noise (0);    listen again to that logger recording (any other number)\n');
+                                            if isempty(TempIn)
                                                 Call1Hear0_man(ii)=2;
+                                            else
+                                                Call1Hear0_man(ii) = TempIn;
                                             end
                                         end
                                     else
