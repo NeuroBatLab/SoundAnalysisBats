@@ -51,7 +51,6 @@ else
     for df=1:sum(Gdf)
         % bringing the file back on the local computer (we're going to write
         % pretty often to it)
-        
         Data1 = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData%d.mat', Date, ExpStartTime, df)));
         if isempty(Data1)
             Data1 = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData.mat', Date, ExpStartTime)));
@@ -60,9 +59,10 @@ else
         if isempty(DataFile) % who calls was the earlier format
             DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_*.mat', Date, ExpStartTime)));
         end
+        fprintf(1,'Set %d/%d\nwith file %s and %s', df, sum(Gdf), Data1.name, DataFile.name)
         if TransferLocal
             WorkDir = ['~' filesep 'WorkingDirectoryWhat'];
-            fprintf(1,'Transferring data from the server %s\n on the local computer %s\n', DataFile(df).folder, WorkDir);
+            fprintf(1,'Transferring data from the server %s\n on the local computer %s\n', DataFile.folder, WorkDir);
             if ~exist('WorkDir','dir')
                 mkdir(WorkDir)
             end
@@ -193,8 +193,9 @@ else
                             else
                                 plotBiosound(BioSoundCalls{NVocFile,1}, F_high_Raw)
                             end
-                            subplot(2,1,1)
-                            title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
+                            hold on
+                            suplabel(sprintf('%d/%d Vocalization',NVocFile,VocCall),'t');
+                            hold off
                             % Play the sound
                             if ManualPause
                                 AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS); %#ok<TNMLP,UNRCH>
@@ -207,7 +208,8 @@ else
                         % correspond to the data
                         IndOn = IndVocStartPiezo_merged{VocInd(vv)}{ll}(nn);
                         IndOff = min(IndVocStopPiezo_merged{VocInd(vv)}{ll}(nn), length(Piezo_wave.(Fns_AL{ll}){VocInd(vv)}));
-                        if IndOn>=IndOff || ((IndOff-IndOn)/FS)<0.01 % sound too short to be a call
+                        FSpiezo = round(Piezo_FS.(Fns_AL{ll})(VocInd(vv)));
+                        if IndOn>=IndOff || ((IndOff-IndOn)/FSpiezo)<0.01 % sound too short to be a call
 %                             keyboard
                             warning('Miss-allignement between Microphone and piezo, skip this one for Piezo data\n')
                         else
@@ -218,7 +220,6 @@ else
                             end
                             FiltWL = filtfilt(sos_band_piezo,1,WL);
                             BioSoundFilenames{NVocFile,2} =fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Piezo.wav',FileVoc,BatID_local,ALNum,nn));
-                            FSpiezo = round(Piezo_FS.(Fns_AL{ll})(VocInd(vv)));
                             audiowrite(BioSoundFilenames{NVocFile,2},WL,FSpiezo);
                             if SaveBiosoundperFile
                                 BioSoundCall = runBiosound(FiltWL, FSpiezo, F_high_Piezo);
@@ -235,8 +236,9 @@ else
                             else
                                 plotBiosound(BioSoundCalls{NVocFile,2}, F_high_Piezo,0)
                             end
-                            subplot(2,1,1)
-                            title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
+                            hold on
+                            suplabel(sprintf('%d/%d Vocalization',NVocFile,VocCall), 't');
+                            hold off
                             % Play the sound
                             if ManualPause
                                 AP=audioplayer(WL,FSpiezo); %#ok<TNMLP,UNRCH>
@@ -293,6 +295,8 @@ else
             end
             
         end
+        
+        clear BioSoundCalls
    
         % Turn off warning notifications for python 2 struct conversion
         warning('on', 'MATLAB:structOnObject')
