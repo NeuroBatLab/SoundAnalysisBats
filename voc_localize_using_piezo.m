@@ -306,8 +306,8 @@ if length(FirstEvents2Merge)~=length(LastEvents2Merge)
     keyboard
 end
 Voc_transc_time = [Voc_transc_time_unmerged(Events2keep,:) ; [Voc_transc_time_unmerged(FirstEvents2Merge,1) Voc_transc_time_unmerged(LastEvents2Merge,2)]];
-Voc_loggerSamp_Idx = [Voc_loggerSamp_Idx_unmerged(Events2keep,:) ; [Voc_loggerSamp_Idx_unmerged(FirstEvents2Merge,1) Voc_loggerSamp_Idx_unmerged(LastEvents2Merge,2)]];
-LoggerID = [LoggerID_unmerged(Events2keep) ; LoggerID_unmerged(FirstEvents2Merge)];
+Voc_loggerSamp_Idx = [Voc_loggerSamp_Idx_unmerged(Events2keep,:) ; [Voc_loggerSamp_Idx_unmerged(FirstEvents2Merge,1) Voc_loggerSamp_Idx_unmerged(LastEvents2Merge,2)]]; % After merging, most of these numbers do not make sense anymoire because they refer to different loggers, only the onset does
+LoggerID = [LoggerID_unmerged(Events2keep) ; LoggerID_unmerged(FirstEvents2Merge)];% After merging, the ID of the logger is only true for the onset
 FS_logger_voc = [FS_logger_voc_unmerged(Events2keep) ; FS_logger_voc_unmerged(FirstEvents2Merge)];
 
 
@@ -501,6 +501,7 @@ end
 function [MicVoc_samp_idx,MicVoc_File]=transc_time2micsamp(RawWav_dir,Date, ExpStartTime,OnOffTranscTime_ms)
 TTL_dir = dir(fullfile(RawWav_dir,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
 TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
+FileNum_u = unique(TTL.File_number);
 
 % loop through data
 Nevents = size(OnOffTranscTime_ms,1);
@@ -515,8 +516,9 @@ for ff=1:Nevents
         FileNumIdx = find(TTL.Pulse_TimeStamp_Transc>OnOffTranscTime_ms(ff,1),1,'First');
     end
     MicVoc_File(ff) = TTL.File_number(FileNumIdx);
-    TranscTime_zs = (OnOffTranscTime_ms(ff,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(MicVoc_File(ff),1))/TTL.Mean_std_Pulse_TimeStamp_Transc(MicVoc_File(ff),2);
-    MicVoc_samp_idx(ff,:) =TTL.Mean_std_Pulse_samp_audio(MicVoc_File(ff),2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{MicVoc_File(ff)},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{MicVoc_File(ff)}) + TTL.Mean_std_Pulse_samp_audio(MicVoc_File(ff),1);
+    IndFileNum = find(FileNum_u == MicVoc_File(ff));
+    TranscTime_zs = (OnOffTranscTime_ms(ff,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
+    MicVoc_samp_idx(ff,:) =TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1);
 end
 end
 
