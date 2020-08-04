@@ -68,6 +68,11 @@ if MicData
     % Load the pulse times and samples
     TTL_dir = dir(fullfile(RawWav_dir,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
     TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
+    
+    % check the number of files
+    WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*.wav',Date, ExpStartTime)));
+    NRawWave = length(WavFileStruc_local);
+    
 end
 
 %% Run the automatic detection
@@ -207,13 +212,46 @@ parfor ll=1:NL % parfor
             if mic_start<0 || mic_stop<0% call occur before microphone started recording
                 continue
             end
-        
+            
+            if length(RawWav_mic)>mic_start
+                % all ggod to go check mic_stop below
+            elseif MVF(ee)==NRawWave
+                % This event happened after the offset of microphone, discard
+                fprintf(1, 'This call occured after microphone offset\n')
+                continue
+            else% there was an error in the estimation of the file index, this call occured in the next file
+                fprintf(1, 'This call occured in next file\n')
+                MVF(ee) = MVF(ee)+1;
+                
+                % Calculate the Samples of the extract in the microphone recording
+                TTL_idx = find(unique(TTL.File_number) == MVF(ee));
+                if isempty(TTL_idx) % There was an error with that TTL file, no allignment possible, no microphone data can be retrieved
+                    continue
+                else
+                    Voc_transc_time_zs = (SoundEvent_TranscTime_ms{ll}(ee,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,2);
+                    mic_start_stop = round((TTL.Mean_std_Pulse_samp_audio(TTL_idx,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{TTL_idx}, Voc_transc_time_zs,[],TTL.Mean_std_x_transc2audiosamp{TTL_idx}) + TTL.Mean_std_Pulse_samp_audio(TTL_idx,1)))';
+                    mic_start = mic_start_stop(1);
+                    mic_stop = mic_start_stop(2);
+                end
+                
+                if ~(MVF(ee) == OldMicVoc_File)
+                    RawWavDir = dir(fullfile(RawWav_dir,sprintf('*%s_%s_RecOnly*mic1_%d.wav',Date, ExpStartTime,MVF(ee))));
+                    [RawWav_mic, FS_mic] = audioread(fullfile(RawWavDir.folder, RawWavDir.name));
+                    OldMicVoc_File = MVF(ee);
+                end
+            end
+            
             if mic_stop>length(RawWav_mic) % this section is cut between 2 10 min recordings
                 mic_stop1 = length(RawWav_mic);
                 mic_stop2 = mic_stop - length(RawWav_mic);
                 RawWavDir2 = dir(fullfile(RawWav_dir,sprintf('*%s_%s_RecOnly*mic1_%d.wav',Date,ExpStartTime,MVF(ee)+1)));
                 if ~isempty(RawWavDir2) 
                     [RawWav_local2, FS_mic] = audioread(fullfile(RawWavDir2.folder, RawWavDir2.name));
+                    if mic_stop2>length(RawWav_local2)
+                        % this is an unexpectedly very long extract!!
+                        warning('this is an unexpectedly very long extract!!')
+                        keyborad
+                    end
                     Mic_Sound = [RawWav_mic(mic_start:mic_stop1); RawWav_local2(1:mic_stop2)];
                     OldMicVoc_File = MVF(ee)+1;
                     RawWav_mic = RawWav_local2;

@@ -40,6 +40,10 @@ end
 filepath = fullfile(file.folder, file.name);
 load(filepath, 'AD_count_int16', 'Estimated_channelFS_Transceiver','Indices_of_first_and_last_samples','Timestamps_of_first_samples_usec')
 SamplingFreq = round(nanmean(Estimated_channelFS_Transceiver));
+if isnan(SamplingFreq)
+    warning('There is no estimation of the sampling frequency for that logger, hardcode 50kHz value\n')
+    SamplingFreq = 50000;
+end
 AD_count_double = double(AD_count_int16);
 clear AD_count_int16
 
