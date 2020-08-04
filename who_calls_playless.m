@@ -246,12 +246,23 @@ else
                 load(DataFile,'Piezo_wave')
                 Raw_wave_nn = Raw_wave{vv - (minvv -1)};
             end
-                
+              
+            % retrieving file name index of the microphone
+            Voc_i_start = Nvocs(df)+1;
+            vv_in = vv + Voc_i_start-1;
+            if ~strcmp(Voc_filename{vv_in}, VocFilename{vv})
+                warning('Issues with Mic file name\n')
+                keyboard
+            end
+            fprintf(1, 'Microphone File: %s\n', Voc_filename{vv_in})
+            if Nvoc>100
+                warning('Probably wrong audio file name, the code is not updated for older version of previous extraction\n')
+            end
             if isempty(Raw_wave_nn)
-                warning('That should not be empty now!!')
+                warning('Raw_wave should not be empty now!!')
                 keyboard
                 SaveRawWave = 1;
-                [Raw_wave{vv}, FS] = audioread(VocFilename{vv});
+                [Raw_wave{vv}, FS] = audioread(VocFilename{vv_in});
             else
                 SaveRawWave = 0;
             end
