@@ -390,21 +390,35 @@ if MicData
     % the recording
     % calculate the amplitude threshold for that file
     fprintf(1, 'Calculating average RMS values on a %.1f min sample of silence for each mic file\n',Dur_RMS);
-    parfor vv=1:NRawWave
+    parfor vv=1:NRawWave %parfor
         % load the raw file
         Raw_filename = fullfile(WavFileStruc_local(vv).folder, WavFileStruc_local(vv).name);
         [Raw_10minwav, FS] = audioread(Raw_filename);
         
         
         SampleDur = round(Dur_RMS*60*FS);
-        StartSamp = round(length(Raw_10minwav)/2);
+        StartSamp = round(length(Raw_10minwav)/10); % start earlier to make sure we have more potential sections
         fprintf(1,'Calculating the amplitude threshold for file %d/%d  ',vv,NRawWave)
         BadSection = 1;
+        IncrementFactor=1;
         while BadSection
+            if (StartSamp+round(SampleDur))> length(Raw_10minwav)
+                IncrementFactor=IncrementFactor+1;
+                StartSamp = 1;
+                if (StartSamp+round(SampleDur))> length(Raw_10minwav)
+                    % this recording is too short to calculate the
+                    % background noise with such a long Sampling Duration
+                    warning('short file, bringing down the duration of the sample\n')
+                    while (StartSamp+round(SampleDur))> length(Raw_10minwav)
+                        SampleDur = SampleDur/2;
+                    end
+                end
+                    
+            end
             Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_10minwav(StartSamp + (1:round(SampleDur))));
             Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
             if any(Amp_env_Mic>MicThreshNoise) % there is most likely a vocalization in this sequence look somewhere else!
-                StartSamp = StartSamp + SampleDur +1;
+                StartSamp = StartSamp + SampleDur/IncrementFactor +1;
             else
                 BadSection = 0;
             end
