@@ -339,18 +339,26 @@ for ee=1:NEvents
     if ~isempty(IndTSOff)
         if IndTSOn<=length(Estimated_channelFS_Transceiver) && ~isnan(Estimated_channelFS_Transceiver(IndTSOn))
             SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / Estimated_channelFS_Transceiver(IndTSOn)*10^3;
-        else
+        elseif ~isnan(nanmean(Estimated_channelFS_Transceiver))
             SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / nanmean(Estimated_channelFS_Transceiver)*10^3;
+        else
+            SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / SamplingFreq*10^3;
         end
         
         if IndTSOff<=length(Estimated_channelFS_Transceiver) && ~isnan(Estimated_channelFS_Transceiver(IndTSOff))
             SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 - (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / Estimated_channelFS_Transceiver(IndTSOff)*10^3;
-        else
+        elseif ~isnan(nanmean(Estimated_channelFS_Transceiver))
             SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 - (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / nanmean(Estimated_channelFS_Transceiver)*10^3;
+        else
+            SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 - (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / SamplingFreq*10^3;
         end
         
         if diff(SoundEvent_TranscTime_ms(ee,:))<=0
-            SoundEvent_TranscTime_ms(ee,2) = SoundEvent_TranscTime_ms(ee,1) + diff(SoundEvent_LoggerSamp(ee,:)) / nanmean(Estimated_channelFS_Transceiver)*10^3;
+            if ~isnan(nanmean(Estimated_channelFS_Transceiver))
+                SoundEvent_TranscTime_ms(ee,2) = SoundEvent_TranscTime_ms(ee,1) + diff(SoundEvent_LoggerSamp(ee,:)) / nanmean(Estimated_channelFS_Transceiver)*10^3;
+            else
+                SoundEvent_TranscTime_ms(ee,2) = SoundEvent_TranscTime_ms(ee,1) + diff(SoundEvent_LoggerSamp(ee,:)) / SamplingFreq*10^3;
+            end
         end
     else
         % find the time stamp on the logger that is closest to before
@@ -361,6 +369,9 @@ for ee=1:NEvents
         % file. Let's estimate it as the average of the previous
         % estimates
         FS_local = nanmean(Estimated_channelFS_Transceiver);
+        if isnan(FS_local)
+            FS_local = SamplingFreq;
+        end
         SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / FS_local*10^3;
         SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 + (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / FS_local*10^3;
     end
