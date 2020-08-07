@@ -193,8 +193,14 @@ parfor ll=1:NL % parfor
         end
         Logger_Sound = Centered_piezo_signal(OnIndBuff : OffIndBuff);
         Logger_Sound = Logger_Sound - mean(Logger_Sound);
-        
-        [AcousticParams_temp,~] = run_acoustic_features(Logger_Sound, FS_logger_voc_unmerged{ll}(ee), 'F_high',F_high, 'F_low', F_low, 'F_highSpec',F_highSpec);
+        try
+            [AcousticParams_temp,~] = run_acoustic_features(Logger_Sound, FS_logger_voc_unmerged{ll}(ee), 'F_high',F_high, 'F_low', F_low, 'F_highSpec',F_highSpec);
+        catch ME
+            if strfind(ME.message, 'The signal is too short to calculate an enveloppe with such a low frequency for the low-pass filter on signal power')
+                warning('The signal is too short to calculate an enveloppe with such a low frequency for the low-pass filter on signal power\nskip that data, probably noise!\n')
+            end
+            continue
+        end
         AcousticParams{ll}(1:length(AcousticParams_temp),ee) = AcousticParams_temp';
         LoggerID_unmerged{ll}{ee} = ALField_Id{ll};
         Voc_loggerSamp_Idx_unmerged{ll}(:,ee) = [OnInd; OffInd];
@@ -296,6 +302,14 @@ LoggerID_unmerged = [LoggerID_unmerged{:}]';
 Voc_loggerSamp_Idx_unmerged = [Voc_loggerSamp_Idx_unmerged{:}]';
 Voc_transc_time_unmerged = [Voc_transc_time_unmerged{:}]';
 FS_logger_voc_unmerged = [FS_logger_voc_unmerged{:}]';
+% restrict data to only those that were correctly processed (long enough)
+DataSet = ~isnan(AcousticParams(:,1));
+AcousticParams = AcousticParams(DataSet,:);
+LoggerID_unmerged = LoggerID_unmerged(DataSet);
+Voc_loggerSamp_Idx_unmerged = Voc_loggerSamp_Idx_unmerged(DataSet,:);
+Voc_transc_time_unmerged = Voc_transc_time_unmerged(DataSet,:);
+FS_logger_voc_unmerged = FS_logger_voc_unmerged(DataSet);
+
 if MicData
     % restrict data to only those that have microphone data
     DataSet = ~isnan(AcousticParams(:,20));
