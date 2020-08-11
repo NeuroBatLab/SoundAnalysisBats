@@ -275,7 +275,7 @@ else
             % Plot the spectrogram of the ambient microphone
             F1=figure(1);
             clf(F1)
-            ColorCode = [get(groot,'DefaultAxesColorOrder');1 1 1; 0 1 1; 1 1 0];
+            ColorCode = [get(groot,'DefaultAxesColorOrder');0 0 0; 0 1 1; 1 1 0];
             subplot(length(AudioLogs)+2,1,1)
             [Raw_Spec.to, Raw_Spec.fo, Raw_Spec.logB] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
             hold on
