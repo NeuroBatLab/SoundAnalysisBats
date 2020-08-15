@@ -779,7 +779,8 @@ else
                                 hold on
                                 yyaxis right
                                 plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k:', 'LineWidth',2)
-
+                                ylabel('Microphone')
+                                set(gca, 'YTickLabel', [])
                                 hold off
                             
                                 % Decide if that call was already detected and ID
@@ -799,16 +800,16 @@ else
                                 yyaxis right
                                 hold on
                                 if NewCall1OldCall0_temp(ii)
-                                    text(IndVocStop{ll}(ii)/Fs_env*1000, ll, 'New call on Mic')
+                                    text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.4, 'New call')
                                 else
-                                    text(IndVocStop{ll}(ii)/Fs_env*1000, ll, 'Call already attributed')
+                                    text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.4, 'Known/Noise')
                                 end
                                 hold off
                             
                                 if NewCall1OldCall0_temp(ii)
                                     fprintf(1,'\nComputer guess for that sound element: New call on Mic\n');
                                 else
-                                    fprintf(1,'\nComputer guess for that sound element: Call already attributed\n');
+                                    fprintf(1,'\nComputer guess for that sound element: known Call already attributed\n');
                                 end
                                 if ManCall
                                     TempIn = input('Indicate your choice: new call on Mic (1);    already known/noise (0);    listen to Mic again(any other number)\n');
@@ -851,10 +852,10 @@ else
                                 hold on
                                 if NewCall1OldCall0_temp(ii)
                                     plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-                                    text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, 'New call on Mic','Color','r','FontWeight','bold')
+                                    text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.2, 'New call','Color','r','FontWeight','bold')
                                 else
                                     plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k-', 'LineWidth',2)
-                                    text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, 'Call already attributed/noise','Color','r','FontWeight','bold')
+                                    text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.2, 'Known/Noise','Color','r','FontWeight','bold')
                                 end
                                 hold off
                             
@@ -974,10 +975,12 @@ else
                                         v_axis(4)=FHigh_spec;
                                         axis(v_axis);
                                         xlabel('time (ms)'), ylabel('Frequency');
-                                        suplabel(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc,df,length(DataFiles)), 't')
+                                        
                                         
                                         subplot(2,1,2)
                                         imagesc(Logger_Spec{ll}.to*1000,Logger_Spec{ll}.fo,Logger_Spec{ll}.logB);          % to is in seconds
+                                        maxB = max(max(Logger_Spec{ll}.logB));
+                                        minB = maxB-DB_noise;
                                         axis xy;
                                         caxis('manual');
                                         caxis([minB maxB]);
@@ -985,7 +988,7 @@ else
                                         colormap(cmap);
                                         v_axis = axis;
                                         v_axis(3)=0;
-%                                         v_axis(4)=FHigh_spec;
+                                        v_axis(4)=FHigh_spec_Logger + 5000;
                                         axis(v_axis);
                                         xlabel('time (ms)'), ylabel('Frequency');
                                     end
@@ -998,12 +1001,16 @@ else
                                     hold on
                                     yyaxis right
                                     plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k:', 'LineWidth',2)
+                                    ylabel('Microphone')
+                                    set(gca, 'YTickLabel', [])
                                     hold off
                                     
                                     subplot(2,1,2)
                                     hold on
                                     yyaxis right
-                                    plot([IndVocStart{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv) IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)]*1000, [ll ll], 'k:', 'LineWidth',2)
+                                    plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k:', 'LineWidth',2)
+                                    ylabel(Fns_AL{ll})
+                                    set(gca, 'YTickLabel', [])
                                     hold off
                                     
                                     %                 IndVocStartRaw{ll}(ii) = round(IndVocStart{ll}(ii)/Fs_env*FS);
@@ -1032,9 +1039,10 @@ else
                                     yyaxis right
                                     hold on
                                     if Call1Hear0_temp(ii)
-                                        text(IndVocStop{ll}(ii)/Fs_env*1000, ll, sprintf('%s calling',Fns_AL{ll}))
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.4, 'Call')
                                     else
-                                        text(IndVocStop{ll}(ii)/Fs_env*1000, ll, sprintf('%s hearing/noise',Fns_AL{ll}))
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.5, 'Hear')
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.4, '/Noise')
                                     end
                                     hold off
                                     
@@ -1042,11 +1050,13 @@ else
                                     yyaxis right
                                     hold on
                                     if Call1Hear0_temp(ii)
-                                        text(IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)*1000, ll, sprintf('%s calling',Fns_AL{ll}))
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.4, 'Call')
                                     else
-                                        text(IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)*1000, ll, sprintf('%s hearing/noise',Fns_AL{ll}))
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.5, 'Hear')
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.4, '/Noise')
                                     end
                                     hold off
+                                    suplabel(sprintf('Ambient Microphone and %s Voc %d/%d Set %d/%d',Fns_AL{ll},vv,Nvoc,df,length(DataFiles)), 't')
                                     
                                     
                                     if Call1Hear0_temp(ii)
@@ -1095,10 +1105,11 @@ else
                                     hold on
                                     if Call1Hear0_temp(ii)
                                         plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-                                        text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, sprintf('%s calling',Fns_AL{ll}),'Color','r','FontWeight','bold')
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.2, 'Call','Color','r','FontWeight','bold')
                                     else
                                         plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k-', 'LineWidth',2)
-                                        text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, sprintf('%s hearing',Fns_AL{ll}),'Color','r','FontWeight','bold')
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.2, 'Hear','Color','r','FontWeight','bold')
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.1, '/Noise','Color','r','FontWeight','bold')
                                     end
                                     hold off
                                     
@@ -1106,13 +1117,15 @@ else
                                     yyaxis right
                                     hold on
                                     if Call1Hear0_temp(ii)
-                                        plot([IndVocStart{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv) IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)]*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-                                        text(IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)*1000, ll+0.2, sprintf('%s calling',Fns_AL{ll}),'Color','r','FontWeight','bold')
+                                        plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.2, 'Call','Color','r','FontWeight','bold')
                                     else
-                                        plot([IndVocStart{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv) IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)]*1000, [ll ll], 'k-', 'LineWidth',2)
-                                        text(IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)*1000, ll+0.2, sprintf('%s hearing',Fns_AL{ll}),'Color','r','FontWeight','bold')
+                                        plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k-', 'LineWidth',2)
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.2, 'Hear','Color','r','FontWeight','bold')
+                                        text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.1, '/Noise','Color','r','FontWeight','bold')
                                     end
                                     hold off
+                                    suplabel(sprintf('Ambient Microphone and %s Voc %d/%d Set %d/%d',Fns_AL{ll},vv,Nvoc,df,length(DataFiles)), 't')
                                     
                                     
                                     %                 figure(1)
