@@ -300,6 +300,7 @@ else
                 LengthLoggersData(ll) = length(Piezo_wave.(Fns_AL{ll}){vv});
             end
             %% Loop through the loggers and calculate envelopes
+            Logger_Spec = cell(length(AudioLogs),1);
             for ll=1:length(AudioLogs)
                 if isnan(Piezo_FS.(Fns_AL{ll})(vv)) || isempty(Piezo_wave.(Fns_AL{ll}){vv})
                     fprintf(1, 'NO DATA for Vocalization %d from %s\n', vv, Fns_AL{ll})
@@ -336,7 +337,7 @@ else
                         % Plot the low pass filtered signal of each logger
                         figure(1)
                         subplot(length(AudioLogs)+2,1,ll+1)
-                        [~] = spec_only_bats(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv), DB_noise, FHigh_spec_Logger);
+                        [Logger_Spec{ll}.to, Logger_Spec{ll}.fo, Logger_Spec{ll}.logB] = spec_only_bats(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv), DB_noise, FHigh_spec_Logger);
                         if ll<length(AudioLogs)
                             xlabel(' '); % supress the x label output
                             set(gca,'XTick',[],'XTickLabel',{});
@@ -473,22 +474,24 @@ else
                             % Plot the localization of that sound extract on figure 3
                             % Duplicate the figure of the spectrogram for manual input purposes
                             F3 = figure(3);
-                            clf(F3)
-                            maxB = max(max(Raw_Spec.logB));
-                            minB = maxB-DB_noise;            
-                            imagesc(Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
-                            axis xy;
-                            caxis('manual');
-                            caxis([minB maxB]); 
-                            cmap = spec_cmap();
-                            colormap(cmap);
-                            v_axis = axis; 
-                            v_axis(3)=0; 
-                            v_axis(4)=FHigh_spec;
-                            axis(v_axis);                                
-                            xlabel('time (ms)'), ylabel('Frequency');
-                            title(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc,df,length(DataFiles)))
-                            yyaxis right
+                            if ii==1
+                                clf(F3)
+                                maxB = max(max(Raw_Spec.logB));
+                                minB = maxB-DB_noise;            
+                                imagesc(Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
+                                axis xy;
+                                caxis('manual');
+                                caxis([minB maxB]); 
+                                cmap = spec_cmap();
+                                colormap(cmap);
+                                v_axis = axis; 
+                                v_axis(3)=0; 
+                                v_axis(4)=FHigh_spec;
+                                axis(v_axis);                                
+                                xlabel('time (ms)'), ylabel('Frequency');
+                                title(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc,df,length(DataFiles)))
+                            end
+                                %yyaxis right
                             %                                 ylabel('Logger ID')
                             %                                 set(gca, 'YTick', 1:RowSize, 'YTickLabel', [Fns_AL; 'Mic'], 'YLim', [0 (length(AudioLogs)+2)],'YDir', 'reverse')
                             %                             end
@@ -751,26 +754,28 @@ else
                                 % Plot the localization of that sound extract on figure 3
                                 % Duplicate the figure of the spectrogram for manual input purposes
                                 F3 = figure(3);
-                                %                             if ii==1
-                                clf(F3)
-                                maxB = max(max(Raw_Spec.logB));
-                                minB = maxB-DB_noise;
-                                imagesc(Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
-                                axis xy;
-                                caxis('manual');
-                                caxis([minB maxB]);
-                                cmap = spec_cmap();
-                                colormap(cmap);
-                                v_axis = axis;
-                                v_axis(3)=0;
-                                v_axis(4)=FHigh_spec;
-                                axis(v_axis);
-                                xlabel('time (ms)'), ylabel('Frequency');
-                                title(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc, df,length(DataFiles)))
-                                yyaxis right
+                                %
+                                if ii==1
+                                    clf(F3)
+                                    maxB = max(max(Raw_Spec.logB));
+                                    minB = maxB-DB_noise;
+                                    imagesc(Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
+                                    axis xy;
+                                    caxis('manual');
+                                    caxis([minB maxB]);
+                                    cmap = spec_cmap();
+                                    colormap(cmap);
+                                    v_axis = axis;
+                                    v_axis(3)=0;
+                                    v_axis(4)=FHigh_spec;
+                                    axis(v_axis);
+                                    xlabel('time (ms)'), ylabel('Frequency');
+                                    title(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc, df,length(DataFiles)))
+%                                 yyaxis right
                                 %                                 ylabel('Logger ID')
                                 %                                 set(gca, 'YTick', 1:ll, 'YTickLabel', [Fns_AL; 'Mic'], 'YLim', [0 (length(AudioLogs)+2)],'YDir', 'reverse')
                                 %                             end
+                                end
                                 hold on
                                 yyaxis right
                                 plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k:', 'LineWidth',2)
@@ -953,29 +958,52 @@ else
                                     % Duplicate the figure of the spectrogram for manual input purposes
                                     %                             if ii==1
                                     F3 = figure(3);
-                                    clf(F3)
-                                    maxB = max(max(Raw_Spec.logB));
-                                    minB = maxB-DB_noise;
-                                    imagesc(Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
-                                    axis xy;
-                                    caxis('manual');
-                                    caxis([minB maxB]);
-                                    cmap = spec_cmap();
-                                    colormap(cmap);
-                                    v_axis = axis;
-                                    v_axis(3)=0;
-                                    v_axis(4)=FHigh_spec;
-                                    axis(v_axis);
-                                    xlabel('time (ms)'), ylabel('Frequency');
-                                    title(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc,df,length(DataFiles)))
-                                    yyaxis right
+                                    if ii==1
+                                        clf(F3)
+                                        maxB = max(max(Raw_Spec.logB));
+                                        minB = maxB-DB_noise;
+                                        subplot(2,1,1)
+                                        imagesc(Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
+                                        axis xy;
+                                        caxis('manual');
+                                        caxis([minB maxB]);
+                                        cmap = spec_cmap();
+                                        colormap(cmap);
+                                        v_axis = axis;
+                                        v_axis(3)=0;
+                                        v_axis(4)=FHigh_spec;
+                                        axis(v_axis);
+                                        xlabel('time (ms)'), ylabel('Frequency');
+                                        suplabel(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc,df,length(DataFiles)), 't')
+                                        
+                                        subplot(2,1,2)
+                                        imagesc(Logger_Spec{ll}.to*1000,Logger_Spec{ll}.fo,Logger_Spec{ll}.logB);          % to is in seconds
+                                        axis xy;
+                                        caxis('manual');
+                                        caxis([minB maxB]);
+                                        cmap = spec_cmap();
+                                        colormap(cmap);
+                                        v_axis = axis;
+                                        v_axis(3)=0;
+%                                         v_axis(4)=FHigh_spec;
+                                        axis(v_axis);
+                                        xlabel('time (ms)'), ylabel('Frequency');
+                                    end
+%                                     yyaxis right
                                     %                                 ylabel('Logger ID')
                                     %                                 set(gca, 'YTick', 1:ll, 'YTickLabel', Fns_AL, 'YLim', [0 (length(AudioLogs)+1)],'YDir', 'reverse')
                                     %                             end
                                     figure(3);
+                                    subplot(2,1,1)
                                     hold on
                                     yyaxis right
                                     plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k:', 'LineWidth',2)
+                                    hold off
+                                    
+                                    subplot(2,1,2)
+                                    hold on
+                                    yyaxis right
+                                    plot([IndVocStart{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv) IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)]*1000, [ll ll], 'k:', 'LineWidth',2)
                                     hold off
                                     
                                     %                 IndVocStartRaw{ll}(ii) = round(IndVocStart{ll}(ii)/Fs_env*FS);
@@ -1000,6 +1028,7 @@ else
                                     
                                     % update figure(3) with the decision
                                     figure(3)
+                                    subplot(2,1,1)
                                     yyaxis right
                                     hold on
                                     if Call1Hear0_temp(ii)
@@ -1008,6 +1037,17 @@ else
                                         text(IndVocStop{ll}(ii)/Fs_env*1000, ll, sprintf('%s hearing/noise',Fns_AL{ll}))
                                     end
                                     hold off
+                                    
+                                    subplot(2,1,2)
+                                    yyaxis right
+                                    hold on
+                                    if Call1Hear0_temp(ii)
+                                        text(IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)*1000, ll, sprintf('%s calling',Fns_AL{ll}))
+                                    else
+                                        text(IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)*1000, ll, sprintf('%s hearing/noise',Fns_AL{ll}))
+                                    end
+                                    hold off
+                                    
                                     
                                     if Call1Hear0_temp(ii)
                                         fprintf('Computer guess for that sound element: %s calling\n',Fns_AL{ll});
@@ -1050,6 +1090,7 @@ else
                                     
                                     % update figure(3) with the decision
                                     figure(3)
+                                    subplot(2,1,1)
                                     yyaxis right
                                     hold on
                                     if Call1Hear0_temp(ii)
@@ -1058,6 +1099,18 @@ else
                                     else
                                         plot([IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000, [ll ll], 'k-', 'LineWidth',2)
                                         text(IndVocStop{ll}(ii)/Fs_env*1000, ll+0.2, sprintf('%s hearing',Fns_AL{ll}),'Color','r','FontWeight','bold')
+                                    end
+                                    hold off
+                                    
+                                    subplot(2,1,2)
+                                    yyaxis right
+                                    hold on
+                                    if Call1Hear0_temp(ii)
+                                        plot([IndVocStart{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv) IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)]*1000, [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
+                                        text(IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)*1000, ll+0.2, sprintf('%s calling',Fns_AL{ll}),'Color','r','FontWeight','bold')
+                                    else
+                                        plot([IndVocStart{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv) IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)]*1000, [ll ll], 'k-', 'LineWidth',2)
+                                        text(IndVocStop{ll}(ii)/Piezo_FS.(Fns_AL{ll})(vv)*1000, ll+0.2, sprintf('%s hearing',Fns_AL{ll}),'Color','r','FontWeight','bold')
                                     end
                                     hold off
                                     
