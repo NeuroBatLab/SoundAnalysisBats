@@ -5,13 +5,7 @@ pnames = {'sessionType', 'boxNum'};
 dflts  = {'communication', NaN};
 [sessionType,boxNum] = internal.stats.parseArgs(pnames,dflts,varargin{:});
 
-% addpath('C:\Users\phyllo\Documents\GitHub\SoundAnalysisBats\')
-[~,net_use_str]= dos('net use');
-net_use_str = strsplit(net_use_str,'\n');
-
-net_use_str = net_use_str{contains(net_use_str,'yartsev_server3')};
-remote_drive_letter = regexp(net_use_str,'[A-Z]{1}\:','match');
-remote_drive_letter = remote_drive_letter{1};
+remote_drive_letter = get_server_letter;
 remote_base_dir = fullfile(remote_drive_letter,'users\maimon');
 
 switch expType
@@ -80,11 +74,12 @@ nLogger = length(logger_nums);
 % logger_nums = setdiff(logger_nums,cast(T.malfunction_loggers{:},'double'));
 
 logger_dir = fullfile(logger_base_dir,dateStr,'audiologgers');
+tsData = cell(1,nLogger);
 missing_loggers = false(1,nLogger);
 for logger_k = 1:nLogger
     data_fname = dir(fullfile(logger_dir, ['logger' num2str(logger_nums(logger_k))],'extracted_data','*CSC0.mat'));
     if ~isempty(data_fname)
-        tsData(logger_k) = load(fullfile(data_fname.folder,data_fname.name));
+        tsData{logger_k} = matfile(fullfile(data_fname.folder,data_fname.name),'Writable',false);
     else
         missing_loggers(logger_k) = true;
         fprintf('Could not find data for logger #%d\n',logger_nums(logger_k));
@@ -92,15 +87,15 @@ for logger_k = 1:nLogger
 end
 
 if any(missing_loggers)
-   fieldNames = fieldnames(tsData);
+   fieldNames = fieldnames(tsData{find(~missing_loggers,1)});
    empty_ts_data_struct = cell(length(fieldNames),1);
    empty_ts_data_struct = cell2struct(empty_ts_data_struct,fieldNames);
    for logger_k = find(missing_loggers)
-       tsData(logger_k) = empty_ts_data_struct;
-       tsData(logger_k).logger_serial_number = num2str(logger_nums(logger_k));
-       tsData(logger_k).Bat_id = num2str(batNums(logger_k));
-       tsData(logger_k).Indices_of_first_and_last_samples = zeros(0,2);
-       tsData(logger_k).logger_type = 'Audi';
+       tsData{logger_k} = empty_ts_data_struct;
+       tsData{logger_k}.logger_serial_number = num2str(logger_nums(logger_k));
+       tsData{logger_k}.Bat_id = num2str(batNums(logger_k));
+       tsData{logger_k}.Indices_of_first_and_last_samples = zeros(0,2);
+       tsData{logger_k}.logger_type = 'Audi';
    end
 end
 
