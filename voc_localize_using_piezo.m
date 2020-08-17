@@ -68,6 +68,11 @@ if MicData
     % Load the pulse times and samples
     TTL_dir = dir(fullfile(RawWav_dir,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
     TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
+    
+    % check the number of files
+    WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*.wav',Date, ExpStartTime)));
+    NRawWave = length(WavFileStruc_local);
+    
 end
 
 %% Run the automatic detection
@@ -188,8 +193,14 @@ parfor ll=1:NL % parfor
         end
         Logger_Sound = Centered_piezo_signal(OnIndBuff : OffIndBuff);
         Logger_Sound = Logger_Sound - mean(Logger_Sound);
-        
-        [AcousticParams_temp,~] = run_acoustic_features(Logger_Sound, FS_logger_voc_unmerged{ll}(ee), 'F_high',F_high, 'F_low', F_low, 'F_highSpec',F_highSpec);
+        try
+            [AcousticParams_temp,~] = run_acoustic_features(Logger_Sound, FS_logger_voc_unmerged{ll}(ee), 'F_high',F_high, 'F_low', F_low, 'F_highSpec',F_highSpec);
+        catch ME
+            if strfind(ME.message, 'The signal is too short to calculate an enveloppe with such a low frequency for the low-pass filter on signal power')
+                warning('The signal is too short to calculate an enveloppe with such a low frequency for the low-pass filter on signal power\nskip that data, probably noise!\n')
+            end
+            continue
+        end
         AcousticParams{ll}(1:length(AcousticParams_temp),ee) = AcousticParams_temp';
         LoggerID_unmerged{ll}{ee} = ALField_Id{ll};
         Voc_loggerSamp_Idx_unmerged{ll}(:,ee) = [OnInd; OffInd];
@@ -207,13 +218,46 @@ parfor ll=1:NL % parfor
             if mic_start<0 || mic_stop<0% call occur before microphone started recording
                 continue
             end
-        
+            
+            if length(RawWav_mic)>mic_start
+                % all ggod to go check mic_stop below
+            elseif MVF(ee)==NRawWave
+                % This event happened after the offset of microphone, discard
+                fprintf(1, 'This call occured after microphone offset\n')
+                continue
+            else% there was an error in the estimation of the file index, this call occured in the next file
+                fprintf(1, 'This call occured in next file\n')
+                MVF(ee) = MVF(ee)+1;
+                
+                % Calculate the Samples of the extract in the microphone recording
+                TTL_idx = find(unique(TTL.File_number) == MVF(ee));
+                if isempty(TTL_idx) % There was an error with that TTL file, no allignment possible, no microphone data can be retrieved
+                    continue
+                else
+                    Voc_transc_time_zs = (SoundEvent_TranscTime_ms{ll}(ee,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,2);
+                    mic_start_stop = round((TTL.Mean_std_Pulse_samp_audio(TTL_idx,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{TTL_idx}, Voc_transc_time_zs,[],TTL.Mean_std_x_transc2audiosamp{TTL_idx}) + TTL.Mean_std_Pulse_samp_audio(TTL_idx,1)))';
+                    mic_start = mic_start_stop(1);
+                    mic_stop = mic_start_stop(2);
+                end
+                
+                if ~(MVF(ee) == OldMicVoc_File)
+                    RawWavDir = dir(fullfile(RawWav_dir,sprintf('*%s_%s_RecOnly*mic1_%d.wav',Date, ExpStartTime,MVF(ee))));
+                    [RawWav_mic, FS_mic] = audioread(fullfile(RawWavDir.folder, RawWavDir.name));
+                    OldMicVoc_File = MVF(ee);
+                end
+            end
+            
             if mic_stop>length(RawWav_mic) % this section is cut between 2 10 min recordings
                 mic_stop1 = length(RawWav_mic);
                 mic_stop2 = mic_stop - length(RawWav_mic);
                 RawWavDir2 = dir(fullfile(RawWav_dir,sprintf('*%s_%s_RecOnly*mic1_%d.wav',Date,ExpStartTime,MVF(ee)+1)));
                 if ~isempty(RawWavDir2) 
                     [RawWav_local2, FS_mic] = audioread(fullfile(RawWavDir2.folder, RawWavDir2.name));
+                    if mic_stop2>length(RawWav_local2)
+                        % this is an unexpectedly very long extract!!
+                        warning('this is an unexpectedly very long extract!!')
+                        keyborad
+                    end
                     Mic_Sound = [RawWav_mic(mic_start:mic_stop1); RawWav_local2(1:mic_stop2)];
                     OldMicVoc_File = MVF(ee)+1;
                     RawWav_mic = RawWav_local2;
@@ -258,6 +302,14 @@ LoggerID_unmerged = [LoggerID_unmerged{:}]';
 Voc_loggerSamp_Idx_unmerged = [Voc_loggerSamp_Idx_unmerged{:}]';
 Voc_transc_time_unmerged = [Voc_transc_time_unmerged{:}]';
 FS_logger_voc_unmerged = [FS_logger_voc_unmerged{:}]';
+% restrict data to only those that were correctly processed (long enough)
+DataSet = ~isnan(AcousticParams(:,1));
+AcousticParams = AcousticParams(DataSet,:);
+LoggerID_unmerged = LoggerID_unmerged(DataSet);
+Voc_loggerSamp_Idx_unmerged = Voc_loggerSamp_Idx_unmerged(DataSet,:);
+Voc_transc_time_unmerged = Voc_transc_time_unmerged(DataSet,:);
+FS_logger_voc_unmerged = FS_logger_voc_unmerged(DataSet);
+
 if MicData
     % restrict data to only those that have microphone data
     DataSet = ~isnan(AcousticParams(:,20));
@@ -306,8 +358,8 @@ if length(FirstEvents2Merge)~=length(LastEvents2Merge)
     keyboard
 end
 Voc_transc_time = [Voc_transc_time_unmerged(Events2keep,:) ; [Voc_transc_time_unmerged(FirstEvents2Merge,1) Voc_transc_time_unmerged(LastEvents2Merge,2)]];
-Voc_loggerSamp_Idx = [Voc_loggerSamp_Idx_unmerged(Events2keep,:) ; [Voc_loggerSamp_Idx_unmerged(FirstEvents2Merge,1) Voc_loggerSamp_Idx_unmerged(LastEvents2Merge,2)]];
-LoggerID = [LoggerID_unmerged(Events2keep) ; LoggerID_unmerged(FirstEvents2Merge)];
+Voc_loggerSamp_Idx = [Voc_loggerSamp_Idx_unmerged(Events2keep,:) ; [Voc_loggerSamp_Idx_unmerged(FirstEvents2Merge,1) Voc_loggerSamp_Idx_unmerged(LastEvents2Merge,2)]]; % After merging, most of these numbers do not make sense anymoire because they refer to different loggers, only the onset does
+LoggerID = [LoggerID_unmerged(Events2keep) ; LoggerID_unmerged(FirstEvents2Merge)];% After merging, the ID of the logger is only true for the onset
 FS_logger_voc = [FS_logger_voc_unmerged(Events2keep) ; FS_logger_voc_unmerged(FirstEvents2Merge)];
 
 
@@ -352,21 +404,35 @@ if MicData
     % the recording
     % calculate the amplitude threshold for that file
     fprintf(1, 'Calculating average RMS values on a %.1f min sample of silence for each mic file\n',Dur_RMS);
-    parfor vv=1:NRawWave
+    parfor vv=1:NRawWave %parfor
         % load the raw file
         Raw_filename = fullfile(WavFileStruc_local(vv).folder, WavFileStruc_local(vv).name);
         [Raw_10minwav, FS] = audioread(Raw_filename);
         
         
         SampleDur = round(Dur_RMS*60*FS);
-        StartSamp = round(length(Raw_10minwav)/2);
+        StartSamp = round(length(Raw_10minwav)/10); % start earlier to make sure we have more potential sections
         fprintf(1,'Calculating the amplitude threshold for file %d/%d  ',vv,NRawWave)
         BadSection = 1;
+        IncrementFactor=1;
         while BadSection
+            if (StartSamp+round(SampleDur))> length(Raw_10minwav)
+                IncrementFactor=IncrementFactor+1;
+                StartSamp = 1;
+                if (StartSamp+round(SampleDur))> length(Raw_10minwav)
+                    % this recording is too short to calculate the
+                    % background noise with such a long Sampling Duration
+                    warning('short file, bringing down the duration of the sample\n')
+                    while (StartSamp+round(SampleDur))> length(Raw_10minwav)
+                        SampleDur = SampleDur/2;
+                    end
+                end
+                    
+            end
             Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_10minwav(StartSamp + (1:round(SampleDur))));
             Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
             if any(Amp_env_Mic>MicThreshNoise) % there is most likely a vocalization in this sequence look somewhere else!
-                StartSamp = StartSamp + SampleDur +1;
+                StartSamp = StartSamp + SampleDur/IncrementFactor +1;
             else
                 BadSection = 0;
             end
@@ -501,6 +567,7 @@ end
 function [MicVoc_samp_idx,MicVoc_File]=transc_time2micsamp(RawWav_dir,Date, ExpStartTime,OnOffTranscTime_ms)
 TTL_dir = dir(fullfile(RawWav_dir,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
 TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
+FileNum_u = unique(TTL.File_number);
 
 % loop through data
 Nevents = size(OnOffTranscTime_ms,1);
@@ -515,8 +582,9 @@ for ff=1:Nevents
         FileNumIdx = find(TTL.Pulse_TimeStamp_Transc>OnOffTranscTime_ms(ff,1),1,'First');
     end
     MicVoc_File(ff) = TTL.File_number(FileNumIdx);
-    TranscTime_zs = (OnOffTranscTime_ms(ff,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(MicVoc_File(ff),1))/TTL.Mean_std_Pulse_TimeStamp_Transc(MicVoc_File(ff),2);
-    MicVoc_samp_idx(ff,:) =TTL.Mean_std_Pulse_samp_audio(MicVoc_File(ff),2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{MicVoc_File(ff)},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{MicVoc_File(ff)}) + TTL.Mean_std_Pulse_samp_audio(MicVoc_File(ff),1);
+    IndFileNum = find(FileNum_u == MicVoc_File(ff));
+    TranscTime_zs = (OnOffTranscTime_ms(ff,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
+    MicVoc_samp_idx(ff,:) =TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1);
 end
 end
 
