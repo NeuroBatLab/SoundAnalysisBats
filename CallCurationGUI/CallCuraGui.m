@@ -22,7 +22,7 @@ function varargout = CallCuraGui(varargin)
 
 % Edit the above text to modify the response to help CallCuraGui
 
-% Last Modified by GUIDE v2.5 17-Aug-2020 10:21:24
+% Last Modified by GUIDE v2.5 17-Aug-2020 13:35:45
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -198,5 +198,12 @@ function playLogEval_Callback(hObject, eventdata, handles)
 % --- Executes on button press in playMicEval.
 function playMicEval_Callback(hObject, eventdata, handles)
 % hObject    handle to playMicEval (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in checkbox.
+function checkbox_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)

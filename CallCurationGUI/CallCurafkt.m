@@ -1,7 +1,7 @@
 function CallCurafkt(action)
-global vv Nvoc df redo DataFiles;
-global submith starth oldvv olddf ll;
-global redoEditVoch redoEditSeth;
+global vv Nvoc df redo DataFiles ManCall;
+global submith starth oldvv olddf;
+global redoEditVoch redoEditSeth  checkboxh;
 
 switch action
     
@@ -13,6 +13,7 @@ switch action
     case 'NoCall'
         fprintf(1,'Manual input enforced: Noise (=NoCall)\n');
         fprintf(1,'saving data...\n')
+        ManCall=0;
         disableEvals
         savingData
         if redo
@@ -54,13 +55,17 @@ switch action
             loadnextfile(vv)
             redo=1;
         end
+    case 'Checkbox'
+        set(checkboxh,'String','X')
+        set(checkboxh,'BackgroundColor',[88 117 88]./255)
         
     case 'Submit'
         set(submith,'String','Submitted')
         set(submith,'BackgroundColor',[19 199 212]./255)
         %save submit
+        ManCall=1;
         disableEvals
-        evaluationDone(vv,ll)
+        evaluationDone(vv)
         savingData
         if redo
             vv=oldvv;
@@ -779,7 +784,7 @@ set([submith noCallh redoh redoEditVoch...
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function disableEvals
 global submith evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h evalLog6h;
-global evalLog7h evalLog8h;
+global evalLog7h evalLog8h checkboxh;
 global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich playLog1h playLog2h playLog3h playLog4h playLog5h playLog6h;
 global playLog7h playLog8h playMicEvalh playLogEvalh;
@@ -788,7 +793,7 @@ set([evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith evalLog6h...
     evalLog7h evalLog8h noCallh redoh redoEditVoch...
     redoEditSeth playMich playLog1h playLog2h...
     playLog3h playLog4h playLog5h playLog6h playLog7h playLog8h playMicEvalh...
-    playLogEvalh sliderLefth sliderRighth],'enable','off')
+    playLogEvalh sliderLefth sliderRighth checkboxh],'enable','off')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function CallOnLogger(ll)
 global DiffAmp Fns_AL IndVocStart IndVocStop FHigh_spec_Logger FHigh_spec;
@@ -844,12 +849,15 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function evaluatingCalls(ll)
-global IndVocStart Fs_env IndVocStop FHigh_spec_Logger submith playll;
+global IndVocStart Fs_env IndVocStop FHigh_spec_Logger checkboxh playll;
 %global arrowfieldl arrowfieldr arrowfieldd arrowfieldu;
-global rightPloth FHigh_spec;
+global rightPloth FHigh_spec Call1Hear0_temp PiezoError PiezoErrorType;
 global playMicEvalh playLogEvalh;
 
 set([playMicEvalh playLogEvalh],'enable','on')
+ set(checkboxh,'String','V')
+         set(checkboxh,'BackgroundColor',[0 255 0]./255)
+ set(checkboxh,'enable','on')
 playll=ll;
 CallOnLogger(ll)
 NV = length(IndVocStart{ll});
@@ -868,7 +876,7 @@ hold on;
 % arrowfieldd=ylims(1)+.1*ylims(1);
 % clickxv=xlims(1);
 % clickyv=ylims(end);
-while  strcmp(get(submith,'string'),'Submit') %|| clickxv<arrowfieldl || clickyv>= arrowfieldu
+while  strcmp(get(checkboxh,'string'),'V') %|| clickxv<arrowfieldl || clickyv>= arrowfieldu
     [clickxv,clickyv,~,ax]=ginputc(1);
     check=1;
     ii=0;
@@ -896,13 +904,23 @@ while  strcmp(get(submith,'string'),'Submit') %|| clickxv<arrowfieldl || clickyv
                         [FHigh_spec FHigh_spec]-2e3,'linewidth',20,'color',[0 0 1])
                 end
             end
+            Agree = Call1Hear0_temp(ii)== Call1Hear0_man(ii);
+             if ~Agree
+        Call1Hear0_temp(ii) = Call1Hear0_man(ii);
+        PiezoError = PiezoError + [1 1];
+        PiezoErrorType = PiezoErrorType + [Call1Hear0_temp(ii) ~Call1Hear0_temp(ii)];
+    else
+        PiezoError = PiezoError + [0 1];
+    end      
             check=0;
         end
     end
 end
-
+if ~isempty(chck)
+updateLoggerEval(vv,ll)
+end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function evaluationDone(vv,ll)
+function evaluationDone(vv)
 global AudioLogs;
 global IndVocStart IndVocStop IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
 global IndVocStartPiezo_merge_local IndVocStopPiezo_merge_local Fns_AL;
@@ -910,27 +928,7 @@ global RMSRatio RMSDiff Working_dir_write df MergeThresh FileVoc;
 global ManCall F2 SaveFileType VocFilename leftPloth;
 global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
 global IndVocStopPiezo_merged IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
-global NV Call1Hear0_temp Call1Hear0_man PiezoError PiezoErrorType;
 
-NV = length(IndVocStart{ll});
-
-for ii=1:NV
-    Agree = Call1Hear0_temp(ii)== Call1Hear0_man(ii);
-    if ~Agree
-        Call1Hear0_temp(ii) = Call1Hear0_man(ii);
-        PiezoError = PiezoError + [1 1];
-        PiezoErrorType = PiezoErrorType + [Call1Hear0_temp(ii) ~Call1Hear0_temp(ii)];
-    else
-        PiezoError = PiezoError + [0 1];
-    end
-end
-checkeval=find(Call1Hear0_temp>=0);
-ManCall=0;
-if ~isempty(checkeval)
-    ManCall=1;
-    updateLoggerEval(vv,ll)
-    
-end
 
 axes(leftPloth)
 subplot(length(AudioLogs)+2,1,1)

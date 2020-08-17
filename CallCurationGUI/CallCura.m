@@ -7,7 +7,7 @@ global evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith;
 global evalLog6h evalLog7h evalLog8h leftPloth rightPloth starth evalb;
 global filenameh noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich playLog1h playLog2h playLog3h playLog4h playLog5h playLog6h;
-global playLog7h playLog8h playMicEvalh playLogEvalh redo;
+global playLog7h playLog8h playMicEvalh playLogEvalh redo checkboxh;
 
 
 BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
@@ -73,7 +73,7 @@ redoh=findobj(FhGUI,'tag','redo');
 redoEditVoch=findobj(FhGUI,'tag','redoEditVoc');
 redoEditSeth=findobj(FhGUI,'tag','redoEditSet');
 submith=findobj(FhGUI,'tag','submit');
-
+checkboxh=findobj(FhGUI,'tag','checkbox');
 evalLog1h=findobj(FhGUI,'tag','evalLog1');
 evalLog2h=findobj(FhGUI,'tag','evalLog2');
 evalLog3h=findobj(FhGUI,'tag','evalLog3');
@@ -106,4 +106,4 @@ set([evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith evalLog6h...
     evalLog7h evalLog8h noCallh redoh redoEditVoch...
     redoEditSeth sliderLefth sliderRighth playMich playLog1h playLog2h...
     playLog3h playLog4h playLog5h playLog6h playLog7h playLog8h playMicEvalh...
-    playLogEvalh],'enable','off')
+    playLogEvalh checkboxh,'enable','off')
