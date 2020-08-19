@@ -29,21 +29,6 @@ f_low=0;                                 % Lower frequency bounds to get average
 % Calculate and plot the spectrogram    
 [s, to, fo, pg, tError, fError] = GaussianSpectrum(sound_in, increment, winLength, samprate); 
 logB = 20*log10(abs(s));
-maxB = max(max(logB));
-minB = maxB-DBNOISE;            
 
-imagesc(axh,to*1000,fo,logB);          % to is in seconds
-axis xy;
-caxis('manual');
-caxis([minB maxB]); 
-cmap = spec_cmap();
-colormap(cmap);
-
-v_axis = axis; 
-v_axis(3)=f_low; 
-v_axis(4)=f_high;
-axis(v_axis);                                
-
-xlabel('time (ms)'), ylabel('Frequency');
 
 end
