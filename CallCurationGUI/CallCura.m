@@ -4,10 +4,15 @@ close all;
 global VolDenominatorLogger VolFactorMic Manual MergeThresh;
 global CheckMicChannel pnames NExpe UseOld FhGUI;
 global evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith;
-global evalLog6h evalLog7h evalLog8h leftPloth rightPloth starth evalb;
+global evalLog6h evalLog7h evalLog8h starth evalb plotb;
 global filenameh noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich playLog1h playLog2h playLog3h playLog4h playLog5h playLog6h;
-global playLog7h playLog8h playMicEvalh playLogEvalh redo checkboxh;
+global playLog7h playLog8h playMicEvalh playLogEvalh redo checkboxh playLog9h;
+global evalLog9h playb radioLogh radioMich;
+global plotmich plotmicevalh plotlog1h plotlog2h plotlog3h plotlog4h plotlog5h;
+global plotlog6h plotlog7h plotlog8h plotlog9h plotevalh plotlogevalh;
+
+
 
 
 BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
@@ -61,12 +66,23 @@ redo=0;
 
 %GUI variables
 FhGUI=CallCuraGui;
-%set (FhGUI, 'position', [6.8000   36.4615  153.4000   43.7692]);
 starth=findobj(FhGUI,'tag','start');
 noCallh=findobj(FhGUI,'tag','noCall');
 filenameh=findobj(FhGUI,'tag','filename');
-leftPloth=findobj(FhGUI,'tag','leftPlot');
-rightPloth=findobj(FhGUI,'tag','rightPlot');
+plotmich=findobj(FhGUI,'tag','plotMic');
+plotmicevalh=findobj(FhGUI,'tag','plotMicEval');
+plotlog1h=findobj(FhGUI,'tag','plotLog1');
+plotlog2h=findobj(FhGUI,'tag','plotLog2');
+plotlog3h=findobj(FhGUI,'tag','plotLog3');
+plotlog4h=findobj(FhGUI,'tag','plotLog4');
+plotlog5h=findobj(FhGUI,'tag','plotLog5');
+plotlog6h=findobj(FhGUI,'tag','plotLog6');
+plotlog7h=findobj(FhGUI,'tag','plotLog7');
+plotlog8h=findobj(FhGUI,'tag','plotLog8');
+plotlog9h=findobj(FhGUI,'tag','plotLog9');
+plotevalh=findobj(FhGUI,'tag','plotEval');
+plotlogevalh=findobj(FhGUI,'tag','plotLogEval');
+
 sliderLefth=findobj(FhGUI,'tag','sliderLeft');
 sliderRighth=findobj(FhGUI,'tag','sliderRight');
 redoh=findobj(FhGUI,'tag','redo');
@@ -82,6 +98,7 @@ evalLog5h=findobj(FhGUI,'tag','evalLog5');
 evalLog6h=findobj(FhGUI,'tag','evalLog6');
 evalLog7h=findobj(FhGUI,'tag','evalLog7');
 evalLog8h=findobj(FhGUI,'tag','evalLog8');
+evalLog9h=findobj(FhGUI,'tag','evalLog9');
 playMich=findobj(FhGUI,'tag','playMic');
 playMicEvalh=findobj(FhGUI,'tag','playMicEval');
 playLogEvalh=findobj(FhGUI,'tag','playLogEval');
@@ -93,6 +110,9 @@ playLog5h=findobj(FhGUI,'tag','playLog5');
 playLog6h=findobj(FhGUI,'tag','playLog6');
 playLog7h=findobj(FhGUI,'tag','playLog7');
 playLog8h=findobj(FhGUI,'tag','playLog8');
+playLog9h=findobj(FhGUI,'tag','playLog9');
+radioLogh=findobj(FhGUI,'tag','radioLog');
+radioMich=findobj(FhGUI,'tag','radioMic');
 
 evalb{1}=evalLog1h;
 evalb{2}=evalLog2h;
@@ -102,8 +122,32 @@ evalb{5}=evalLog5h;
 evalb{6}=evalLog6h;
 evalb{7}=evalLog7h;
 evalb{8}=evalLog8h;
+evalb{9}=evalLog9h;
+
+plotb{1}=plotmich;
+plotb{2}=plotlog1h;
+plotb{3}=plotlog2h;
+plotb{4}=plotlog3h;
+plotb{5}=plotlog4h;
+plotb{6}=plotlog5h;
+plotb{7}=plotlog6h;
+plotb{8}=plotlog7h;
+plotb{9}=plotlog8h;
+plotb{10}=plotlog9h;
+plotb{11}=plotevalh;
+
+playb{1}=playLog1h;
+playb{2}=playLog2h;
+playb{3}=playLog3h;
+playb{4}=playLog4h;
+playb{5}=playLog5h;
+playb{6}=playLog6h;
+playb{7}=playLog7h;
+playb{8}=playLog8h;
+playb{9}=playLog9h;
+
 set([evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith evalLog6h...
-    evalLog7h evalLog8h noCallh redoh redoEditVoch...
+    evalLog7h evalLog8h evalLog9h noCallh redoh redoEditVoch...
     redoEditSeth sliderLefth sliderRighth playMich playLog1h playLog2h...
-    playLog3h playLog4h playLog5h playLog6h playLog7h playLog8h playMicEvalh...
-    playLogEvalh checkboxh,'enable','off')
+    playLog3h playLog4h playLog5h playLog6h playLog7h playLog8h playLog9h...
+    playMicEvalh playLogEvalh checkboxh],'enable','off')

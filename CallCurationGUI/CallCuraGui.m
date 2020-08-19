@@ -22,7 +22,7 @@ function varargout = CallCuraGui(varargin)
 
 % Edit the above text to modify the response to help CallCuraGui
 
-% Last Modified by GUIDE v2.5 17-Aug-2020 13:35:45
+% Last Modified by GUIDE v2.5 18-Aug-2020 21:37:15
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -73,80 +73,6 @@ function varargout = CallCuraGui_OutputFcn(hObject, eventdata, handles)
 varargout{1} = handles.output;
 
 
-
-function redoEditVoc_Callback(hObject, eventdata, handles)
-% hObject    handle to redoEditVoc (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of redoEditVoc as text
-%        str2double(get(hObject,'String')) returns contents of redoEditVoc as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function redoEditVoc_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to redoEditVoc (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-% --- Executes on button press in micRadioh.
-function micRadioh_Callback(hObject, eventdata, handles)
-% hObject    handle to micRadioh (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of micRadioh
-
-
-% --- Executes on button press in logRadioh.
-function logRadioh_Callback(hObject, eventdata, handles)
-% hObject    handle to logRadioh (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of logRadioh
-
-
-
-function redoEditSet_Callback(hObject, eventdata, handles)
-% hObject    handle to redoEditSet (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of redoEditSet as text
-%        str2double(get(hObject,'String')) returns contents of redoEditSet as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function redoEditSet_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to redoEditSet (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-% --- Executes on slider movement.
-function sliderLeft_Callback(hObject, eventdata, handles)
-% hObject    handle to sliderLeft (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'Value') returns position of slider
-%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
-
 % --- Executes during object creation, after setting all properties.
 function sliderLeft_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to sliderLeft (see GCBO)
@@ -181,29 +107,47 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
 end
 
 
-% --- Executes on button press in start.
-function start_Callback(hObject, eventdata, handles)
-% hObject    handle to start (see GCBO)
+
+function redoEditVoc_Callback(hObject, eventdata, handles)
+% hObject    handle to redoEditVoc (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+% Hints: get(hObject,'String') returns contents of redoEditVoc as text
+%        str2double(get(hObject,'String')) returns contents of redoEditVoc as a double
 
-% --- Executes on button press in playLogEval.
-function playLogEval_Callback(hObject, eventdata, handles)
-% hObject    handle to playLogEval (see GCBO)
+
+% --- Executes during object creation, after setting all properties.
+function redoEditVoc_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to redoEditVoc (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function redoEditSet_Callback(hObject, eventdata, handles)
+% hObject    handle to redoEditSet (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+% Hints: get(hObject,'String') returns contents of redoEditSet as text
+%        str2double(get(hObject,'String')) returns contents of redoEditSet as a double
 
-% --- Executes on button press in playMicEval.
-function playMicEval_Callback(hObject, eventdata, handles)
-% hObject    handle to playMicEval (see GCBO)
+
+% --- Executes during object creation, after setting all properties.
+function redoEditSet_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to redoEditSet (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+% handles    empty - handles not created until after all CreateFcns called
 
-
-% --- Executes on button press in checkbox.
-function checkbox_Callback(hObject, eventdata, handles)
-% hObject    handle to checkbox (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
