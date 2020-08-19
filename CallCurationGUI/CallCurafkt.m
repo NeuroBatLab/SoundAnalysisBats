@@ -597,8 +597,9 @@ colormap(cmap);
 
 v_axis = axis;
 v_axis(3)=0;
-v_axis(4)=FHigh_spec;
+v_axis(4)=FHigh_spec+5e3;
 axis(v_axis);
+set(gca,'xlim',[0 Raw_Spec.to(end)*1000],'ylim',[0 FHigh_spec+5e3]);
 
 xlabel('time (ms)'), ylabel('Frequency');
 
@@ -611,7 +612,6 @@ ylabel(sprintf('Amp\nMic'))
 title(sprintf('Voc %d/%d Set %d/%d',vv,Nvoc, df,length(DataFiles)))
 xlabel(' ')
 set(gca, 'XTick',[],'XTickLabel',{})
-plotmich.XColor='w';
 plotmich.YColor='w';
 drawnow;
 hold off;
@@ -822,6 +822,7 @@ global DiffAmp Fns_AL IndVocStart IndVocStop FHigh_spec_Logger FHigh_spec;
 global RatioAmp RMSRatio RMSDiff Amp_env_Mic sliderRighth;
 global Vocp Factor_AmpDiff DiffRMS Fs_env Call1Hear0_temp plotlogevalh plotmicevalh;
 
+if ~isempty(IndVocStart{ll})
 IndVocStart_diffind = find(diff(IndVocStart{ll})>1);
 % these two lines get rid of overlapping sequences that werer detected several times
 IndVocStart{ll} = [IndVocStart{ll}(1) IndVocStart{ll}(IndVocStart_diffind +1)];
@@ -868,7 +869,9 @@ for ii=1:NV
         'Min', 1, 'Max', length(Amp_env_Mic), 'Value', 1)
     
 end
-
+else
+  disp('Evaluation done for this logger')  
+end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function evaluatingCalls(vv,ll)
 global IndVocStart Fs_env IndVocStop FHigh_spec_Logger checkboxh playll;
@@ -887,11 +890,8 @@ set(checkboxh,'BackgroundColor',[0 255 0]./255)
 set(checkboxh,'enable','on')
 
 hold on;
-axes(plotlogevalh);
-xlims=xlim;
-
-clickxv=xlims(end);
-while  strcmp(get(checkboxh,'string'),'V') && clickxv>0%|| clickxv<arrowfieldl || clickyv>= arrowfield
+stopclick=1;
+while  stopclick%|| clickxv<arrowfieldl || clickyv>= arrowfield
     axes(plotlogevalh);
     [clickxv,clickyv]=ginput(1);%_ax(axcl,1);
     check=1;
@@ -932,6 +932,9 @@ while  strcmp(get(checkboxh,'string'),'V') && clickxv>0%|| clickxv<arrowfieldl |
             end
             check=0;
         end
+    end
+    if strcmp(get(checkboxh,'string'),'V')
+        stopclick=0;
     end
 end
 for ii=1:NV
@@ -1066,8 +1069,8 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function plotMic(vv,FigN)
-global Raw_Spec Fs_env IndVocStart IndVocStop Nvoc df DataFiles FHigh_spec;
-global RowSize DB_noise plotmich plotmicevalh;
+global Raw_Spec  Nvoc df DataFiles FHigh_spec;
+global DB_noise plotmich plotmicevalh;
 
 if FigN==1
     axpl=plotmich;
@@ -1086,14 +1089,15 @@ cmap = spec_cmap();
 colormap(cmap);
 v_axis = axis;
 v_axis(3)=0;
-v_axis(4)=FHigh_spec;
+v_axis(4)=FHigh_spec+5e3;
 axis(v_axis);
+set(gca,'xlim',[0 Raw_Spec.to(end)*1000],'ylim',[0 FHigh_spec+5e3])
+
 xlabel('time (ms)'), ylabel('Frequency');
 if FigN==1
     title(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc,df,length(DataFiles)))
 end
 yyaxis right
-axpl.XColor='w';
 axpl.YColor='w';
 
 drawnow;
@@ -1117,6 +1121,7 @@ minB = maxB-DB_noise;
 axes(axpl);
 cla(axpl ,'reset')
 hold on;
+
 imagesc(axpl,Logger_Spec{ll}.to*1000,Logger_Spec{ll}.fo,Logger_Spec{ll}.logB);
 hold on;% to is in seconds
 axis xy;
@@ -1127,9 +1132,9 @@ colormap(cmap);
 
 v_axis = axis;
 v_axis(3)=0;
-v_axis(4)=FHigh_spec_Logger;
+v_axis(4)=FHigh_spec_Logger+5e3;
 axis(v_axis);
-
+set(gca,'xlim',[0 Logger_Spec{ll}.to(end)*1000],'ylim',[0 FHigh_spec_Logger+5e3])
 xlabel('time (ms)'), ylabel('Frequency');
 yyaxis right
 
@@ -1148,6 +1153,5 @@ if FigN==1
     ylabel(sprintf('Amp\n%s',Fns_AL{ll}([1:3 7:end])))
     hold off
 end
-plotmich.XColor='w';
-plotmich.YColor='w';
+axpl.YColor='w';
 hold off;
