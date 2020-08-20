@@ -12,10 +12,10 @@ switch action
         loadnextfile(vv)
         
     case 'NoCall'
+        disableEvals
         fprintf(1,'Manual input enforced: Noise (=NoCall)\n');
         fprintf(1,'saving data...\n')
         ManCall=0;
-        disableEvals
         savingData
         if redo
             vv=oldvv;
@@ -40,6 +40,7 @@ switch action
         end
         
     case 'Redo'
+        disableEvals
         oldvv=vv-1;
         olddf=df;
         %grab which file to reevaluate
@@ -49,7 +50,7 @@ switch action
             fprintf(1,'Incorrect Voc# or Set#\n');
         else
             fprintf(1,'Redo evaluation\n');
-            fprintf(1,['Grabbing Voc#' num2str(vv) '\ and Set#' num2str(df) 'n']);
+            fprintf(1,['Grabbing Voc#' num2str(vv) ' and Set#' num2str(df) '\n']);
             if df~=olddf
                 grabNewDatafile(df)
             end
@@ -62,14 +63,14 @@ switch action
         set(checkboxh,'String','X')
         set(checkboxh,'BackgroundColor',[88 117 88]./255)
         set([submith noCallh redoh],'enable','on');
-
+        
         
     case 'Submit'
+        disableEvals
         set(submith,'String','Submitted')
         set(submith,'BackgroundColor',[204 88 88]./255)
         %save submit
         ManCall=1;
-        disableEvals
         evaluationDone(vv)
         savingData
         if redo
@@ -116,14 +117,14 @@ switch action
         evaluatingCalls(vv,9)
     case 'EvalLog10'
         evaluatingCalls(vv,10)
-             
+        
     case 'Quit'
         close all;
         clear all;
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function initFiles
-global DoneListDetect BaseDataDir NExpe DoneListWho;
+global DoneListDetect BaseDataDir NExpe DoneListWho ParamFile;
 global Date ExpStartTime Logger_dir AudioDataPath ee WorkingDir;
 
 checkSession=1;
@@ -165,10 +166,10 @@ for ll=1:length(LoggersDir)
     FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
     failsafe=1;
     while failsafe
-    Check(ll) = 1;%input('Is everything ok? (yes ->1, No -> 0): ');
-    if ~isempty(Check(ll))
-        failsafe=0;
-    end
+        Check(ll) = 1;%input('Is everything ok? (yes ->1, No -> 0): ');
+        if ~isempty(Check(ll))
+            failsafe=0;
+        end
     end
     fprintf('\n')
     close(FigCD)
@@ -177,12 +178,12 @@ fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
 AllignmentPath = fullfile(AudioDataPath,sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, ExpStartTime));
 FigAP = open(AllignmentPath);
 failsafe=1;
-    while failsafe
-Check(length(LoggersDir)+1) = 1;%input('Is everything ok? (yes ->1, No -> 0): ');
- if ~isempty(Check(ll))
+while failsafe
+    Check(length(LoggersDir)+1) = 1;%input('Is everything ok? (yes ->1, No -> 0): ');
+    if ~isempty(Check(ll))
         failsafe=0;
     end
-    end
+end
 fprintf('\n')
 close(FigAP)
 if any(~Check)
@@ -256,7 +257,8 @@ else
     end
     [~,AscendOrd] = sort(IndDataFiles);
     DataFiles = DataFiles(AscendOrd);
-    load(fullfile(AudioDataPath, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'MeanStdAmpRawExtract','Voc_filename')
+    load(fullfile(AudioDataPath, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)),...
+        'MeanStdAmpRawExtract','Voc_filename')
     Nvoc_all = length(Voc_filename);
     DataFile = fullfile(DataFiles(1).folder, DataFiles(1).name);
     load(DataFile, 'VocMaxNum')
@@ -292,9 +294,11 @@ else
         Nvoc = Nvocs(df+1) - Nvocs(df);
         DataFile = fullfile(DataFiles(df).folder, DataFiles(df).name);
         
-        PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime, df,MergeThresh));
+        PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat',...
+            Date, ExpStartTime, df,MergeThresh));
         if ~isfile(PreviousFile)
-            PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData_%d.mat', Date, ExpStartTime,MergeThresh));
+            PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData_%d.mat',...
+                Date, ExpStartTime,MergeThresh));
         end
         if ~isempty(dir(PreviousFile)) && UseOld
             load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged',...
@@ -410,25 +414,6 @@ else
         
     end
 end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function loadnextfile(vv)
-global Nvoc df DataFiles AudioLogs Amp_env_LowPassLogVoc filenameh;
-
-fprintf(1,'\n\n\n\nVoc sequence %d/%d Set %d/%d\n',vv,Nvoc, df, length(DataFiles));
-checkforerror(vv)
-set(filenameh,'String',['Voc sequence ' num2str(vv) '/' num2str(Nvoc)...
-    ' Set ' num2str(df) '/' num2str(length(DataFiles))])
-grabAmbientMic(vv)
-grabLoggers(vv)
-% No logger data, just isolate onset/offset of vocalizations on the microphone
-if sum(cellfun('isempty',(Amp_env_LowPassLogVoc))) == length(AudioLogs)
-    fprintf(1,'CANNOT DETERMINE OWNERSHIP NO DETECTION OF ONSET/OFFSET\n')
-    %ForceSaveOnOffSetMic(vv)
-else
-    DataOnLogger_prep
-    prepfindCaller(vv)
-    enableEvals
-end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function savingData
 global PreviousFile Working_dir_write Date ExpStartTime df MergeThresh vv;
@@ -529,9 +514,32 @@ else % often problem of memory, we're going to chunck file loading
     Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
     load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
 end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function loadnextfile(vv)
+global Nvoc df DataFiles AudioLogs Amp_env_LowPassLogVoc filenameh;
+global Date ee NExpe ParamFile;
+
+fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
+fprintf(1,'\n\n\n\nVoc sequence %d/%d Set %d/%d\n',vv,Nvoc, df, length(DataFiles));
+checkforerror(vv)
+set(filenameh,'String',['Voc sequence ' num2str(vv) '/' num2str(Nvoc)...
+    ' Set ' num2str(df) '/' num2str(length(DataFiles))])
+grabAmbientMic(vv)
+grabLoggers(vv)
+% No logger data, just isolate onset/offset of vocalizations on the microphone
+if sum(cellfun('isempty',(Amp_env_LowPassLogVoc))) == length(AudioLogs)
+    fprintf(1,'CANNOT DETERMINE OWNERSHIP NO DETECTION OF ONSET/OFFSET\n')
+    %ForceSaveOnOffSetMic(vv)
+else
+    DataOnLogger_prep
+    prepfindCaller(vv)
+    enableEvals
+end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function eraseData
 global DataFile SaveRawWave DataFiles df;
+
 while 0
     if SaveRawWave
         [s2,m,e]=copyfile(DataFile, fullfile(DataFiles(df).folder,DataFiles(df).name), 'f');
@@ -586,7 +594,6 @@ global Filt_RawVoc FS Fhigh_power Fs_env DB_noise FHigh_spec ColorCode;
 global Raw_Spec sliderLefth;
 global plotmich;
 
-
 %% First calculate the time varying RMS of the ambient microphone
 % bandpass filter the ambient mic recording
 Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
@@ -616,17 +623,17 @@ set(gca,'xlim',[0 Raw_Spec.to(end)*1000],'ylim',[0 FHigh_spec+5e3],...
     'ytick',[0 FHigh_spec/2 FHigh_spec]);
 
 xlabel('time (ms)'), ylabel('Frequency');
+yyaxis left;
 plotmich.YColor='w';
-
-
 
 hold on
 yyaxis right
 plot(plotmich,(1:length(Amp_env_Mic))/Fs_env*1000, Amp_env_Mic, 'r-', 'LineWidth',2)
-ylabel(sprintf('Amp\nMic'))
+%ylabel(sprintf('Amp\nMic'))
 title(sprintf('Voc %d/%d Set %d/%d',vv,Nvoc, df,length(DataFiles)))
 xlabel(' ')
 set(gca, 'XTick',[],'XTickLabel',{})
+set(gca,'ytick','')
 drawnow;
 hold off;
 set(sliderLefth,'SliderStep', [1/(length(Amp_env_Mic)-1), 10/(length(Amp_env_Mic)-1)], ...
@@ -734,8 +741,7 @@ global AudioLogs ColorCode Fns_AL Factor_AmpDiff DiffRMS BandPassFilter;
 global Factor_RMS_low RMSLow;
 global DiffAmp RatioAmp;
 global Amp_env_LowPassLogVoc_MAT Amp_env_HighPassLogVoc_MAT;
-global F2;
-
+global F2 FhGUI;
 
 %% There is some data on the logger, extract the id of the vocalizing bat
 % Treat the case where some approximations of the calculations led to
@@ -790,15 +796,14 @@ for ll=1:length(AudioLogs)
         'Color',ColorCode(ll,:),'LineStyle','--');
     hold on
 end
-
-
 legend({Fns_AL{:} 'Microphone' 'voc detection threshold' 'voc detection threshold'})
+winontopch=WinOnTop( FhGUI );
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function enableEvals
 global Amp_env_LowPassLogVoc_MAT AudioLogs Factor_RMS_low RMSLow Fns_AL;
 global Consecutive_binsPiezo Vocp IndVocStart evalb playb;
 global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
-global playMich submith;
+global playMich submith plotmicevalh plotlogevalh;
 
 for ll=1:length(AudioLogs)
     % Time points above amplitude threshold on the low-passed logger signal
@@ -807,7 +812,7 @@ for ll=1:length(AudioLogs)
     IndVocStart{ll} = strfind(Vocp(ll,:), ones(1,Consecutive_binsPiezo));
     if isempty(IndVocStart{ll})
         fprintf('\nNo vocalization detected on %s\n',Fns_AL{ll});
-            set(evalb{ll},'enable','off')
+        set(evalb{ll},'enable','off')
     else
         set(evalb{ll},'enable','on')
     end
@@ -817,6 +822,10 @@ end
 set([submith noCallh redoh redoEditVoch...
     redoEditSeth sliderLefth sliderRighth playMich],'enable','on')
 set(submith,'BackgroundColor',[19 159 255]./255)
+axes(plotmicevalh);
+cla(plotmicevalh ,'reset')
+axes(plotlogevalh);
+cla(plotlogevalh ,'reset')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function disableEvals
 global submith evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h evalLog6h;
@@ -838,160 +847,156 @@ global Vocp Factor_AmpDiff DiffRMS Fs_env Call1Hear0_temp plotlogevalh plotmicev
 
 logdone=0;
 if ~isempty(IndVocStart{ll})
-IndVocStart_diffind = find(diff(IndVocStart{ll})>1);
-% these two lines get rid of overlapping sequences that werer detected several times
-IndVocStart{ll} = [IndVocStart{ll}(1) IndVocStart{ll}(IndVocStart_diffind +1)];
-% This is the number of detected potential vocalization
-NV = length(IndVocStart{ll});
-IndVocStop{ll} = nan(1,NV);
-RMSRatio{ll} = nan(NV,1);
-RMSDiff{ll} = nan(NV,1);
-Call1Hear0_temp = zeros(NV,1);
-Call1Listen0_temp= zeros(NV,1);
-plotMic(vv,3)
-plotLogger(vv,ll,3)
-for ii=1:NV
-    IVStop = find(Vocp(ll,IndVocStart{ll}(ii):end)==0, 1, 'first');
-    if ~isempty(IVStop)
-        IndVocStop{ll}(ii) = IndVocStart{ll}(ii) + IVStop -1;
-    else
-        IndVocStop{ll}(ii) = length(Vocp(ll,:));
-    end
-    
-    % Calculate the Average RMS Ratio for each sound extract
-    % and decide about the vocalization ownership
-    RMSRatio{ll}(ii) = mean(RatioAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
-    RMSDiff{ll}(ii) = mean(DiffAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
-    Call1Hear0_temp(ii) = RMSDiff{ll}(ii) > Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1);
-    
-    % update figure(3) with the decision
-    
-    hold on
-    yyaxis left
-    line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-        [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
-    yyaxis left
-    line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-        [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 0])
-
-    if Call1Hear0_temp(ii)
-        %computer guess is calling
+    IndVocStart_diffind = find(diff(IndVocStart{ll})>1);
+    % these two lines get rid of overlapping sequences that werer detected several times
+    IndVocStart{ll} = [IndVocStart{ll}(1) IndVocStart{ll}(IndVocStart_diffind +1)];
+    % This is the number of detected potential vocalization
+    NV = length(IndVocStart{ll});
+    IndVocStop{ll} = nan(1,NV);
+    RMSRatio{ll} = nan(NV,1);
+    RMSDiff{ll} = nan(NV,1);
+    Call1Hear0_temp = zeros(NV,1);
+    Call1Listen0_temp= zeros(NV,1);
+    plotMic(vv,3)
+    plotLogger(vv,ll,3)
+    for ii=1:NV
+        IVStop = find(Vocp(ll,IndVocStart{ll}(ii):end)==0, 1, 'first');
+        if ~isempty(IVStop)
+            IndVocStop{ll}(ii) = IndVocStart{ll}(ii) + IVStop -1;
+        else
+            IndVocStop{ll}(ii) = length(Vocp(ll,:));
+        end
+        
+        % Calculate the Average RMS Ratio for each sound extract
+        % and decide about the vocalization ownership
+        RMSRatio{ll}(ii) = mean(RatioAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
+        RMSDiff{ll}(ii) = mean(DiffAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
+        Call1Hear0_temp(ii) = RMSDiff{ll}(ii) > Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1);
+        
+        % update figure(3) with the decision
+        
+        hold on
+        yyaxis left
         line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-            [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[.8 .7 0])
-    else
-        %computer guess is hearing/noise
+            [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
+        yyaxis left
         line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-            [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 .7 .8])
+            [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 0])
+        
+        if Call1Hear0_temp(ii)
+            %computer guess is calling
+            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[.6 0 .7])
+        else
+            %computer guess is hearing/noise
+            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 .7 .8])
+        end
+        hold off
+        set(sliderRighth,'SliderStep', [1/(length(Amp_env_Mic)-1), 10/(length(Amp_env_Mic)-1)], ...
+            'Min', 1, 'Max', length(Amp_env_Mic), 'Value', 1)
+        
     end
-    hold off
-    set(sliderRighth,'SliderStep', [1/(length(Amp_env_Mic)-1), 10/(length(Amp_env_Mic)-1)], ...
-        'Min', 1, 'Max', length(Amp_env_Mic), 'Value', 1)
-    
-end
 else
-  disp('Evaluation done for this logger')  
-  logdone=1;
+    disp('Evaluation done for this logger')
+    logdone=1;
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function evaluatingCalls(vv,ll)
 global IndVocStart Fs_env IndVocStop FHigh_spec_Logger checkboxh playll;
 global submith noCallh redoh stopclick logdone Call1Listen0_temp;
-global FHigh_spec Call1Hear0_temp PiezoError PiezoErrorType;
+global FHigh_spec Call1Hear0_temp PiezoError PiezoErrorType Fns_AL;
 global playMicEvalh playLogEvalh plotmicevalh plotlogevalh;
 
 playll=ll;
 CallOnLogger(vv,ll)
 if logdone==0
-NV = length(IndVocStart{ll});
-Call1Hear0_man = zeros(NV,1);
-Call1Listen0_man = zeros(NV,1);
-
-set([playMicEvalh playLogEvalh],'enable','on')
-set([submith noCallh redoh],'enable','off');
-set(checkboxh,'String','V')
-set(checkboxh,'BackgroundColor',[0 255 0]./255)
-set(checkboxh,'enable','on')
-
-hold on;
-stopclick=1;
-while  stopclick%|| clickxv<arrowfieldl || clickyv>= arrowfield
-    axes(plotlogevalh);
-   
-    [clickxv,clickyv]=ginput(1);%_ax(axcl,1);
-    check=1;
-    ii=0;
-    while check && ii<NV
-        ii=ii+1;
-        if clickxv>=(IndVocStart{ll}(ii)/Fs_env)*1e3  && clickxv<=(IndVocStop{ll}(ii)/Fs_env)*1e3
-            if clickyv<FHigh_spec_Logger+5e3
-                if Call1Hear0_man(ii)==1
-                    Call1Hear0_man(ii)=0;
-                    if Call1Hear0_temp(ii)
-                    line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                        [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[.8 .7 0])
+    NV = length(IndVocStart{ll});
+    Call1Hear0_man = zeros(NV,1);
+    Call1Listen0_man = zeros(NV,1);
+    set(playLogEvalh,'enable','on','String',['Play' Fns_AL{ll}([1:3 7:end])])
+    set([playMicEvalh playLogEvalh],'enable','on')
+    set([submith noCallh redoh],'enable','off');
+    set(checkboxh,'String','V')
+    set(checkboxh,'BackgroundColor',[0 255 0]./255)
+    set(checkboxh,'enable','on')
+    hold on;
+    stopclick=1;
+    while  stopclick%|| clickxv<arrowfieldl || clickyv>= arrowfield
+        axes(plotlogevalh);        
+        [clickxv,clickyv]=ginput(1);%_ax(axcl,1);
+        check=1;
+        ii=0;
+        while check && ii<NV
+            ii=ii+1;
+            if clickxv>=(IndVocStart{ll}(ii)/Fs_env)*1e3  && clickxv<=(IndVocStop{ll}(ii)/Fs_env)*1e3
+                if clickyv<FHigh_spec_Logger+5e3
+                    if Call1Hear0_man(ii)==1
+                        Call1Hear0_man(ii)=0;
+                        if  Call1Hear0_temp(ii)
+                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[.6 0 .7])
+                            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 0])
+                        else
+                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
+                            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 .7 .8])
+                        end
                     else
-                      line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                        [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])  
+                        Call1Hear0_man(ii)=1;
+                        line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                            [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[1 0 0])
+                        line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                            [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 0])
                     end
                 else
-                    Call1Hear0_man(ii)=1;
-                    line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                        [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[1 0 0])
-                     if Call1Hear0_temp(ii)==0
-                    line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                        [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 .7 .8])
+                    if Call1Listen0_man(ii)==1
+                        Call1Listen0_man(ii)=0;
+                        if Call1Hear0_temp(ii)==0
+                            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 .7 .8])
+                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
+                        else
+                            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 0])
+                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[.6 0 .7])
+                        end
                     else
-                       line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                        [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 0]) 
-                     end
-                end
-            else
-                if Call1Listen0_man(ii)==1
-                    Call1Listen0_man(ii)=0;
-                    if Call1Hear0_temp(ii)==0
-                    line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                        [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 .7 .8])
-                    else
-                       line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                        [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 0]) 
-                    end
-                else
-                    Call1Listen0_man(ii)=1;
-                    line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                        [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 1])
-                    if Call1Hear0_temp(ii)
-                    line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                        [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[.8 .7 0])
-                    else
-                      line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                        [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])  
+                        Call1Listen0_man(ii)=1;
+                        line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                            [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 1])
+                        line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                            [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
                     end
                 end
+                check=0;
             end
-            check=0;
+        end
+        pause(.1)
+        if clickxv<0 && strcmp(get(checkboxh,'string'),'X')
+            drawnow;
+            stopclick=0;
         end
     end
-    pause(.1)
-    if clickxv<0 && strcmp(get(checkboxh,'string'),'X')
-        drawnow;
-        stopclick=0;
+    for ii=1:NV
+        Agree = Call1Hear0_temp(ii)== Call1Hear0_man(ii);
+        if ~Agree
+            Call1Hear0_temp(ii) = Call1Hear0_man(ii);
+            PiezoError = PiezoError + [1 1];
+            PiezoErrorType = PiezoErrorType + [Call1Hear0_temp(ii) ~Call1Hear0_temp(ii)];
+        else
+            PiezoError = PiezoError + [0 1];
+        end
+        Agree = Call1Hear0_temp(ii)== Call1Listen0_man(ii);
+        if ~Agree
+            Call1Listen0_temp(ii) = Call1Listen0_man(ii);
+        end
     end
-end
-for ii=1:NV
-    Agree = Call1Hear0_temp(ii)== Call1Hear0_man(ii);
-    if ~Agree
-        Call1Hear0_temp(ii) = Call1Hear0_man(ii);
-        PiezoError = PiezoError + [1 1];
-        PiezoErrorType = PiezoErrorType + [Call1Hear0_temp(ii) ~Call1Hear0_temp(ii)];
-    else
-        PiezoError = PiezoError + [0 1];
-    end
-     Agree = Call1Hear0_temp(ii)== Call1Listen0_man(ii);
-    if ~Agree
-        Call1Listen0_temp(ii) = Call1Listen0_man(ii);
-    end
-end
-updateLoggerEval(vv,ll)
+    updateLoggerEval(vv,ll)
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function evaluationDone(vv)
@@ -1035,7 +1040,7 @@ while 0
     end
 end
 
-clf(Figcopy)
+%clf(Figcopy)
 clf(F2)
 % Gather Vocalization production data:
 IndVocStart_all{vv} = IndVocStart;
@@ -1062,9 +1067,11 @@ global Call1Hear0_temp;
 global IndVocStartRaw IndVocStartPiezo IndVocStopRaw IndVocStopPiezo ;
 global IndVocStart IndVocStop IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
 global IndVocStartPiezo_merge_local IndVocStopPiezo_merge_local Fns_AL;
-global ColorCode FS Piezo_FS Raw_Spec;
+global ColorCode FS Piezo_FS Logger_Spec;
 global Fs_env MergeThresh;
 global plotb;
+
+%!!!!!!!!!!!!!!!!!Still add evaluation of listener in Call1Listen0_temp!!!!!!!!!!!!!!!!!!!
 
 % Stash noise and Only keep vocalizations that were produced by the bat
 % according to the high RMSRatio value
@@ -1099,16 +1106,18 @@ if NV
     % Now plot the onset/offset of each extract on the
     % spectrograms of the loggers
     for ii=1:NV
-        axes(plotb{ii+1})
+        axes(plotb{ll+1})
         hold on
         yyaxis right
         YLim = get(gca, 'YLim');
-        plot(plotb{ii+1},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
+        plot(plotb{ll+1},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
             [YLim(2)*4/5 YLim(2)*4/5], 'k-', 'LineWidth',2)
         hold on
         plot(plotb{end},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
             [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-        set(gca,'xlim',[0 Raw_Spec.to(end)*1000])
+        axes(plotb{end})
+        set(gca,'xlim',[0 Logger_Spec{1}.to(end)*1000])
+        drawnow;
         hold off
     end
 end
@@ -1139,7 +1148,7 @@ v_axis(3)=0;
 v_axis(4)=FHigh_spec+5e3;
 axis(v_axis);
 set(gca,'xlim',[0 Raw_Spec.to(end)*1000],'ylim',[0 FHigh_spec+5e3],...
-     'ytick',[0 FHigh_spec/2 FHigh_spec])
+    'ytick',[0 FHigh_spec/2 FHigh_spec])
 axpl.YColor='w';
 xlabel('time (ms)'), ylabel('Frequency');
 if FigN==1
@@ -1152,9 +1161,11 @@ hold off;
 function plotLogger(vv,ll,FigN)
 global LowPassLogVoc Piezo_FS Fns_AL DB_noise FHigh_spec_Logger;
 global Amp_env_LowPassLogVoc Amp_env_HighPassLogVoc Fs_env AudioLogs;
-global plotb plotlogevalh Logger_Spec;
+global plotb plotlogevalh plotevalh Logger_Spec;
 
 if FigN==1
+    axes(plotevalh);
+    cla(plotevalh ,'reset')
     axpl=plotb{ll+1};
     [Logger_Spec{ll}.to, Logger_Spec{ll}.fo, Logger_Spec{ll}.logB] = ...
         spec_only_bats_gui(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv),...
@@ -1185,10 +1196,12 @@ axis(v_axis);
 set(gca,'xlim',[0 Logger_Spec{ll}.to(end)*1000],'ylim',[0 FHigh_spec_Logger+val],...
     'ytick',[0 FHigh_spec_Logger/2 FHigh_spec_Logger])
 xlabel('time (ms)'), ylabel('Frequency');
+yyaxis left;
 axpl.YColor='w';
+yyaxis right;
+set(gca,'ytick','')
 if FigN==1
     hold on;
-    
     if ll<length(AudioLogs)
         xlabel(' '); % supress the x label output
         set(gca,'XTick',[],'XTickLabel',{});
@@ -1199,7 +1212,6 @@ if FigN==1
     hold on
     plot(axpl,(1:length(Amp_env_HighPassLogVoc{ll}))/Fs_env*1000,...
         Amp_env_HighPassLogVoc{ll}, 'r-','LineWidth',2);
-    set(gca,'ytick','')
     %ylabel(sprintf('Amp\n%s',Fns_AL{ll}([1:3 7:end])))
     hold off
 end
