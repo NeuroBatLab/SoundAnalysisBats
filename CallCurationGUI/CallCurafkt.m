@@ -13,6 +13,7 @@ switch action
         
     case 'NoCall'
         disableEvals
+        drawnow;
         fprintf(1,'Manual input enforced: Noise (=NoCall)\n');
         fprintf(1,'saving data...\n')
         ManCall=0;
@@ -41,6 +42,7 @@ switch action
         
     case 'Redo'
         disableEvals
+        drawnow;
         oldvv=vv-1;
         olddf=df;
         %grab which file to reevaluate
@@ -67,6 +69,7 @@ switch action
         
     case 'Submit'
         disableEvals
+        drawnow;
         set(submith,'String','Submitted')
         set(submith,'BackgroundColor',[204 88 88]./255)
         %save submit
@@ -167,8 +170,10 @@ for ll=1:length(LoggersDir)
     failsafe=1;
     while failsafe
         Check(ll) = 1;%input('Is everything ok? (yes ->1, No -> 0): ');
-        if ~isempty(Check(ll))
-            failsafe=0;
+        failsafe=0;
+        if isempty(Check(ll))
+            failsafe=1;
+            disp('Entry is empty, please repeat!')
         end
     end
     fprintf('\n')
@@ -180,8 +185,10 @@ FigAP = open(AllignmentPath);
 failsafe=1;
 while failsafe
     Check(length(LoggersDir)+1) = 1;%input('Is everything ok? (yes ->1, No -> 0): ');
-    if ~isempty(Check(ll))
-        failsafe=0;
+    failsafe=0;
+    if isempty(Check(ll))
+        failsafe=1;
+       disp('Entry is empty, please repeat!')
     end
 end
 fprintf('\n')
@@ -271,7 +278,7 @@ else
         Nvocs = [0 Nvoc_all];
     end
     check=1;
-    df=1;
+    df=6;
     while check && df<=length(DataFiles)
         
         %% Identify sound elements in each vocalization extract and decide of the vocalizer
@@ -370,7 +377,7 @@ else
     Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
     Fs_env = 1000; % Sample frequency of the enveloppe
     
-    if df==1 || ~exist('sos_raw_band', 'var')
+   % if df==1 || ~exist('sos_raw_band', 'var')
         % design filters of raw ambient recording, bandpass and low pass which was
         % used for the cross correlation
         [z,p,k] = butter(6,[BandPassFilter(1) 90000]/(FS/2),'bandpass');
@@ -379,15 +386,15 @@ else
         % sos_raw_low = zp2sos(z,p,k);
         [z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
         sos_raw_band_listen = zp2sos(z,p,k);
-    end
+ %   end
     
     
-    if df==1 || ~exist('sos_raw_band_listen', 'var')
+   % if df==1 || ~exist('sos_raw_band_listen', 'var')
         % design filters of raw ambient recording, bandpass, for
         % listening
         [z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
         sos_raw_band_listen = zp2sos(z,p,k);
-    end
+   % end
     
     % Initialize variables
     
@@ -517,13 +524,15 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function loadnextfile(vv)
 global Nvoc df DataFiles AudioLogs Amp_env_LowPassLogVoc filenameh;
-global Date ee NExpe ParamFile;
+global Date ee NExpe ParamFile redoEditVoch redoEditSeth;
 
 fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
 fprintf(1,'\n\n\n\nVoc sequence %d/%d Set %d/%d\n',vv,Nvoc, df, length(DataFiles));
 checkforerror(vv)
 set(filenameh,'String',['Voc sequence ' num2str(vv) '/' num2str(Nvoc)...
     ' Set ' num2str(df) '/' num2str(length(DataFiles))])
+set(redoEditVoch,'String',num2str(vv))
+set(redoEditSeth,'String',num2str(df))
 grabAmbientMic(vv)
 grabLoggers(vv)
 % No logger data, just isolate onset/offset of vocalizations on the microphone
@@ -803,7 +812,7 @@ function enableEvals
 global Amp_env_LowPassLogVoc_MAT AudioLogs Factor_RMS_low RMSLow Fns_AL;
 global Consecutive_binsPiezo Vocp IndVocStart evalb playb;
 global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
-global playMich submith plotmicevalh plotlogevalh;
+global playMich submith plotmicevalh plotlogevalh evalbon;
 
 for ll=1:length(AudioLogs)
     % Time points above amplitude threshold on the low-passed logger signal
@@ -813,8 +822,10 @@ for ll=1:length(AudioLogs)
     if isempty(IndVocStart{ll})
         fprintf('\nNo vocalization detected on %s\n',Fns_AL{ll});
         set(evalb{ll},'enable','off')
+         evalbon(ll)=0;
     else
         set(evalb{ll},'enable','on')
+        evalbon(ll)=1;
     end
     set(evalb{ll},'String',['Eval' Fns_AL{ll}([1:3 7:end])])
     set(playb{ll},'enable','on','String',['Play' Fns_AL{ll}([1:3 7:end])])
@@ -907,6 +918,8 @@ global IndVocStart Fs_env IndVocStop FHigh_spec_Logger checkboxh playll;
 global submith noCallh redoh stopclick logdone Call1Listen0_temp;
 global FHigh_spec Call1Hear0_temp PiezoError PiezoErrorType Fns_AL;
 global playMicEvalh playLogEvalh plotmicevalh plotlogevalh;
+global evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h evalLog6h;
+global evalLog7h evalLog8h evalLog9h evalLog10h evalbon;
 
 playll=ll;
 CallOnLogger(vv,ll)
@@ -920,11 +933,28 @@ if logdone==0
     set(checkboxh,'String','V')
     set(checkboxh,'BackgroundColor',[0 255 0]./255)
     set(checkboxh,'enable','on')
+    set([evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith evalLog6h...
+    evalLog7h evalLog8h evalLog9h evalLog10h],'enable','off')
     hold on;
     stopclick=1;
+     axes(plotlogevalh);
+    axorigl = axis;
+     axes(plotmicevalh);
+    axorigm = axis;
     while  stopclick%|| clickxv<arrowfieldl || clickyv>= arrowfield
-        axes(plotlogevalh);        
-        [clickxv,clickyv]=ginput(1);%_ax(axcl,1);
+        axes(plotlogevalh);     
+        [clickxv,clickyv,b]=ginput(1);%_ax(axcl,1);
+        if b==2
+            ax= axis;width=ax(2)-ax(1); height=ax(4)-ax(3);
+        axis([clickxv-width/2 clickxv+width/2 ax(3) ax(4)]);
+        zoom xon;
+        zoom(2)
+        elseif b==3
+             axes(plotlogevalh);
+        axis([axorigl]);
+             axes(plotmicevalh);
+        axis([axorigm]);
+        else
         check=1;
         ii=0;
         while check && ii<NV
@@ -976,6 +1006,7 @@ if logdone==0
                 check=0;
             end
         end
+        end
         pause(.1)
         if clickxv<0 && strcmp(get(checkboxh,'string'),'X')
             drawnow;
@@ -997,8 +1028,27 @@ if logdone==0
         end
     end
     updateLoggerEval(vv,ll)
+    evalbon(ll)=0;
+    enableEvals_again
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function enableEvals_again
+global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
+global playMich submith plotmicevalh plotlogevalh evalb evalbon;
+
+for ll=1:length(evalbon)
+      if evalbon(ll)
+        set(evalb{ll},'enable','on')
+      end
+end
+set([submith noCallh redoh redoEditVoch...
+    redoEditSeth sliderLefth sliderRighth playMich],'enable','on')
+set(submith,'BackgroundColor',[19 159 255]./255)
+axes(plotmicevalh);
+cla(plotmicevalh ,'reset')
+axes(plotlogevalh);
+cla(plotlogevalh ,'reset')
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function evaluationDone(vv)
 global AudioLogs;
 global IndVocStart IndVocStop IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
@@ -1214,6 +1264,9 @@ if FigN==1
         Amp_env_HighPassLogVoc{ll}, 'r-','LineWidth',2);
     %ylabel(sprintf('Amp\n%s',Fns_AL{ll}([1:3 7:end])))
     hold off
+else
+   axpl.XColor='w'; 
 end
 
 hold off;
+zoom on;

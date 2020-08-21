@@ -99,11 +99,13 @@ Player= audioplayer(SampleMic, FS/4,24);
 function updateSliderLeft(startpos)
 global sliderLefth Raw_wave_nn FS;
 
+%pause slider somewhat to match player (isplaying did not work efficiently)
+pause(.2)
 tic;
 while toc*1e3<=(length(Raw_wave_nn)/FS)*1e3-(startpos)
     set(sliderLefth,'Value', round(toc*1e3)+startpos)
     drawnow;
-    pause(.02);
+    pause(.01);
 end
 set(sliderLefth,'Value', 1)
 pause(1);
@@ -111,11 +113,13 @@ pause(1);
 function updateSliderRight(startpos)
 global sliderRighth Raw_wave_nn FS;
 
+%pause slider somewhat to match player (isplaying did not work efficiently)
+pause(.2)
 tic;
 while toc*1e3<=(length(Raw_wave_nn)/FS)*1e3-(startpos)
     set(sliderRighth,'Value', round(toc*1e3)+startpos)
     drawnow;
-    pause(.02);
+    pause(.01);
 end
 set(sliderRighth,'Value', 1)
 pause(1);
