@@ -8,7 +8,7 @@ global evalLog6h evalLog7h evalLog8h starth evalb plotb;
 global filenameh noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich playLog1h playLog2h playLog3h playLog4h playLog5h playLog6h;
 global playLog7h playLog8h playMicEvalh playLogEvalh redo checkboxh playLog9h;
-global playLog10h evalLog9h evalLog10h playb;
+global playLog10h evalLog9h evalLog10h playb message mh;
 global plotmich plotmicevalh plotlog1h plotlog2h plotlog3h plotlog4h plotlog5h;
 global plotlog6h plotlog7h plotlog8h plotlog9h plotlog10h plotevalh plotlogevalh;
 
@@ -64,11 +64,15 @@ UseOld=1;
 CheckMicChannel=0;
 redo=0;
 
+message={'';'';'';'';'';'';'';'';'';''};
+
 %GUI variables
 FhGUI=CallCuraGui;
 starth=findobj(FhGUI,'tag','start');
 noCallh=findobj(FhGUI,'tag','noCall');
 filenameh=findobj(FhGUI,'tag','filename');
+mh=findobj(FhGUI,'tag','message');
+
 plotmich=findobj(FhGUI,'tag','plotMic');
 plotmicevalh=findobj(FhGUI,'tag','plotMicEval');
 plotlog1h=findobj(FhGUI,'tag','plotLog1');

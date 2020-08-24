@@ -14,8 +14,8 @@ switch action
     case 'NoCall'
         disableEvals
         drawnow;
-        fprintf(1,'Manual input enforced: Noise (=NoCall)\n');
-        fprintf(1,'saving data...\n')
+        newmessage('Manual input enforced: Noise (=NoCall)');
+        newmessage('Saving data...')
         ManCall=0;
         savingData
         if redo
@@ -29,12 +29,12 @@ switch action
         else
             eraseData
             if df<=length(DataFiles)
-                fprintf(1,'Grabbing new set\n');
+                newmessage('Grabbing new set...');
                 grabNewDatafile(df)
                 loadnextfile(vv)
             else
-                fprintf(1,'Annotation done!\n');
-                fprintf(1,'0Grabbing new session\n');
+                newmessage('Annotation done!');
+               newmessage('Grabbing new session...');
                 initFiles
                 loadnextfile(vv)
             end
@@ -49,10 +49,14 @@ switch action
         vv=str2num(get(redoEditVoch,'string'));
         df=str2num(get(redoEditSeth,'string'));
         if vv>Nvoc || df>length(DataFiles)
-            fprintf(1,'Incorrect Voc# or Set#\n');
+            newmessage('Incorrect Voc# or Set#');
+        elseif vv>oldvv && df>olddf
+            newmessage('Do not evaluate into the future!')
+        elseif df>olddf
+            newmessage('Do not evaluate into the future!')
         else
-            fprintf(1,'Redo evaluation\n');
-            fprintf(1,['Grabbing Voc#' num2str(vv) ' and Set#' num2str(df) '\n']);
+            newmessage('Redoing evaluation');
+            newmessage(['Grabbing Voc#' num2str(vv) ' and Set#' num2str(df) '...']);
             if df~=olddf
                 grabNewDatafile(df)
             end
@@ -88,12 +92,12 @@ switch action
         else
             eraseData
             if df<=length(DataFiles)
-                fprintf(1,'Grabbing new set\n');
+                newmessage('Grabbing new set...');
                 grabNewDatafile(df)
                 loadnextfile(vv)
             else
-                fprintf(1,'Annotation done!\n');
-                fprintf(1,'Grabbing new session\n');
+                newmessage('Annotation done!');
+                newmessage('Grabbing new session...');
                 initFiles
                 loadnextfile(vv)
             end
@@ -430,7 +434,6 @@ global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
 global MicError PiezoError MicErrorType PiezoErrorType SaveRawWave Raw_wave;
 
 while 0
-    fprintf(1,'saving data...\n')
     if ~isempty(dir(PreviousFile))
         save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
             'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', ...
@@ -529,7 +532,7 @@ global Date ee NExpe ParamFile redoEditVoch redoEditSeth;
 fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
 fprintf(1,'\n\n\n\nVoc sequence %d/%d Set %d/%d\n',vv,Nvoc, df, length(DataFiles));
 checkforerror(vv)
-set(filenameh,'String',['Voc sequence ' num2str(vv) '/' num2str(Nvoc)...
+set(filenameh,'String',[ParamFile.name ':      Voc sequence ' num2str(vv) '/' num2str(Nvoc)...
     ' Set ' num2str(df) '/' num2str(length(DataFiles))])
 set(redoEditVoch,'String',num2str(vv))
 set(redoEditSeth,'String',num2str(df))
@@ -537,7 +540,7 @@ grabAmbientMic(vv)
 grabLoggers(vv)
 % No logger data, just isolate onset/offset of vocalizations on the microphone
 if sum(cellfun('isempty',(Amp_env_LowPassLogVoc))) == length(AudioLogs)
-    fprintf(1,'CANNOT DETERMINE OWNERSHIP NO DETECTION OF ONSET/OFFSET\n')
+    newmessage('CANNOT DETERMINE OWNERSHIP NO DETECTION OF ONSET/OFFSET')
     %ForceSaveOnOffSetMic(vv)
 else
     DataOnLogger_prep
@@ -664,7 +667,7 @@ end
 %% Loop through the loggers and calculate envelopes
 for ll=1:length(AudioLogs)
     if isnan(Piezo_FS.(Fns_AL{ll})(vv)) || isempty(Piezo_wave.(Fns_AL{ll}){vv})
-        fprintf(1, 'NO DATA for Vocalization %d from %s\n', vv, Fns_AL{ll})
+        newmessage( 'NO DATA for Vocalization %d from %s\n', vv, Fns_AL{ll})
     else
         % design the filters
         [z,p,k] = butter(6,BandPassFilter(1:2)/(Piezo_FS.(Fns_AL{ll})(vv)/2),'bandpass');
@@ -702,7 +705,11 @@ for ll=1:length(AudioLogs)
                 Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
             
             % Plot the low pass filtered signal of each logger
+            if ll<=10
             plotLogger(vv,ll,1)
+            else
+                newmessage('Logger # higher than 10, not plotted!')
+            end
         else
             Amp_env_LowPassLogVoc{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})),...
                 Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
@@ -767,6 +774,7 @@ Amp_env_LowPassLogVoc_MAT = cell2mat(Amp_env_LowPassLogVoc);
 Amp_env_HighPassLogVoc_MAT = cell2mat(Amp_env_HighPassLogVoc);
 RatioAmp = (Amp_env_LowPassLogVoc_MAT +1)./(Amp_env_HighPassLogVoc_MAT+1);
 DiffAmp = Amp_env_LowPassLogVoc_MAT-Amp_env_HighPassLogVoc_MAT;
+while 0
 F2=figure(2);
 % Plot the ratio of time varying RMS, the difference in time varying
 % RMS between the high and low frequency bands and the absolute time
@@ -807,6 +815,7 @@ for ll=1:length(AudioLogs)
 end
 legend({Fns_AL{:} 'Microphone' 'voc detection threshold' 'voc detection threshold'})
 winontopch=WinOnTop( FhGUI );
+end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function enableEvals
 global Amp_env_LowPassLogVoc_MAT AudioLogs Factor_RMS_low RMSLow Fns_AL;
@@ -815,6 +824,7 @@ global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich submith plotmicevalh plotlogevalh evalbon;
 
 for ll=1:length(AudioLogs)
+    if ll<=10
     % Time points above amplitude threshold on the low-passed logger signal
     Vocp(ll,:) = Amp_env_LowPassLogVoc_MAT(ll,:)>(Factor_RMS_low(ll) * RMSLow.(Fns_AL{ll})(1));
     %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
@@ -829,6 +839,7 @@ for ll=1:length(AudioLogs)
     end
     set(evalb{ll},'String',['Eval' Fns_AL{ll}([1:3 7:end])])
     set(playb{ll},'enable','on','String',['Play' Fns_AL{ll}([1:3 7:end])])
+            end
 end
 set([submith noCallh redoh redoEditVoch...
     redoEditSeth sliderLefth sliderRighth playMich],'enable','on')
@@ -891,14 +902,14 @@ if ~isempty(IndVocStart{ll})
         line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
             [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
         yyaxis left
-        line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-            [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 0])
+        line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+           [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[0 0 0])
         
         if Call1Hear0_temp(ii)
             %computer guess is calling
-            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[.6 0 .7])
-        else
+            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[.6 0 .7])
+        else 
             %computer guess is hearing/noise
             line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
                 [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 .7 .8])
@@ -909,14 +920,14 @@ if ~isempty(IndVocStart{ll})
         
     end
 else
-    disp('Evaluation done for this logger')
+    newmessage('Evaluation done for this logger')
     logdone=1;
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function evaluatingCalls(vv,ll)
 global IndVocStart Fs_env IndVocStop FHigh_spec_Logger checkboxh playll;
 global submith noCallh redoh stopclick logdone Call1Listen0_temp;
-global FHigh_spec Call1Hear0_temp PiezoError PiezoErrorType Fns_AL;
+global Call1Hear0_temp PiezoError PiezoErrorType Fns_AL;
 global playMicEvalh playLogEvalh plotmicevalh plotlogevalh;
 global evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h evalLog6h;
 global evalLog7h evalLog8h evalLog9h evalLog10h evalbon;
@@ -949,6 +960,9 @@ if logdone==0
         axis([clickxv-width/2 clickxv+width/2 ax(3) ax(4)]);
         zoom xon;
         zoom(2)
+        ax=axis;
+        axes(plotlogevalh)
+        axis(ax)
         elseif b==3
              axes(plotlogevalh);
         axis([axorigl]);
@@ -960,48 +974,33 @@ if logdone==0
         while check && ii<NV
             ii=ii+1;
             if clickxv>=(IndVocStart{ll}(ii)/Fs_env)*1e3  && clickxv<=(IndVocStop{ll}(ii)/Fs_env)*1e3
-                if clickyv<FHigh_spec_Logger+5e3
+                if clickyv<FHigh_spec_Logger
                     if Call1Hear0_man(ii)==1
                         Call1Hear0_man(ii)=0;
-                        if  Call1Hear0_temp(ii)
                             line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[.6 0 .7])
-                            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 0])
-                        else
-                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
-                            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 .7 .8])
-                        end
+                                [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[0 0 0])      
                     else
                         Call1Hear0_man(ii)=1;
                         line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                            [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[1 0 0])
-                        line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                            [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 0])
-                    end
-                else
-                    if Call1Listen0_man(ii)==1
-                        Call1Listen0_man(ii)=0;
-                        if Call1Hear0_temp(ii)==0
-                            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 .7 .8])
-                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
-                        else
-                            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 0])
-                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[.6 0 .7])
-                        end
-                    else
-                        Call1Listen0_man(ii)=1;
-                        line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                            [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 0 1])
+                            [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[1 0 0])
                         line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
                             [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
                     end
+                elseif clickyv>FHigh_spec_Logger+2e3 && clickyv<FHigh_spec_Logger+8e3
+                    if Call1Listen0_man(ii)==1
+                        Call1Listen0_man(ii)=0;
+                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
+                    else
+                        Call1Listen0_man(ii)=1;
+                        line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                            [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 1])
+                        line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                            [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[0 0 0])
+                    end
+                else
+                    newmessage('Not valid click field')
+                    newmessage('No choice made')
                 end
                 check=0;
             end
@@ -1037,9 +1036,11 @@ global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich submith plotmicevalh plotlogevalh evalb evalbon;
 
 for ll=1:length(evalbon)
+   if ll<=10
       if evalbon(ll)
         set(evalb{ll},'enable','on')
       end
+            end
 end
 set([submith noCallh redoh redoEditVoch...
     redoEditSeth sliderLefth sliderRighth playMich],'enable','on')
@@ -1091,7 +1092,7 @@ while 0
 end
 
 %clf(Figcopy)
-clf(F2)
+%clf(F2)
 % Gather Vocalization production data:
 IndVocStart_all{vv} = IndVocStart;
 IndVocStop_all{vv} = IndVocStop;
@@ -1270,3 +1271,10 @@ end
 
 hold off;
 zoom on;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function newmessage(mstring)
+global message mh;
+
+message={message{2};message{3};message{4};message{5};message{6};...
+    message{7};message{8};message{9};mstring};
+set(mh,'string',message);
