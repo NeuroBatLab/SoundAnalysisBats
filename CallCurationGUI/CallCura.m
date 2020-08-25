@@ -64,7 +64,7 @@ UseOld=1;
 CheckMicChannel=0;
 redo=0;
 
-message={'';'';'';'';'';'';'';'';'';''};
+message={'';'';'';'';'';''};
 
 %GUI variables
 FhGUI=CallCuraGui;
