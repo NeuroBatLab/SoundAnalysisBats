@@ -53,15 +53,15 @@ switch action
             set(redoEditSeth,'String',num2str(df))
         elseif vv>oldvv+1 && df>=olddf
             newmessage('Do not evaluate into the future!')
-                        set([redoh redoEditVoch redoEditSeth],'enable','on')
-                        df=olddf; vv=oldvv+1;
-                                    set(redoEditVoch,'String',num2str(vv))
+            set([redoh redoEditVoch redoEditSeth],'enable','on')
+            df=olddf; vv=oldvv+1;
+            set(redoEditVoch,'String',num2str(vv))
             set(redoEditSeth,'String',num2str(df))
         elseif df>olddf
             newmessage('Do not evaluate into the future!')
-                        set([redoh redoEditVoch redoEditSeth],'enable','on')
-                        df=olddf; vv=oldvv+1;
-                                    set(redoEditVoch,'String',num2str(vv))
+            set([redoh redoEditVoch redoEditSeth],'enable','on')
+            df=olddf; vv=oldvv+1;
+            set(redoEditVoch,'String',num2str(vv))
             set(redoEditSeth,'String',num2str(df))
         else
             newmessage('Redoing evaluation');
@@ -975,7 +975,7 @@ if logdone==0
             ax=axis;
             axes(plotmicevalh)
             axis([ax(1:2) axorigm(3) axorigm(4)])
-             axes(plotlogevalh)
+            axes(plotlogevalh)
             axis([ax(1:2) axorigl(3) axorigl(4)])
         elseif b==3
             axes(plotlogevalh);
