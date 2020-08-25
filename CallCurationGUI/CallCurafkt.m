@@ -1287,8 +1287,12 @@ hold off;
 zoom on;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function newmessage(mstring)
-global message mh;
+global message mh Use_AppDesigner;
 
 message={message{2};message{3};message{4};message{5};message{6};...
     mstring};
-set(mh,'string',message);
+if Use_AppDesigner
+    set(mh,'value',message);
+else
+    set(mh,'string',message);
+end
