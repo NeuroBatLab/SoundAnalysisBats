@@ -1,5 +1,5 @@
 function CallCurafkt(action)
-global vv Nvoc df redo DataFiles ManCall FhGUI;
+global vv Nvoc df redo DataFiles ManCall FhGUI string_handle string_handle2;
 global submith noCallh redoh starth oldvv olddf;
 global redoEditVoch redoEditSeth checkboxh stopclick;
 
@@ -43,26 +43,26 @@ switch action
         oldvv=vv-1;
         olddf=df;
         %grab which file to reevaluate
-        vv=str2num(get(redoEditVoch,'string'));
-        df=str2num(get(redoEditSeth,'string'));
+        vv=str2num(get(redoEditVoch,string_handle2));
+        df=str2num(get(redoEditSeth,string_handle2));
         if vv>Nvoc || df>length(DataFiles)
             newmessage('Incorrect Voc# or Set#');
             set([redoh redoEditVoch redoEditSeth],'enable','on')
             df=olddf; vv=oldvv+1;
-            set(redoEditVoch,'String',num2str(vv))
-            set(redoEditSeth,'String',num2str(df))
+            set(redoEditVoch,string_handle2,num2str(vv))
+            set(redoEditSeth,string_handle2,num2str(df))
         elseif vv>oldvv+1 && df>=olddf
             newmessage('Do not evaluate into the future!')
             set([redoh redoEditVoch redoEditSeth],'enable','on')
             df=olddf; vv=oldvv+1;
-            set(redoEditVoch,'String',num2str(vv))
-            set(redoEditSeth,'String',num2str(df))
+            set(redoEditVoch,string_handle2,num2str(vv))
+            set(redoEditSeth,string_handle2,num2str(df))
         elseif df>olddf
             newmessage('Do not evaluate into the future!')
             set([redoh redoEditVoch redoEditSeth],'enable','on')
             df=olddf; vv=oldvv+1;
-            set(redoEditVoch,'String',num2str(vv))
-            set(redoEditSeth,'String',num2str(df))
+            set(redoEditVoch,string_handle2,num2str(vv))
+            set(redoEditSeth,string_handle2,num2str(df))
         else
             newmessage('Redoing evaluation');
             newmessage(['Grabbing Voc#' num2str(vv) ' and Set#' num2str(df) '...']);
@@ -75,7 +75,7 @@ switch action
         
     case 'Checkbox'
         stopclick=0;
-        set(checkboxh,'String','X')
+        set(checkboxh,string_handle,'X')
         set(checkboxh,'BackgroundColor',[88 117 88]./255)
         set([submith noCallh redoh],'enable','on');
         
@@ -83,7 +83,7 @@ switch action
     case 'Submit'
         disableEvals
         drawnow;
-        set(submith,'String','Submitted')
+        set(submith,string_handle,'Submitted')
         set(submith,'BackgroundColor',[204 88 88]./255)
         %save submit
         ManCall=1;
@@ -109,7 +109,7 @@ switch action
                 loadnextfile(vv)
             end
         end
-        set(submith,'String','Submit')
+        set(submith,string_handle,'Submit')
         
     case 'EvalLog1'
         evaluatingCalls(vv,1)
@@ -133,7 +133,7 @@ switch action
         evaluatingCalls(vv,10)
         
     case 'Quit'
-        close(FhGUI);        close all;
+        close all;
         clear all;
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -537,16 +537,16 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function loadnextfile(vv)
 global Nvoc df DataFiles AudioLogs Amp_env_LowPassLogVoc filenameh;
-global Date ee NExpe ParamFile redoEditVoch redoEditSeth;
+global Date ee NExpe ParamFile redoEditVoch redoEditSeth string_handle string_handle2;
 
 newmessage('Grabbing new vocalization...');
 fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
 checkforerror(vv)
 flindx=strfind(ParamFile.name,'_');
-set(filenameh,'String',[ParamFile.name(1:flindx(3)-1) ':      Voc sequence ' num2str(vv) '/' num2str(Nvoc)...
+set(filenameh,string_handle,[ParamFile.name(1:flindx(3)-1) ':      Voc sequence ' num2str(vv) '/' num2str(Nvoc)...
     ' Set ' num2str(df) '/' num2str(length(DataFiles))])
-set(redoEditVoch,'String',num2str(vv))
-set(redoEditSeth,'String',num2str(df))
+set(redoEditVoch,string_handle2,num2str(vv))
+set(redoEditSeth,string_handle2,num2str(df))
 grabAmbientMic(vv)
 grabLoggers(vv)
 % No logger data, just isolate onset/offset of vocalizations on the microphone
@@ -830,7 +830,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function enableEvals
 global Amp_env_LowPassLogVoc_MAT AudioLogs Factor_RMS_low RMSLow Fns_AL;
-global Consecutive_binsPiezo Vocp IndVocStart evalb playb;
+global Consecutive_binsPiezo Vocp IndVocStart evalb playb string_handle;
 global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich submith plotmicevalh plotlogevalh evalbon;
 
@@ -848,8 +848,8 @@ for ll=1:length(AudioLogs)
             set(evalb{ll},'enable','on')
             evalbon(ll)=1;
         end
-        set(evalb{ll},'String',['Eval' Fns_AL{ll}([1:3 7:end])])
-        set(playb{ll},'enable','on','String',['Play' Fns_AL{ll}([1:3 7:end])])
+        set(evalb{ll},string_handle,['Eval' Fns_AL{ll}([1:3 7:end])])
+        set(playb{ll},'enable','on',string_handle,['Play' Fns_AL{ll}([1:3 7:end])])
     end
 end
 set([submith noCallh redoh redoEditVoch...
@@ -942,7 +942,7 @@ global submith noCallh redoh stopclick logdone Call1Listen0_temp;
 global Call1Hear0_temp PiezoError PiezoErrorType Fns_AL;
 global playMicEvalh playLogEvalh plotmicevalh plotlogevalh;
 global evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h evalLog6h;
-global evalLog7h evalLog8h evalLog9h evalLog10h evalbon;
+global evalLog7h evalLog8h evalLog9h evalLog10h evalbon string_handle;
 
 playll=ll;
 CallOnLogger(vv,ll)
@@ -950,10 +950,10 @@ if logdone==0
     NV = length(IndVocStart{ll});
     Call1Hear0_man = zeros(NV,1);
     Call1Listen0_man = zeros(NV,1);
-    set(playLogEvalh,'enable','on','String',['Play' Fns_AL{ll}([1:3 7:end])])
+    set(playLogEvalh,'enable','on',string_handle,['Play' Fns_AL{ll}([1:3 7:end])])
     set([playMicEvalh playLogEvalh],'enable','on')
     set([submith noCallh redoh],'enable','off');
-    set(checkboxh,'String','V')
+    set(checkboxh,string_handle,'V')
     set(checkboxh,'BackgroundColor',[0 255 0]./255)
     set(checkboxh,'enable','on')
     set([evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith evalLog6h...
@@ -1021,7 +1021,7 @@ if logdone==0
             end
         end
         pause(.1)
-        if clickxv<0 && strcmp(get(checkboxh,'string'),'X')
+        if clickxv<0 && strcmp(get(checkboxh,string_handle),'X')
             drawnow;
             stopclick=0;
         end
@@ -1287,12 +1287,9 @@ hold off;
 zoom on;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function newmessage(mstring)
-global message mh Use_AppDesigner;
+global message mh string_handle2;
 
 message={message{2};message{3};message{4};message{5};message{6};...
     mstring};
-if Use_AppDesigner
-    set(mh,'value',message);
-else
-    set(mh,'string',message);
-end
+
+set(mh,string_handle2,message);

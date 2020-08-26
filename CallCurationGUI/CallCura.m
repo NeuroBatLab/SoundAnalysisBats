@@ -3,12 +3,12 @@ close all;
 
 global BaseDataDir WorkingDir VolDenominatorLogger VolFactorMic Manual MergeThresh;
 global CheckMicChannel pnames NExpe UseOld FhGUI ee DoneListDetect DoneListWho;
-global evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith;
-global evalLog6h evalLog7h evalLog8h starth evalb plotb;
+global evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith string_handle2;
+global evalLog6h evalLog7h evalLog8h starth evalb plotb string_handle;
 global filenameh noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich playLog1h playLog2h playLog3h playLog4h playLog5h playLog6h;
 global playLog7h playLog8h playMicEvalh playLogEvalh redo checkboxh playLog9h;
-global playLog10h evalLog9h evalLog10h playb message mh Use_AppDesigner;
+global playLog10h evalLog9h evalLog10h playb message mh;
 global plotmich plotmicevalh plotlog1h plotlog2h plotlog3h plotlog4h plotlog5h;
 global plotlog6h plotlog7h plotlog8h plotlog9h plotlog10h plotevalh plotlogevalh;
 
@@ -65,8 +65,10 @@ CheckMicChannel=0;
 redo=0;
 
 message={'';'';'';'';'';''};
-Use_AppDesigner=0;
+Use_AppDesigner=1;
 if Use_AppDesigner
+    string_handle='Text';
+    string_handle2='Value';
     FhGUI=CallCuraGui_App;
     starth=FhGUI.start;
     noCallh=FhGUI.noCall;
@@ -117,7 +119,8 @@ if Use_AppDesigner
     playLog9h=FhGUI.playLog9;
     playLog10h=FhGUI.playLog10;
 else
-    %GUI variables
+    string_handle='String';
+     string_handle2='String';
     FhGUI=CallCuraGui;
     starth=findobj(FhGUI,'tag','start');
     noCallh=findobj(FhGUI,'tag','noCall');
