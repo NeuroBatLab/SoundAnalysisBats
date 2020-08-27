@@ -13,6 +13,7 @@ WorkingDir = 'C:\Users\BatLab\Documents\DeafWhoWorkDir\';
 addpath(genpath(fullfile(BaseCodeDir,'LMC')))
 addpath(genpath(fullfile(BaseCodeDir, 'LoggerDataProcessing')))
 addpath(genpath(fullfile(BaseCodeDir,'SoundAnalysisBats')))
+addpath(genpath(fullfile(BaseCodeDir,'GeneralCode')))
 
 DatesDir = dir(fullfile(BaseDataDir,'20*'));
 NDates = length(DatesDir);
