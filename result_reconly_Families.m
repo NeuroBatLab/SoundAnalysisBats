@@ -17,11 +17,15 @@ DatesDir = dir(fullfile(BaseDataDir,'20*'));
 % We only extract data of recordings that were done in 151 so after
 % 20200714
 NDates = length(DatesDir);
+Dates2Keep = nan(1,NDates);
 for dd=1:NDates
     if str2double(DatesDir(dd).name)<20200715
-        DatesDir(dd) = [];
+        Dates2Keep(dd) = 0;
+    else
+        Dates2Keep(dd) = 1;
     end
 end
+DatesDir = DatesDir(Dates2Keep);
 NDates = length(DatesDir);
 ExpLog = fullfile(BaseDataDir, 'RecOnlyLogFamilies.txt');
 
