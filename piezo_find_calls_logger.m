@@ -208,175 +208,181 @@ end
 
 %% Check that the detection is working properly
 TotalNumSoundEvent = size(CallEnvInd,1);
-if draw_plots
-    Step=1;
-    Delay = 100; % delay to add before after each call in ms
-    DBNoise = 60; % amplitude parameter for the color scale of the spectro
-    FHigh = 10000; % y axis max scale for the spectrogram
-    %visually inspect that the previous step is correct
-    for ii=1:Step:size(CallEnvInd,1)
-            Fig3=figure(3);
-            clf(Fig3)
-            Call = CallEnvInd(ii,:);
-            x_start = Call(1)-Delay;
-            x_stop = Call(2)+Delay;
-            Raw = Centered_piezo_signal(round(x_start/FS_env*SamplingFreq):round(x_stop/FS_env*SamplingFreq));
-            Raw_ramp = cosramp(Raw-mean(Raw), SamplingFreq*10*10^-3);
-            [~] = spec_only_bats(Raw_ramp,SamplingFreq,DBNoise, FHigh);
-            caxis('manual');
-            caxis([2 70]);
-            ylim([-500 10000])
-            hold on
-            
-            yyaxis right
-            plot(Piezo_envelope_All(x_start:x_stop), '-k','LineWidth',2)
-            hold on
-            HL = hline((RMSfactor * Noise));
-            HL.LineWidth=2;
-            hold on
-            %             line([call(1)-x_start, call(2)-x_start], max(piezo_envelope(x_start:x_stop))*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
-            line([Call(1)-x_start, Call(2)-x_start], -5*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
-            ylim([-10 300])
-            ylabel('Amplitude Envelope')
-            hold off
-            title(sprintf('detection %d/%d',ii,TotalNumSoundEvent))
-            Player = audioplayer(Raw_ramp/std(Raw_ramp), SamplingFreq);
-            play(Player)
-            pause(length(Raw_ramp)/SamplingFreq+1)
+if TotalNumSoundEvent == 0
+    fprintf(1,'No events detected for %s\n', Logger_name);
+    SoundEvent_LoggerSamp = [];
+    SoundEvent_TranscTime_ms = [];
+    CallEnvInd_merge = [];
+else
+    if draw_plots
+        Step=1;
+        Delay = 100; % delay to add before after each call in ms
+        DBNoise = 60; % amplitude parameter for the color scale of the spectro
+        FHigh = 10000; % y axis max scale for the spectrogram
+        %visually inspect that the previous step is correct
+        for ii=1:Step:TotalNumSoundEvent
+                Fig3=figure(3);
+                clf(Fig3)
+                Call = CallEnvInd(ii,:);
+                x_start = Call(1)-Delay;
+                x_stop = Call(2)+Delay;
+                Raw = Centered_piezo_signal(round(x_start/FS_env*SamplingFreq):round(x_stop/FS_env*SamplingFreq));
+                Raw_ramp = cosramp(Raw-mean(Raw), SamplingFreq*10*10^-3);
+                [~] = spec_only_bats(Raw_ramp,SamplingFreq,DBNoise, FHigh);
+                caxis('manual');
+                caxis([2 70]);
+                ylim([-500 10000])
+                hold on
+
+                yyaxis right
+                plot(Piezo_envelope_All(x_start:x_stop), '-k','LineWidth',2)
+                hold on
+                HL = hline((RMSfactor * Noise));
+                HL.LineWidth=2;
+                hold on
+                %             line([call(1)-x_start, call(2)-x_start], max(piezo_envelope(x_start:x_stop))*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
+                line([Call(1)-x_start, Call(2)-x_start], -5*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
+                ylim([-10 300])
+                ylabel('Amplitude Envelope')
+                hold off
+                title(sprintf('detection %d/%d',ii,TotalNumSoundEvent))
+                Player = audioplayer(Raw_ramp/std(Raw_ramp), SamplingFreq);
+                play(Player)
+                pause(length(Raw_ramp)/SamplingFreq+1)
+        end
+
     end
-    
-end
 
-%% Merge sound events that are separated by less than mergethresh
-%find which successive events we can merge
-Events2Merge = [0; (CallEnvInd(2:end,1)-CallEnvInd(1:end-1,2))<= (MergeThresh * FS_env)];
-FirstEvents2Merge = find(diff([Events2Merge; 0])==1); % onset of each sequence of events that should be merged
-LastEvents2Merge = find(diff([Events2Merge; 0])==-1);% offset of each sequence of events that should be merged
-Events2keep = strfind([Events2Merge' 0],[0 0]); % events that should be kept as they are
-if length(FirstEvents2Merge)~=length(LastEvents2Merge)
-    warning('Problem in the detection of sequences of sound events to merge')
-    keyboard
-end
-CallEnvInd_merge = [CallEnvInd(Events2keep,:) ; [CallEnvInd(FirstEvents2Merge,1) CallEnvInd(LastEvents2Merge,2)]];
-% reorder in increasing samp value
-[~,IndOrd]=sort(CallEnvInd_merge(:,1));
-
-CallEnvInd_merge = CallEnvInd_merge(IndOrd,:);
-TotalNumSoundEvent_merge = size(CallEnvInd_merge,1);
-
-% check that the merge work properly
-if draw_plots
-    figure(5);
-    subplot(2,1,1)
-    histogram((CallEnvInd(2:end,1)-CallEnvInd(1:end-1,2))/FS_env*10^3, 'BinWidth',1)
-    hold on
-    histogram((CallEnvInd_merge(2:end,1)-CallEnvInd_merge(1:end-1,2))/FS_env*10^3, 'BinWidth',1)
-    legend('Before merge', 'After merge')
-    xlabel('Intercall intervals (ms)')
-    subplot(2,1,2)
-    histogram((CallEnvInd(2:end,1)-CallEnvInd(1:end-1,2))/FS_env*10^3, 'BinWidth',1)
-    hold on
-    histogram((CallEnvInd_merge(2:end,1)-CallEnvInd_merge(1:end-1,2))/FS_env*10^3, 'BinWidth',1)
-    legend('Before merge', 'After merge')
-    xlabel('Intercall intervals (ms)')
-    xlim([0 MergeThresh*2*10^3])
-    
-    
-    Delay = 100; % delay to add before after each call in ms
-    DBNoise = 60; % amplitude parameter for the color scale of the spectro
-    FHigh = 10000; % y axis max scale for the spectrogram
-    Step = 1;
-    %visually inspect that the previous step is correct
-    for ii=1:Step:size(CallEnvInd_merge,1)
-            Fig4=figure(4);
-            clf(Fig4)
-            Call = CallEnvInd_merge(ii,:);
-            x_start = Call(1)-Delay;
-            x_stop = Call(2)+Delay;
-            Raw = Centered_piezo_signal(round(x_start/FS_env*SamplingFreq):round(x_stop/FS_env*SamplingFreq));
-            Raw_ramp = cosramp(Raw-mean(Raw), SamplingFreq*10*10^-3);
-            [~] = spec_only_bats(Raw_ramp,SamplingFreq,DBNoise, FHigh);
-            caxis('manual');
-            caxis([2 70]);
-            ylim([-500 10000])
-            hold on
-            yyaxis right
-            plot(Piezo_envelope_All(x_start:x_stop), '-k','LineWidth',2)
-            hold on
-            HL = hline((RMSfactor * Noise));
-            HL.LineWidth=2;
-            hold on
-            %             line([call(1)-x_start, call(2)-x_start], max(piezo_envelope(x_start:x_stop))*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
-            line([Call(1)-x_start, Call(2)-x_start], -5*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
-            ylim([-10 300])
-            ylabel('Amplitude Envelope')
-            hold off
-            title(sprintf('detection %d/%d after merge',ii,TotalNumSoundEvent_merge))
-            Player = audioplayer(Raw_ramp/std(Raw_ramp), SamplingFreq);
-            play(Player)
-            pause(length(Raw_ramp)/SamplingFreq+1)
+    %% Merge sound events that are separated by less than mergethresh
+    %find which successive events we can merge
+    Events2Merge = [0; (CallEnvInd(2:end,1)-CallEnvInd(1:end-1,2))<= (MergeThresh * FS_env)];
+    FirstEvents2Merge = find(diff([Events2Merge; 0])==1); % onset of each sequence of events that should be merged
+    LastEvents2Merge = find(diff([Events2Merge; 0])==-1);% offset of each sequence of events that should be merged
+    Events2keep = strfind([Events2Merge' 0],[0 0]); % events that should be kept as they are
+    if length(FirstEvents2Merge)~=length(LastEvents2Merge)
+        warning('Problem in the detection of sequences of sound events to merge')
+        keyboard
     end
-    
-end
+    CallEnvInd_merge = [CallEnvInd(Events2keep,:) ; [CallEnvInd(FirstEvents2Merge,1) CallEnvInd(LastEvents2Merge,2)]];
+    % reorder in increasing samp value
+    [~,IndOrd]=sort(CallEnvInd_merge(:,1));
 
-%% Calculate the best estimate of the onset/offset of each sound event...
-% in the original data centered_piezo_signal or AD_countint16
+    CallEnvInd_merge = CallEnvInd_merge(IndOrd,:);
+    TotalNumSoundEvent_merge = size(CallEnvInd_merge,1);
 
-SoundEvent_LoggerSamp = round(CallEnvInd_merge/FS_env*SamplingFreq);
+    % check that the merge work properly
+    if draw_plots
+        figure(5);
+        subplot(2,1,1)
+        histogram((CallEnvInd(2:end,1)-CallEnvInd(1:end-1,2))/FS_env*10^3, 'BinWidth',1)
+        hold on
+        histogram((CallEnvInd_merge(2:end,1)-CallEnvInd_merge(1:end-1,2))/FS_env*10^3, 'BinWidth',1)
+        legend('Before merge', 'After merge')
+        xlabel('Intercall intervals (ms)')
+        subplot(2,1,2)
+        histogram((CallEnvInd(2:end,1)-CallEnvInd(1:end-1,2))/FS_env*10^3, 'BinWidth',1)
+        hold on
+        histogram((CallEnvInd_merge(2:end,1)-CallEnvInd_merge(1:end-1,2))/FS_env*10^3, 'BinWidth',1)
+        legend('Before merge', 'After merge')
+        xlabel('Intercall intervals (ms)')
+        xlim([0 MergeThresh*2*10^3])
 
-%% Convert in transceiver time
-NEvents = size(SoundEvent_LoggerSamp,1);
-SoundEvent_TranscTime_ms = nan(size(SoundEvent_LoggerSamp));
-for ee=1:NEvents
-    % find the File onset stamp on the logger that is closest to before
-    % the snippet of sound onset
-    IndTSOn = find(Indices_of_first_and_last_samples(:,1)<SoundEvent_LoggerSamp(ee,1), 1, 'Last');
-    
-    % find the File onset stamp on the logger that is closest to after
-    % the snippet of sound offset
-    IndTSOff = find(Indices_of_first_and_last_samples(:,2)>SoundEvent_LoggerSamp(ee,2), 1, 'First');
-    
-    if ~isempty(IndTSOff)
-        if IndTSOn<=length(Estimated_channelFS_Transceiver) && ~isnan(Estimated_channelFS_Transceiver(IndTSOn))
-            SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / Estimated_channelFS_Transceiver(IndTSOn)*10^3;
-        elseif ~isnan(nanmean(Estimated_channelFS_Transceiver))
-            SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / nanmean(Estimated_channelFS_Transceiver)*10^3;
-        else
-            SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / SamplingFreq*10^3;
+
+        Delay = 100; % delay to add before after each call in ms
+        DBNoise = 60; % amplitude parameter for the color scale of the spectro
+        FHigh = 10000; % y axis max scale for the spectrogram
+        Step = 1;
+        %visually inspect that the previous step is correct
+        for ii=1:Step:size(CallEnvInd_merge,1)
+                Fig4=figure(4);
+                clf(Fig4)
+                Call = CallEnvInd_merge(ii,:);
+                x_start = Call(1)-Delay;
+                x_stop = Call(2)+Delay;
+                Raw = Centered_piezo_signal(round(x_start/FS_env*SamplingFreq):round(x_stop/FS_env*SamplingFreq));
+                Raw_ramp = cosramp(Raw-mean(Raw), SamplingFreq*10*10^-3);
+                [~] = spec_only_bats(Raw_ramp,SamplingFreq,DBNoise, FHigh);
+                caxis('manual');
+                caxis([2 70]);
+                ylim([-500 10000])
+                hold on
+                yyaxis right
+                plot(Piezo_envelope_All(x_start:x_stop), '-k','LineWidth',2)
+                hold on
+                HL = hline((RMSfactor * Noise));
+                HL.LineWidth=2;
+                hold on
+                %             line([call(1)-x_start, call(2)-x_start], max(piezo_envelope(x_start:x_stop))*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
+                line([Call(1)-x_start, Call(2)-x_start], -5*ones(2,1), 'Color','g','LineStyle', '-', 'LineWidth',4)
+                ylim([-10 300])
+                ylabel('Amplitude Envelope')
+                hold off
+                title(sprintf('detection %d/%d after merge',ii,TotalNumSoundEvent_merge))
+                Player = audioplayer(Raw_ramp/std(Raw_ramp), SamplingFreq);
+                play(Player)
+                pause(length(Raw_ramp)/SamplingFreq+1)
         end
-        
-        if IndTSOff<=length(Estimated_channelFS_Transceiver) && ~isnan(Estimated_channelFS_Transceiver(IndTSOff))
-            SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 - (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / Estimated_channelFS_Transceiver(IndTSOff)*10^3;
-        elseif ~isnan(nanmean(Estimated_channelFS_Transceiver))
-            SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 - (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / nanmean(Estimated_channelFS_Transceiver)*10^3;
-        else
-            SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 - (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / SamplingFreq*10^3;
-        end
-        
-        if diff(SoundEvent_TranscTime_ms(ee,:))<=0
-            if ~isnan(nanmean(Estimated_channelFS_Transceiver))
-                SoundEvent_TranscTime_ms(ee,2) = SoundEvent_TranscTime_ms(ee,1) + diff(SoundEvent_LoggerSamp(ee,:)) / nanmean(Estimated_channelFS_Transceiver)*10^3;
-            else
-                SoundEvent_TranscTime_ms(ee,2) = SoundEvent_TranscTime_ms(ee,1) + diff(SoundEvent_LoggerSamp(ee,:)) / SamplingFreq*10^3;
-            end
-        end
-    else
-        % find the time stamp on the logger that is closest to before
+
+    end
+
+    %% Calculate the best estimate of the onset/offset of each sound event...
+    % in the original data centered_piezo_signal or AD_countint16
+
+    SoundEvent_LoggerSamp = round(CallEnvInd_merge/FS_env*SamplingFreq);
+
+    %% Convert in transceiver time
+    NEvents = size(SoundEvent_LoggerSamp,1);
+    SoundEvent_TranscTime_ms = nan(size(SoundEvent_LoggerSamp));
+    for ee=1:NEvents
+        % find the File onset stamp on the logger that is closest to before
+        % the snippet of sound onset
+        IndTSOn = find(Indices_of_first_and_last_samples(:,1)<SoundEvent_LoggerSamp(ee,1), 1, 'Last');
+
+        % find the File onset stamp on the logger that is closest to after
         % the snippet of sound offset
-        IndTSOff = find(Indices_of_first_and_last_samples(:,1)<SoundEvent_LoggerSamp(ee,2), 1, 'Last');
-        % this vocalization is in the last recording file
-        % There is no estimation of the sample frequency for that last
-        % file. Let's estimate it as the average of the previous
-        % estimates
-        FS_local = nanmean(Estimated_channelFS_Transceiver);
-        if isnan(FS_local)
-            FS_local = SamplingFreq;
+        IndTSOff = find(Indices_of_first_and_last_samples(:,2)>SoundEvent_LoggerSamp(ee,2), 1, 'First');
+
+        if ~isempty(IndTSOff)
+            if IndTSOn<=length(Estimated_channelFS_Transceiver) && ~isnan(Estimated_channelFS_Transceiver(IndTSOn))
+                SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / Estimated_channelFS_Transceiver(IndTSOn)*10^3;
+            elseif ~isnan(nanmean(Estimated_channelFS_Transceiver))
+                SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / nanmean(Estimated_channelFS_Transceiver)*10^3;
+            else
+                SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / SamplingFreq*10^3;
+            end
+
+            if IndTSOff<=length(Estimated_channelFS_Transceiver) && ~isnan(Estimated_channelFS_Transceiver(IndTSOff))
+                SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 - (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / Estimated_channelFS_Transceiver(IndTSOff)*10^3;
+            elseif ~isnan(nanmean(Estimated_channelFS_Transceiver))
+                SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 - (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / nanmean(Estimated_channelFS_Transceiver)*10^3;
+            else
+                SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 - (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / SamplingFreq*10^3;
+            end
+
+            if diff(SoundEvent_TranscTime_ms(ee,:))<=0
+                if ~isnan(nanmean(Estimated_channelFS_Transceiver))
+                    SoundEvent_TranscTime_ms(ee,2) = SoundEvent_TranscTime_ms(ee,1) + diff(SoundEvent_LoggerSamp(ee,:)) / nanmean(Estimated_channelFS_Transceiver)*10^3;
+                else
+                    SoundEvent_TranscTime_ms(ee,2) = SoundEvent_TranscTime_ms(ee,1) + diff(SoundEvent_LoggerSamp(ee,:)) / SamplingFreq*10^3;
+                end
+            end
+        else
+            % find the time stamp on the logger that is closest to before
+            % the snippet of sound offset
+            IndTSOff = find(Indices_of_first_and_last_samples(:,1)<SoundEvent_LoggerSamp(ee,2), 1, 'Last');
+            % this vocalization is in the last recording file
+            % There is no estimation of the sample frequency for that last
+            % file. Let's estimate it as the average of the previous
+            % estimates
+            FS_local = nanmean(Estimated_channelFS_Transceiver);
+            if isnan(FS_local)
+                FS_local = SamplingFreq;
+            end
+            SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / FS_local*10^3;
+            SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 + (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / FS_local*10^3;
         end
-        SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / FS_local*10^3;
-        SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 + (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / FS_local*10^3;
     end
 end
-
 %% SAVE
 %
 % %     save('CallTimes.mat', 'callTimes', 'piezo_envelope', 'noise', 'samplingFreq', 'AD_count_double', '-v7.3')
@@ -656,7 +662,7 @@ while any(Envelope_sample > 50)
     % Extract the corresponding envelope sample
     Envelope_sample = Piezo_envelope(Rand_indx: Rand_indx + SampleLength);
 end
-Average_noise = sum(Envelope_sample) / SampleLength;
+Average_noise = mean(Envelope_sample);
 end
 
 
