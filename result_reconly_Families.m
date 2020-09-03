@@ -1,7 +1,7 @@
 BaseDataDir = 'Z:\users\JulieE\JuvenileRecordings151\';
 BaseCodeDir = 'C:\Users\tobias\Documents\Code\';
 Path2RecordingTable = 'C:\Users\tobias\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings\JuvenileRecordingsNWAF155_Log.xlsx';
-TTLFolder = 'C:\Users\Batman\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings';
+TTLFolder = 'C:\Users\tobias\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings';
 
 % BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';
 % BaseCodeDir = '/Users/elie/Documents/CODE';
@@ -19,13 +19,13 @@ DatesDir = dir(fullfile(BaseDataDir,'20*'));
 NDates = length(DatesDir);
 Dates2Keep = nan(1,NDates);
 for dd=1:NDates
-    if str2double(DatesDir(dd).name)<20200715
+    if str2double(DatesDir(dd).name)<20190715
         Dates2Keep(dd) = 0;
     else
         Dates2Keep(dd) = 1;
     end
 end
-DatesDir = DatesDir(Dates2Keep);
+DatesDir = DatesDir(logical(Dates2Keep));
 NDates = length(DatesDir);
 ExpLog = fullfile(BaseDataDir, 'RecOnlyLogFamilies.txt');
 
