@@ -131,7 +131,7 @@ end
     
 parfor ll=1:NL % parfor
     fprintf(1, '*** Sort Voc from Noise %s %d/%d ****\n',ALField_Id{ll}, ll, NL)
-    if Nevents==0
+    if Nevents(ll)==0
         fprintf(1,'No voc detected for %s %d/%d ****\n',ALField_Id{ll}, ll, NL)
     else
         % Load the raw signal
@@ -186,7 +186,7 @@ parfor ll=1:NL % parfor
             % extract the sound with Buffer ms before after the sound
             OnIndBuff = OnInd - round(FS_logger_voc_unmerged{ll}(ee)*Buffer*10^-3);
             OffIndBuff = OffInd + round(FS_logger_voc_unmerged{ll}(ee)*Buffer*10^-3);
-            if OnIndBuff<0
+            if OnIndBuff<=0
                 OffIndBuff = OffIndBuff - OnIndBuff;
                 OnIndBuff = 1;
             end
