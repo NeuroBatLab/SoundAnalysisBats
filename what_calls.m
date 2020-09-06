@@ -248,7 +248,7 @@ else
                         end
                         % Plot figures of dynamic jointly evaluated by piezo and
                         % microphone data
-                        if PlotDyn && (IndOn<IndOff)
+                        if PlotDyn && ~isempty(BioSoundCalls{NVocFile,1})
                             Fig3 = figure(3); %#ok<NASGU>
                             clf
                             title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
