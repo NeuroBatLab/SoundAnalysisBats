@@ -502,9 +502,13 @@ if MicData
             
             if length(Raw_10minwav2)>MicVoc_samp_idx(ee,1)
                 Raw_wave = Raw_10minwav2(MicVoc_samp_idx(ee,1) : min(MicVoc_samp_idx(ee,2),length(Raw_10minwav2)));
+                % Save the sound as a wav file
+                Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, MicVoc_File(ee), round(MicVoc_samp_idx(ee,1))));
+                audiowrite(Voc_filename{ee} , Raw_wave, FS2)
             elseif (length(Raw_10minwav2)<=MicVoc_samp_idx(ee,1)) && (MicVoc_File(ee)==NRawWave)
                 % This event happened after the offset of microphone, discard
                 fprintf(1, 'This call occured after microphone offset\n')
+                Raw_wave = [];
                 continue
             elseif length(Raw_10minwav2)<=MicVoc_samp_idx(ee,1)
                 % there was an error in the estimation of the file index, this call occured in the next file
@@ -528,12 +532,11 @@ if MicData
                     [Raw_10minwav2, FS2] = audioread(Raw_filename);
                 end
                 Raw_wave = Raw_10minwav2(MicVoc_samp_idx(ee,1) : min(MicVoc_samp_idx(ee,2),length(Raw_10minwav2)));
+                % Save the sound as a wav file
+                Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, MicVoc_File(ee), round(MicVoc_samp_idx(ee,1))));
+                audiowrite(Voc_filename{ee} , Raw_wave, FS2)
             end
             OldMicVoc_File = MicVoc_File(ee);
-            
-            % Save the sound as a wav file
-            Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, MicVoc_File(ee), round(MicVoc_samp_idx(ee,1))));
-            audiowrite(Voc_filename{ee} , Raw_wave, FS2)
         end
     end
     
