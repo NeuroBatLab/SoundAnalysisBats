@@ -502,7 +502,7 @@ if MicData
             
             if length(Raw_10minwav2)>MicVoc_samp_idx(ee,1)
                 Raw_wave = Raw_10minwav2(MicVoc_samp_idx(ee,1) : min(MicVoc_samp_idx(ee,2),length(Raw_10minwav2)));
-            elseif (length(Raw_10minwav2)<MicVoc_samp_idx(ee,1)) && (MicVoc_File(ee)==NRawWave)
+            elseif (length(Raw_10minwav2)<=MicVoc_samp_idx(ee,1)) && (MicVoc_File(ee)==NRawWave)
                 % This event happened after the offset of microphone, discard
                 fprintf(1, 'This call occured after microphone offset\n')
                 continue
