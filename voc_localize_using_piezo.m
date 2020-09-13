@@ -493,19 +493,21 @@ if MicData
             % recording, discard
             fprintf(1,'Vocalization happened before Mic onset\n')
         else
-            if ~(MicVoc_File(ee) == OldMicVoc_File)
-                WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File(ee))));
+            if MicVoc_File(ee) ~= OldMicVoc_File
+                Raw_10minwav2 = [];
+                WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic1_%d.wav',Date, ExpStartTime, MicVoc_File(ee))));
                 Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
                 [Raw_10minwav2, FS2] = audioread(Raw_filename);
             end
             
             if length(Raw_10minwav2)>MicVoc_samp_idx(ee,1)
                 Raw_wave = Raw_10minwav2(MicVoc_samp_idx(ee,1) : min(MicVoc_samp_idx(ee,2),length(Raw_10minwav2)));
-            elseif MicVoc_File(ee)==NRawWave
+            elseif (length(Raw_10minwav2)<MicVoc_samp_idx(ee,1)) && (MicVoc_File(ee)==NRawWave)
                 % This event happened after the offset of microphone, discard
                 fprintf(1, 'This call occured after microphone offset\n')
                 continue
-            else% there was an error in the estimation of the file index, this call occured in the next file
+            elseif length(Raw_10minwav2)<=MicVoc_samp_idx(ee,1)
+                % there was an error in the estimation of the file index, this call occured in the next file
                 fprintf(1, 'This call occured in next file\n')
                 MicVoc_File(ee) = MicVoc_File(ee)+1;
                 MeanStdAmpRawExtract(ee,:)= MeanStdAmpRawFile(MicVoc_File(ee),:)';
@@ -519,8 +521,9 @@ if MicData
                     MicVoc_samp_idx(ee,:) = round((TTL.Mean_std_Pulse_samp_audio(TTL_idx,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{TTL_idx}, Voc_transc_time_zs,[],TTL.Mean_std_x_transc2audiosamp{TTL_idx}) + TTL.Mean_std_Pulse_samp_audio(TTL_idx,1)))';
                 end
                 
-                if ~(MicVoc_File(ee) == OldMicVoc_File)
-                    WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File(ee))));
+                if MicVoc_File(ee) ~= OldMicVoc_File
+                   Raw_10minwav2 = [];
+                    WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic1_%d.wav',Date, ExpStartTime, MicVoc_File(ee))));
                     Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
                     [Raw_10minwav2, FS2] = audioread(Raw_filename);
                 end
