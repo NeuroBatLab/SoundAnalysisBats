@@ -1,15 +1,16 @@
 function [SaveRawWaveAll] = correctMicAllignment_beforeorafterWhoCalls(Raw_dir, Loggers_dir, Date, ExpStartTime, varargin)
 VolFactorMic=0.5;
-pnames = {'Working_dir'};
-dflts  = {Loggers_dir};
-[Working_dir] = internal.stats.parseArgs(pnames,dflts,varargin{:});
+TTL_dir = dir(fullfile(Raw_dir,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
+pnames = {'Working_dir','TTL_Folder'};
+dflts  = {Loggers_dir, TTL_dir};
+[Working_dir, TTL_dir] = internal.stats.parseArgs(pnames,dflts,varargin{:});
 
 Manual=1; % set to 1 to listen to Mic vocalizations
 
 
 Working_dir_read = fullfile(Working_dir, 'read');
 Working_dir_write = fullfile(Working_dir, 'write');
-TTL_dir = dir(fullfile(Raw_dir,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
+
 TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
 FileNum_u = unique(TTL.File_number);
 
