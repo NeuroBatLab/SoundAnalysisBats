@@ -61,21 +61,26 @@ else
         Nvoc = Nvocs(df+1) - Nvocs(df);
         DataFile = fullfile(DataFiles(df).folder, DataFiles(df).name);
         vv=1;
-        if ~strcmp(Working_dir_write,Loggers_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df).name))
-            fprintf(1,'Bringing data locally from the server\n')
-            [s,m,e]=copyfile(DataFile, Working_dir_read, 'f');
-            if ~s
-                fprintf(1,'File transfer did not occur correctly\n')
-                keyboard
-            else
-                fprintf(1,'File transfer DONE\n')
-                DataFile = fullfile(Working_dir_read,DataFiles(df).name);
-            end
-        elseif ~strcmp(Working_dir_write,Loggers_dir) && isfile(fullfile(Working_dir_read,DataFiles(df).name))
-                fprintf(1,'File already transferred from previous code running\n')
-                DataFile = fullfile(Working_dir_read,DataFiles(df).name);
+%         if ~strcmp(Working_dir_write,Loggers_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df).name))
+%             fprintf(1,'Bringing data locally from the server\n')
+%             [s,m,e]=copyfile(DataFile, Working_dir_read, 'f');
+%             if ~s
+%                 fprintf(1,'File transfer did not occur correctly\n')
+%                 keyboard
+%             else
+%                 fprintf(1,'File transfer DONE\n')
+%                 DataFile = fullfile(Working_dir_read,DataFiles(df).name);
+%             end
+%         elseif ~strcmp(Working_dir_write,Loggers_dir) && isfile(fullfile(Working_dir_read,DataFiles(df).name))
+%                 fprintf(1,'File already transferred from previous code running\n')
+%                 DataFile = fullfile(Working_dir_read,DataFiles(df).name);
+%         end
+        load(DataFile,'Raw_wave', 'VocFilename')
+        if ~strcmp(Working_dir_write,Loggers_dir)
+            fprintf(1, 'Saving data locally to write locally\n')
+            DataFileRaw = fullfile(Working_dir_write, 'LocalRawWave.mat');
+            save(DataFileRaw, 'Raw_wave', 'VocFilename')
         end
-        load(DataFile,'Raw_wave')
         if Nvoc ~= length(Raw_wave)
             warning('Looks like there might be an issue there!! Check variables!!')
             keyboard
@@ -84,7 +89,11 @@ else
             RawWavChunking = 0;
             minvv = 1;
             maxvv = Nvoc;
-            load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS','VocFilename','Voc_transc_time_refined');
+            if PlotSpec
+                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS','VocFilename','Voc_transc_time_refined');
+            else
+                load(DataFile, 'VocFilename','Voc_transc_time_refined');
+            end
         else % often problem of memory, we're going to chunck file loading
             RawWavChunking = 1;
             if ~mod(vv,100)
@@ -98,37 +107,42 @@ else
                 end
             end
             Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
-            load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'VocFilename','Voc_transc_time_refined');
+            if PlotSpec
+                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'VocFilename','Voc_transc_time_refined');
+            else
+                load(DataFile, 'VocFilename','Voc_transc_time_refined');
+            end
         end
         
-        Fns_AL = fieldnames(Piezo_wave);
+        if PlotSpec
+            Fns_AL = fieldnames(Piezo_wave);
         
-        % parameters
-        DB_noise = 60; % Noise threshold for the spectrogram colormap
-        FHigh_spec = 90000; % Max frequency (Hz) for the raw data spectrogram
-        FHigh_spec_Logger = 10000; % Max frequency (Hz) for the raw data spectrogram
-        BandPassFilter = [1000 5000 9900]; % Frequency bands chosen for digital signal processing
+            % parameters
+            DB_noise = 60; % Noise threshold for the spectrogram colormap
+            FHigh_spec = 90000; % Max frequency (Hz) for the raw data spectrogram
+            FHigh_spec_Logger = 10000; % Max frequency (Hz) for the raw data spectrogram
+            BandPassFilter = [1000 5000 9900]; % Frequency bands chosen for digital signal processing
         
         
-        if df==1 || ~exist('sos_raw_band', 'var')
-            % design filters of raw ambient recording, bandpass and low pass which was
-            % used for the cross correlation
-            [z,p,k] = butter(6,[BandPassFilter(1) 90000]/(FS/2),'bandpass');
-            sos_raw_band = zp2sos(z,p,k);
-            % [z,p,k] = butter(6,BandPassFilter(1:2)/(FS/2),'bandpass');
-            % sos_raw_low = zp2sos(z,p,k);
-            [z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
-            sos_raw_band_listen = zp2sos(z,p,k);
+            if df==1 || ~exist('sos_raw_band', 'var')
+                % design filters of raw ambient recording, bandpass and low pass which was
+                % used for the cross correlation
+                [z,p,k] = butter(6,[BandPassFilter(1) 90000]/(FS/2),'bandpass');
+                sos_raw_band = zp2sos(z,p,k);
+                % [z,p,k] = butter(6,BandPassFilter(1:2)/(FS/2),'bandpass');
+                % sos_raw_low = zp2sos(z,p,k);
+                [z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
+                sos_raw_band_listen = zp2sos(z,p,k);
+            end
+            
+            
+            if df==1 || ~exist('sos_raw_band_listen', 'var')
+                % design filters of raw ambient recording, bandpass, for
+                % listening
+                [z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
+                sos_raw_band_listen = zp2sos(z,p,k);
+            end
         end
-        
-        
-        if df==1 || ~exist('sos_raw_band_listen', 'var')
-            % design filters of raw ambient recording, bandpass, for
-            % listening 
-            [z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
-            sos_raw_band_listen = zp2sos(z,p,k);
-        end
-        
  
         
         %% Loop through vocalizations sequences and check microphone data
@@ -141,7 +155,11 @@ else
             else
                 RawWavChunking = 1;
                 clear Raw_wave Piezo_wave
-                load(DataFile,'Raw_wave')
+                if strcmp(Working_dir_write,Loggers_dir)
+                    load(DataFile,'Raw_wave')
+                else
+                    load(DataFileRaw,'Raw_wave')
+                end
                 if ~mod(vv,100)
                     minvv=floor((vv-1)/100)*100 +1;
                     maxvv=ceil(vv/100)*100;
@@ -153,7 +171,9 @@ else
                     end
                 end
                 Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
-                load(DataFile,'Piezo_wave')
+                if PlotSpec
+                    load(DataFile,'Piezo_wave')
+                end
                 Raw_wave_nn = Raw_wave{vv - (minvv -1)};
             end
              
@@ -319,33 +339,52 @@ else
                     warning('Touchy save as we chuncked Rawwave, you might want to check\n')
 %                     keyboard
                     Raw_wave_local = Raw_wave;
-                    load(DataFile,'Raw_wave')
+                    if strcmp(Working_dir_write,Loggers_dir)
+                        load(DataFile,'Raw_wave')
+                    else
+                        load(DataFileRaw,'Raw_wave')
+                    end
                     Raw_wave(minvv:min(maxvv, length(Raw_wave))) = Raw_wave_local;
-                    save(DataFile, 'Raw_wave','-append')
+                    if strcmp(Working_dir_write,Loggers_dir)
+                        save(DataFile,'Raw_wave', '-append')
+                    else
+                        save(DataFileRaw,'Raw_wave', '-append')
+                    end
                     SaveRawWaveAll(df) = 1;
                     Raw_wave = Raw_wave_local;
                 else
-                    save(DataFile, 'Raw_wave','-append')
+                    if strcmp(Working_dir_write,Loggers_dir)
+                        save(DataFile,'Raw_wave', '-append')
+                    else
+                        save(DataFileRaw,'Raw_wave', '-append')
+                    end
                     SaveRawWaveAll(df) = 1;
                 end
             end
             if SaveRawWaveName
-                save(DataFile, 'VocFilename','-append')
+                if strcmp(Working_dir_write,Loggers_dir)
+                    save(DataFile,'VocFilename', '-append')
+                else
+                    save(DataFileRaw,'VocFilename', '-append')
+                end
                 save(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_filename','-append')
             end
         end
         
-        if SaveRawWaveAll(df) && ~strcmp(Working_dir_read,DataFiles(df).folder)
-            [s2,m,e]=copyfile(DataFile, fullfile(DataFiles(df).folder,DataFiles(df).name), 'f');
-            if ~s2
-                fprintf(1,'File transfer of %s to %s did not occur correctly\n',DataFile,fullfile(DataFiles(df).folder,DataFiles(df).name))
-                keyboard
-            else
-                fprintf(1,'File transfer of %s to %s DONE\n',DataFile,fullfile(DataFiles(df).folder,DataFiles(df).name))
-            end
+        if SaveRawWaveAll(df) && ~strcmp(Working_dir_write,Loggers_dir)
+            load(DataFileRaw,'VocFilename', 'Raw_wave')
+            save(DataFile, 'VocFilename', 'Raw_wave', '-append')
+            fprintf(1,'Data correctly saved from %s to %s\n',DataFileRaw,DataFile)
+%             [s2,m,e]=copyfile(DataFile, fullfile(DataFiles(df).folder,DataFiles(df).name), 'f');
+%             if ~s2
+%                 fprintf(1,'File transfer of %s to %s did not occur correctly\n',DataFile,fullfile(DataFiles(df).folder,DataFiles(df).name))
+%                 keyboard
+%             else
+%                 fprintf(1,'File transfer of %s to %s DONE\n',DataFile,fullfile(DataFiles(df).folder,DataFiles(df).name))
+%             end
             
         end
-        if ~strcmp(Working_dir_read,DataFiles(df).folder)
+        if ~strcmp(Working_dir_write,Loggers_dir)
             fprintf(1, 'Erasing local data')
             delete(DataFile);
         end
