@@ -306,7 +306,7 @@ else
             end
             if SaveRawWave
                 if RawWavChunking
-                    warning('Touchy save as we chuncked Rawwave, pitch in and do this manually\n')
+                    warning('Touchy save as we chuncked Rawwave, you might want to check\n')
 %                     keyboard
                     Raw_wave_local = Raw_wave;
                     load(DataFile,'Raw_wave')
