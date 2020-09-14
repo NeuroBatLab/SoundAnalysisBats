@@ -71,6 +71,9 @@ else
                 fprintf(1,'File transfer DONE\n')
                 DataFile = fullfile(Working_dir_read,DataFiles(df).name);
             end
+        elseif ~strcmp(Working_dir_write,Loggers_dir) && isfile(fullfile(Working_dir_read,DataFiles(df).name))
+                fprintf(1,'File already transferred from previous code running\n')
+                DataFile = fullfile(Working_dir_read,DataFiles(df).name);
         end
         load(DataFile,'Raw_wave')
         if Nvoc ~= length(Raw_wave)
