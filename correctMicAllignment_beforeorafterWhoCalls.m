@@ -343,7 +343,7 @@ else
             else
                 fprintf(1,'File transfer of %s to %s DONE\n',DataFile,fullfile(DataFiles(df).folder,DataFiles(df).name))
                 fprintf(1, 'Erasing local data')
-                [sdel,mdel,edel]=delete(DataFile);
+                delete(DataFile);
             end
             
         end
