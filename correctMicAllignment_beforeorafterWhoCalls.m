@@ -342,10 +342,12 @@ else
                 keyboard
             else
                 fprintf(1,'File transfer of %s to %s DONE\n',DataFile,fullfile(DataFiles(df).folder,DataFiles(df).name))
-                fprintf(1, 'Erasing local data')
-                delete(DataFile);
             end
             
+        end
+        if ~strcmp(Working_dir_read,DataFiles(df).folder)
+            fprintf(1, 'Erasing local data')
+            delete(DataFile);
         end
     end
 end
