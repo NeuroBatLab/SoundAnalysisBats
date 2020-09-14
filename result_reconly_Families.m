@@ -28,6 +28,7 @@ end
 DatesDir = DatesDir(logical(Dates2Keep));
 NDates = length(DatesDir);
 ExpLog = fullfile(BaseDataDir, 'RecOnlyLogFamilies.txt');
+ExpLog_corr = fullfile(BaseDataDir, 'RecOnlyLogFamilies_corr.txt');
 
 if ~exist(ExpLog, 'file')
     Fid = fopen(ExpLog, 'a');
@@ -39,6 +40,18 @@ else
     DoneList = textscan(Fid,'%s\t%s\t%s\t%.1f\t%d');
     fclose(Fid);
     Fid = fopen(ExpLog, 'a');
+end
+
+if ~exist(ExpLog_corr, 'file')
+    Fid_corr = fopen(ExpLog_corr, 'a');
+    fprintf(Fid_corr, 'Subject\tDate\tTime\tMicCorrection\n');
+    DoneList_corr = [];
+else
+    Fid_corr = fopen(ExpLog_corr, 'r');
+    Header_corr = textscan(Fid_corr,'%s\t%s\t%s\t%s\n',1);
+    DoneList_corr = textscan(Fid_corr,'%s\t%s\t%s\t%d');
+    fclose(Fid_corr);
+    Fid_corr = fopen(ExpLog_corr, 'a');
 end
 
 for dd=1:NDates
@@ -55,8 +68,22 @@ for dd=1:NDates
         else
             Done=0;
         end
-        if Done
+        
+        if ~isempty(DoneList_corr)
+            Done_corr = sum(contains(DoneList_corr{1},BatsID) .* contains(DoneList_corr{2},Date) .* contains(DoneList_corr{3},Time));
+        else
+            Done_corr=0;
+        end
+        
+        if Done && Done_corr
             fprintf(1, '   -> Data already processed\n')
+            continue
+        elseif Done && ~Done_corr
+            fprintf(1, '   -> Checking Microphone alignement\n')
+            Filepath = fullfile(ParamFile(nn).folder, ParamFile(nn).name);
+            Processed_corr_OK = correctMicDeafBats(Filepath,Path2RecordingTable);
+            Ind_ = strfind(ParamFile(nn).name, '_param');
+            fprintf(Fid_corr, '%s\t%s\t%s\t%d\n',ParamFile(nn).name(1:4),ParamFile(nn).name(6:11),ParamFile(nn).name(13:16),Processed_corr_OK);
             continue
         end
         Filepath = fullfile(ParamFile(nn).folder, ParamFile(nn).name);
@@ -81,6 +108,9 @@ for dd=1:NDates
         ProcessedOK = result_reconly_Dbats(Filepath,Path2RecordingTable,TTLFolder);
         Ind_ = strfind(ParamFile(nn).name, '_param');
         fprintf(Fid, '%s\t%s\t%s\t%.1f\t%d\n',ParamFile(nn).name(1:4),ParamFile(nn).name(6:11),ParamFile(nn).name(13:16),Temp,ProcessedOK);
+        fprintf(1, '   -> Checking Microphone alignement\n')
+        Processed_corr_OK = correctMicDeafBats(Filepath,Path2RecordingTable);
+        fprintf(Fid_corr, '%s\t%s\t%s\t%d\n',ParamFile(nn).name(1:4),ParamFile(nn).name(6:11),ParamFile(nn).name(13:16),Processed_corr_OK);
     end
 end
 fclose(Fid);
@@ -91,8 +121,8 @@ function [Processed] = result_reconly_Dbats(Path2ParamFile, Path2RecordingTable,
 TranscExtract = 1; % set to 1 to extract logger data and transceiver time
 ForceExtract = 0; % set to 1 to redo the extraction of loggers otherwise the calculations will use the previous extraction data
 ForceAllign = 0; % In case the TTL pulses allignment was already done but you want to do it again, set to 1
-ForceVocExt1 = 1; % In case the localization on raw files of vocalizations that were manually extracted was already done but you want to do it again set to 1
-ForceVocExt2 = 0; % In case the localization on Loggers of vocalizations that were manually extracted was already done but you want to do it again set to 1
+ForceVocExt1 = 0; % In case the localization on raw files of vocalizations that were manually extracted was already done but you want to do it again set to 1
+ForceVocExt2 = 1; % In case the localization on Loggers of vocalizations that were manually extracted was already done but you want to do it again set to 1
 ReAllignment = 0; % Incase we don't have a logger on all animals, it's better not to reallign the vocal data by cross correlation between the Microphone and the loggers
 close all
 
@@ -326,4 +356,19 @@ end
 
 Processed=1;
 
+end
+
+function [Done] = correctMicDeafBats(Path2ParamFile,Path2RecordingTable)
+    % Get the recording date
+    [AudioDataPath, DataFile ,~]=fileparts(Path2ParamFile);
+    Date = DataFile(6:11);
+    ExpStartTime = DataFile(13:16);
+     % Set the path to logger data
+    if contains(Path2RecordingTable, 'BatmanData')
+        Logger_dir = fullfile(AudioDataPath(1:(strfind(AudioDataPath, 'audio')-1)), 'logger',['20' Date]);
+    elseif contains(Path2RecordingTable, 'JuvenileRecording') || contains(Path2RecordingTable, 'DeafRecordings')
+        Logger_dir = fullfile(AudioDataPath(1:(strfind(AudioDataPath, 'audio')-1)), 'audiologgers');
+    end
+    correctMicAllignment_beforeorafterWhoCalls(AudioDataPath, Logger_dir, Date, ExpStartTime);
+    Done=1;
 end
