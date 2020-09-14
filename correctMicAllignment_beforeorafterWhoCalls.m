@@ -79,7 +79,11 @@ else
         if ~strcmp(Working_dir_write,Loggers_dir)
             fprintf(1, 'Saving data locally to write locally\n')
             DataFileRaw = fullfile(Working_dir_write, 'LocalRawWave.mat');
-            save(DataFileRaw, 'Raw_wave', 'VocFilename')
+            if length(Raw_wave)>100
+                save(DataFileRaw, 'Raw_wave', 'VocFilename','-v7.3')
+            else
+                save(DataFileRaw, 'Raw_wave', 'VocFilename')
+            end
         end
         if Nvoc ~= length(Raw_wave)
             warning('Looks like there might be an issue there!! Check variables!!')
@@ -346,17 +350,33 @@ else
                     end
                     Raw_wave(minvv:min(maxvv, length(Raw_wave))) = Raw_wave_local;
                     if strcmp(Working_dir_write,Loggers_dir)
-                        save(DataFile,'Raw_wave', '-append')
+                        if length(Raw_wave)>100
+                            save(DataFile,'Raw_wave', '-append','-v7.3')
+                        else
+                            save(DataFile,'Raw_wave', '-append')
+                        end
                     else
-                        save(DataFileRaw,'Raw_wave', '-append')
+                        if length(Raw_wave)>100
+                            save(DataFileRaw,'Raw_wave', '-append','-v7.3')
+                        else
+                            save(DataFileRaw,'Raw_wave', '-append')
+                        end
                     end
                     SaveRawWaveAll(df) = 1;
                     Raw_wave = Raw_wave_local;
                 else
                     if strcmp(Working_dir_write,Loggers_dir)
-                        save(DataFile,'Raw_wave', '-append')
+                        if length(Raw_wave)>100
+                            save(DataFile,'Raw_wave', '-append','-v7.3')
+                        else
+                            save(DataFile,'Raw_wave', '-append')
+                        end
                     else
-                        save(DataFileRaw,'Raw_wave', '-append')
+                        if length(Raw_wave)>100
+                            save(DataFileRaw,'Raw_wave', '-append','-v7.3')
+                        else
+                            save(DataFileRaw,'Raw_wave', '-append')
+                        end
                     end
                     SaveRawWaveAll(df) = 1;
                 end
@@ -373,7 +393,11 @@ else
         
         if SaveRawWaveAll(df) && ~strcmp(Working_dir_write,Loggers_dir)
             load(DataFileRaw,'VocFilename', 'Raw_wave')
-            save(DataFile, 'VocFilename', 'Raw_wave', '-append')
+            if length(Raw_wave)>100
+                save(DataFile,'Raw_wave','VocFilename', '-append','-v7.3')
+            else
+                save(DataFile,'Raw_wave','VocFilename', '-append')
+            end
             fprintf(1,'Data correctly saved from %s to %s\n',DataFileRaw,DataFile)
 %             [s2,m,e]=copyfile(DataFile, fullfile(DataFiles(df).folder,DataFiles(df).name), 'f');
 %             if ~s2
