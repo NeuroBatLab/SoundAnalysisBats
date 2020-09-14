@@ -127,10 +127,12 @@ else
                 keyboard
             end
             if Nvoc<=100
+                Chunking_RawWav = 0;
                 minvv = 1;
                 maxvv = Nvoc;
-                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
+                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename','Voc_transc_time_refined');
             else % often problem of memory, we're going to chunck file loading
+                Chunking_RawWav = 1;
                 if ~mod(vv,100)
                     minvv=floor((vv-1)/100)*100 +1;
                     maxvv=ceil(vv/100)*100;
@@ -142,7 +144,7 @@ else
                     end
                 end
                 Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
-                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
+                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename','Voc_transc_time_refined');
             end
         end
         
@@ -232,6 +234,7 @@ else
             else
                 clear Raw_wave Piezo_wave
                 load(DataFile,'Raw_wave')
+                Chunking_RawWav = 1;
                 if ~mod(vv,100)
                     minvv=floor((vv-1)/100)*100 +1;
                     maxvv=ceil(vv/100)*100;
@@ -262,9 +265,58 @@ else
                 warning('Raw_wave should not be empty now!!')
                 keyboard
                 SaveRawWave = 1;
-                [Raw_wave{vv}, FS] = audioread(VocFilename{vv_in});
+                [Raw_wave{vv}, FS] = audioread(VocFilename{vv});
             else
                 SaveRawWave = 0;
+            end
+            
+            % Check that correct microphone file was saved (Trying to
+            % detect/fix bug from voc_localize_using_piezo
+            TTL_dir = dir(fullfile(Raw_dir,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
+            TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
+            FileNum_u = unique(TTL.File_number);
+            OnOffTranscTime_ms = Voc_transc_time_refined(vv,:);
+            FileNumIdx = find(TTL.Pulse_TimeStamp_Transc<OnOffTranscTime_ms(1,1),1,'Last');
+            MicVoc_File = TTL.File_number(FileNumIdx);
+            IndFileNum = find(FileNum_u == MicVoc_File);
+            TranscTime_zs = (OnOffTranscTime_ms - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
+            MicVoc_samp_idx =round(TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1));
+            WavFileStruc_local = dir(fullfile(Raw_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File)));
+            Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
+            [Raw_10minwav2, FS2] = audioread(Raw_filename);
+            if MicVoc_samp_idx(1)>length(Raw_10minwav2) % This vocalization occured in the next file
+                MicVoc_File = MicVoc_File+1;
+                IndFileNum = find(FileNum_u == MicVoc_File);
+                TranscTime_zs = (OnOffTranscTime_ms - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
+                MicVoc_samp_idx =round(TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1));
+                WavFileStruc_local = dir(fullfile(Raw_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File)));
+                Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
+                [Raw_10minwav2, FS2] = audioread(Raw_filename);
+            end
+            Raw_wave_ex = Raw_10minwav2(MicVoc_samp_idx(1) : min(MicVoc_samp_idx(2),length(Raw_10minwav2)));
+            if length(Raw_wave_ex)<length(Raw_wave_nn)
+                Corr(1) = corr(Raw_wave_ex,Raw_wave_nn(1:length(Raw_wave_ex)));
+                Corr(2) = corr(Raw_wave_ex,Raw_wave_nn(end-length(Raw_wave_ex)+1:end));
+            elseif length(Raw_wave_ex)>length(Raw_wave_nn)
+                Corr(1) = corr(Raw_wave_nn,Raw_wave_ex(1:length(Raw_wave_nn)));
+                Corr(2) = corr(Raw_wave_nn,Raw_wave_ex(end-length(Raw_wave_nn)+1:end));
+            elseif length(Raw_wave_ex)==length(Raw_wave_nn)
+                Corr = corr(Raw_wave_ex,Raw_wave_nn);
+            end
+            if all(Corr<0.99)
+                warning('Error in the microphone file that was previosuly saved, fixing the issue now!\n')
+%                 keyboard
+                SaveRawWave = 1;
+                Raw_wave_nn = Raw_wave_ex;
+                Raw_wave{vv} = Raw_wave_ex;
+                TrueVocName = fullfile(Raw_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',WavFileStruc_local.name(1:4),Date,ExpStartTime, MicVoc_File, MicVoc_samp_idx(1)));
+                if ~strcmp(VocFilename{vv}, TrueVocName)
+                    warning('Filename was also wrong correcting %s -> %s\n',VocFilename{vv},TrueVocName)
+                    VocFilename{vv}= TrueVocName;
+                    Voc_filename{vv_in} = TrueVocName;
+                    SaveRawWaveName = 1;
+                end
+                audiowrite(VocFilename{vv} , Raw_wave{vv}, FS2);
             end
             % bandpass filter the ambient mic recording
             Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
@@ -408,9 +460,19 @@ else
                 end
                 clf(F1)
                 if SaveRawWave
-                    warning('Highly not recommended!! We are chuncking the loading, you might loose the entire Raw_wave data here')
-                    keyboard
+                    if Chunking_RawWav
+                        warning('Highly not recommended!! We are chuncking the loading, you might loose the entire Raw_wave data here')
+                        keyboard
+                    end
                     save(DataFile, 'Raw_wave','-append')
+                end
+                if SaveRawWaveName
+                    if Chunking_RawWav
+                        warning('Highly not recommended!! We are chuncking the loading, you might loose the entire Raw_wave data here')
+                        keyboard
+                    end
+                    save(DataFile, 'VocFilename','-append')
+                    save(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_filename','-append')
                 end
                 continue
             end
@@ -1056,7 +1118,7 @@ else
                                         text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.4, '/Noise')
                                     end
                                     hold off
-                                    suplabel(sprintf('Ambient Microphone and %s Voc %d/%d Set %d/%d',Fns_AL{ll},vv,Nvoc,df,length(DataFiles)), 't')
+                                    suplabel(sprintf('Ambient Microphone and %s Voc %d/%d Set %d/%d',Fns_AL{ll},vv,Nvoc,df,length(DataFiles)), 't');
                                     
                                     
                                     if Call1Hear0_temp(ii)
@@ -1125,7 +1187,7 @@ else
                                         text(IndVocStart{ll}(ii)/Fs_env*1000, ll+0.1, '/Noise','Color','r','FontWeight','bold')
                                     end
                                     hold off
-                                    suplabel(sprintf('Ambient Microphone and %s Voc %d/%d Set %d/%d',Fns_AL{ll},vv,Nvoc,df,length(DataFiles)), 't')
+                                    suplabel(sprintf('Ambient Microphone and %s Voc %d/%d Set %d/%d',Fns_AL{ll},vv,Nvoc,df,length(DataFiles)), 't');
                                     
                                     
                                     %                 figure(1)
@@ -1266,15 +1328,25 @@ else
                 save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
             end
             if SaveRawWave
-                warning('Make sure you want to change that variable!! NOT recommended here as we are chuncking the loading!!!')
-                keyboard
+                if Chunking_RawWav
+                    warning('Make sure you want to change that variable!! NOT recommended here as we are chuncking the loading!!!')
+                    keyboard
+                end
                 save(DataFile, 'Raw_wave','-append')
             end
+            if SaveRawWaveName
+                if Chunking_RawWav
+                    warning('Highly not recommended!! We are chuncking the loading, you might loose the entire Raw_wave data here')
+                    keyboard
+                end
+                save(DataFile, 'VocFilename','-append')
+                save(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_filename','-append')
+            end
         end
-        if SaveRawWave
+        if SaveRawWave && ~strcmp(Working_dir_read,DataFiles(df).folder)
             [s2,m,e]=copyfile(DataFile, fullfile(DataFiles(df).folder,DataFiles(df).name), 'f');
             if ~s2
-                fprintf(1,'File transfer did not occur correctly\n')
+                fprintf(1,'File transfer of %s to %s did not occur correctly\n',DataFile,fullfile(DataFiles(df).folder,DataFiles(df).name))
                 keyboard
             end
             if s2  %erase local data

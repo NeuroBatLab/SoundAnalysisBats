@@ -498,6 +498,7 @@ if MicData
                 WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic1_%d.wav',Date, ExpStartTime, MicVoc_File(ee))));
                 Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
                 [Raw_10minwav2, FS2] = audioread(Raw_filename);
+                OldMicVoc_File = MicVoc_File(ee);
             end
             
             if length(Raw_10minwav2)>MicVoc_samp_idx(ee,1)
@@ -530,13 +531,14 @@ if MicData
                     WavFileStruc_local = dir(fullfile(RawWav_dir, sprintf('*_%s_%s*mic1_%d.wav',Date, ExpStartTime, MicVoc_File(ee))));
                     Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
                     [Raw_10minwav2, FS2] = audioread(Raw_filename);
+                    OldMicVoc_File = MicVoc_File(ee);
                 end
                 Raw_wave = Raw_10minwav2(MicVoc_samp_idx(ee,1) : min(MicVoc_samp_idx(ee,2),length(Raw_10minwav2)));
                 % Save the sound as a wav file
                 Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, MicVoc_File(ee), round(MicVoc_samp_idx(ee,1))));
                 audiowrite(Voc_filename{ee} , Raw_wave, FS2)
             end
-            OldMicVoc_File = MicVoc_File(ee);
+            
         end
     end
     
@@ -594,7 +596,7 @@ for ff=1:Nevents
     MicVoc_File(ff) = TTL.File_number(FileNumIdx);
     IndFileNum = find(FileNum_u == MicVoc_File(ff));
     TranscTime_zs = (OnOffTranscTime_ms(ff,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
-    MicVoc_samp_idx(ff,:) =TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1);
+    MicVoc_samp_idx(ff,:) =round(TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1));
 end
 end
 
