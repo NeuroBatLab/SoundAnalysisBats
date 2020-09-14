@@ -224,7 +224,7 @@ parfor ll=1:NL % parfor
 
                 if length(RawWav_mic)>mic_start
                     % all ggod to go check mic_stop below
-                elseif MVF(ee)==NRawWave
+                elseif length(RawWav_mic)<=mic_start && (MVF(ee)==NRawWave)
                     % This event happened after the offset of microphone, discard
                     fprintf(1, 'This call occured after microphone offset\n')
                     continue
@@ -243,7 +243,7 @@ parfor ll=1:NL % parfor
                         mic_stop = mic_start_stop(2);
                     end
 
-                    if ~(MVF(ee) == OldMicVoc_File)
+                    if MVF(ee) ~= OldMicVoc_File
                         RawWavDir = dir(fullfile(RawWav_dir,sprintf('*%s_%s_RecOnly*mic1_%d.wav',Date, ExpStartTime,MVF(ee))));
                         [RawWav_mic, FS_mic] = audioread(fullfile(RawWavDir.folder, RawWavDir.name));
                         OldMicVoc_File = MVF(ee);
@@ -262,9 +262,10 @@ parfor ll=1:NL % parfor
                             keyborad
                         end
                         Mic_Sound = [RawWav_mic(mic_start:mic_stop1); RawWav_local2(1:mic_stop2)];
-                        OldMicVoc_File = MVF(ee)+1;
                         RawWav_mic = RawWav_local2;
                         RawWav_local2 = [];
+                        OldMicVoc_File = MVF(ee)+1;
+                        
                     else % that was the last recording from the microphone
                         if mic_start>length(RawWav_mic) % call occur after microphone stopped recording
                             continue
