@@ -68,6 +68,7 @@ else
                 fprintf(1,'File transfer did not occur correctly\n')
                 keyboard
             else
+                fprintf(1,'File transfer DONE\n')
                 DataFile = fullfile(Working_dir_read,DataFiles(df).name);
             end
         end
@@ -336,10 +337,12 @@ else
             if ~s2
                 fprintf(1,'File transfer of %s to %s did not occur correctly\n',DataFile,fullfile(DataFiles(df).folder,DataFiles(df).name))
                 keyboard
-            end
-            if s2  %erase local data
+            else
+                fprintf(1,'File transfer of %s to %s DONE\n',DataFile,fullfile(DataFiles(df).folder,DataFiles(df).name))
+                fprintf(1, 'Erasing local data')
                 [sdel,mdel,edel]=delete(DataFile);
             end
+            
         end
     end
 end
