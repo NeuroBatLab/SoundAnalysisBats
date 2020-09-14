@@ -2,6 +2,7 @@ BaseDataDir = 'Z:\users\JulieE\JuvenileRecordings151\';
 BaseCodeDir = 'C:\Users\tobias\Documents\Code\';
 Path2RecordingTable = 'C:\Users\tobias\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings\JuvenileRecordingsNWAF155_Log.xlsx';
 TTLFolder = 'C:\Users\tobias\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings';
+WorkingDir = 'C:\Users\tobias\Documents\FamiliesMicCheckWorkDir\';
 
 % BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';
 % BaseCodeDir = '/Users/elie/Documents/CODE';
@@ -81,7 +82,7 @@ for dd=1:NDates
         elseif Done && ~Done_corr
             fprintf(1, '   -> Checking Microphone alignement\n')
             Filepath = fullfile(ParamFile(nn).folder, ParamFile(nn).name);
-            Processed_corr_OK = correctMicDeafBats(Filepath,Path2RecordingTable);
+            Processed_corr_OK = correctMicDeafBats(Filepath,Path2RecordingTable,WorkingDir);
             Ind_ = strfind(ParamFile(nn).name, '_param');
             fprintf(Fid_corr, '%s\t%s\t%s\t%d\n',ParamFile(nn).name(1:4),ParamFile(nn).name(6:11),ParamFile(nn).name(13:16),Processed_corr_OK);
             continue
@@ -109,7 +110,7 @@ for dd=1:NDates
         Ind_ = strfind(ParamFile(nn).name, '_param');
         fprintf(Fid, '%s\t%s\t%s\t%.1f\t%d\n',ParamFile(nn).name(1:4),ParamFile(nn).name(6:11),ParamFile(nn).name(13:16),Temp,ProcessedOK);
         fprintf(1, '   -> Checking Microphone alignement\n')
-        Processed_corr_OK = correctMicDeafBats(Filepath,Path2RecordingTable);
+        Processed_corr_OK = correctMicDeafBats(Filepath,Path2RecordingTable,WorkingDir);
         fprintf(Fid_corr, '%s\t%s\t%s\t%d\n',ParamFile(nn).name(1:4),ParamFile(nn).name(6:11),ParamFile(nn).name(13:16),Processed_corr_OK);
     end
 end
@@ -358,7 +359,7 @@ Processed=1;
 
 end
 
-function [Done] = correctMicDeafBats(Path2ParamFile,Path2RecordingTable)
+function [Done] = correctMicDeafBats(Path2ParamFile,Path2RecordingTable, WorkingDir)
     % Get the recording date
     [AudioDataPath, DataFile ,~]=fileparts(Path2ParamFile);
     Date = DataFile(6:11);
@@ -369,6 +370,6 @@ function [Done] = correctMicDeafBats(Path2ParamFile,Path2RecordingTable)
     elseif contains(Path2RecordingTable, 'JuvenileRecording') || contains(Path2RecordingTable, 'DeafRecordings')
         Logger_dir = fullfile(AudioDataPath(1:(strfind(AudioDataPath, 'audio')-1)), 'audiologgers');
     end
-    correctMicAllignment_beforeorafterWhoCalls(AudioDataPath, Logger_dir, Date, ExpStartTime);
+    correctMicAllignment_beforeorafterWhoCalls(AudioDataPath, Logger_dir, Date, ExpStartTime, 'Working_dir', WorkingDir);
     Done=1;
 end
