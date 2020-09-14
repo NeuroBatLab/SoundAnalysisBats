@@ -338,7 +338,7 @@ else
                 keyboard
             end
             if s2  %erase local data
-                [sdel,mdel,edel]=rmdir(DataFile, 's');
+                [sdel,mdel,edel]=delete(DataFile);
             end
         end
     end
