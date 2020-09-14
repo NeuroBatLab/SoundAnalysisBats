@@ -4,7 +4,8 @@ pnames = {'Working_dir'};
 dflts  = {Loggers_dir};
 [Working_dir] = internal.stats.parseArgs(pnames,dflts,varargin{:});
 
-Manual=1; % set to 1 to listen to Mic vocalizations
+Manual=0; % set to 1 to listen to Mic sequences
+PlotSpec = 0; % set to 1 to plot spectrograms
 
 
 Working_dir_read = fullfile(Working_dir, 'read');
@@ -235,19 +236,20 @@ else
                 audiowrite(VocFilename{vv} , Raw_wave_ex, FS2);
             end
 
-            
-            % bandpass filter the ambient mic recording
-            Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
-           
-            % Plot the spectrogram of the ambient microphone
-            F1=figure(1);
-            clf(F1)
-            subplot(length(AudioLogs)+2,1,1)
-            [Raw_Spec.to, Raw_Spec.fo, Raw_Spec.logB] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
-            hold on
-            title(sprintf('Voc %d/%d Set %d/%d',vv,Nvoc, df,length(DataFiles)))
-            xlabel(' ')
-            set(gca, 'XTick',[],'XTickLabel',{})
+            if PlotSpec
+                % bandpass filter the ambient mic recording
+                Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
+
+                % Plot the spectrogram of the ambient microphone
+                F1=figure(1);
+                clf(F1)
+                subplot(length(AudioLogs)+2,1,1)
+                [Raw_Spec.to, Raw_Spec.fo, Raw_Spec.logB] = spec_only_bats(Filt_RawVoc, FS, DB_noise, FHigh_spec);
+                hold on
+                title(sprintf('Voc %d/%d Set %d/%d',vv,Nvoc, df,length(DataFiles)))
+                xlabel(' ')
+                set(gca, 'XTick',[],'XTickLabel',{})
+            end
         
             if Manual
                 pause(0.1)
@@ -257,53 +259,57 @@ else
                 play(PlayerMic)
                 pause(length(Raw_wave_nn)/FS +1)
             end
-            %% Loop through the loggers and check the extracts length
-            LengthLoggersData = nan(length(AudioLogs),1);
-            for ll=1:length(AudioLogs)
-                LengthLoggersData(ll) = length(Piezo_wave.(Fns_AL{ll}){vv});
-            end
-            %% Loop through the loggers and plot spectro
-            Logger_Spec = cell(length(AudioLogs),1);
-            for ll=1:length(AudioLogs)
-                if isnan(Piezo_FS.(Fns_AL{ll})(vv)) || isempty(Piezo_wave.(Fns_AL{ll}){vv})
-                    fprintf(1, 'NO DATA for Vocalization %d from %s\n', vv, Fns_AL{ll})
-                else
-                    % design the filters
-                    [z,p,k] = butter(6,BandPassFilter(1:2)/(Piezo_FS.(Fns_AL{ll})(vv)/2),'bandpass');
-                    sos_low = zp2sos(z,p,k);
-                    
-                    % filter the loggers' signals
-                    if sum(isnan(Piezo_wave.(Fns_AL{ll}){vv}))~=length(Piezo_wave.(Fns_AL{ll}){vv})
-                        % replace NaN by zeros so the filter can work and
-                        % check the length of extracts
-                        InputPiezo = Piezo_wave.(Fns_AL{ll}){vv};
-                        if sum(isnan(InputPiezo))
-                            InputPiezo(isnan(InputPiezo))=0;
-                            if length(InputPiezo)>min(LengthLoggersData)
-                                warning('Piezo data have different durations!\n Logger %s data is truncated for analysis\n',Fns_AL{ll})
-                                InputPiezo = InputPiezo(1:min(LengthLoggersData));
+            
+            if PlotSpec
+                %% Loop through the loggers and check the extracts length
+                LengthLoggersData = nan(length(AudioLogs),1);
+                for ll=1:length(AudioLogs)
+                    LengthLoggersData(ll) = length(Piezo_wave.(Fns_AL{ll}){vv});
+                end
+                %% Loop through the loggers and plot spectro
+                Logger_Spec = cell(length(AudioLogs),1);
+                for ll=1:length(AudioLogs)
+                    if isnan(Piezo_FS.(Fns_AL{ll})(vv)) || isempty(Piezo_wave.(Fns_AL{ll}){vv})
+                        fprintf(1, 'NO DATA for Vocalization %d from %s\n', vv, Fns_AL{ll})
+                    else
+                        % design the filters
+                        [z,p,k] = butter(6,BandPassFilter(1:2)/(Piezo_FS.(Fns_AL{ll})(vv)/2),'bandpass');
+                        sos_low = zp2sos(z,p,k);
+
+                        % filter the loggers' signals
+                        if sum(isnan(Piezo_wave.(Fns_AL{ll}){vv}))~=length(Piezo_wave.(Fns_AL{ll}){vv})
+                            % replace NaN by zeros so the filter can work and
+                            % check the length of extracts
+                            InputPiezo = Piezo_wave.(Fns_AL{ll}){vv};
+                            if sum(isnan(InputPiezo))
+                                InputPiezo(isnan(InputPiezo))=0;
+                                if length(InputPiezo)>min(LengthLoggersData)
+                                    warning('Piezo data have different durations!\n Logger %s data is truncated for analysis\n',Fns_AL{ll})
+                                    InputPiezo = InputPiezo(1:min(LengthLoggersData));
+                                end
+                                LowPassLogVoc = (filtfilt(sos_low,1,InputPiezo)); % low-pass filter the voltage trace
+                            else
+                                if length(InputPiezo)>min(LengthLoggersData)
+                                    warning('Piezo data have different durations!\n Logger %s data is truncated for analysis\n',Fns_AL{ll})
+                                    InputPiezo = InputPiezo(1:min(LengthLoggersData));
+                                end
+                                LowPassLogVoc = (filtfilt(sos_low,1,InputPiezo)); % low-pass filter the voltage trace
                             end
-                            LowPassLogVoc = (filtfilt(sos_low,1,InputPiezo)); % low-pass filter the voltage trace
-                        else
-                            if length(InputPiezo)>min(LengthLoggersData)
-                                warning('Piezo data have different durations!\n Logger %s data is truncated for analysis\n',Fns_AL{ll})
-                                InputPiezo = InputPiezo(1:min(LengthLoggersData));
+
+                            % Plot the low pass filtered signal of each logger
+                            figure(1)
+                            subplot(length(AudioLogs)+2,1,ll+1)
+                            [Logger_Spec{ll}.to, Logger_Spec{ll}.fo, Logger_Spec{ll}.logB] = spec_only_bats(LowPassLogVoc, Piezo_FS.(Fns_AL{ll})(vv), DB_noise, FHigh_spec_Logger);
+                            if ll<length(AudioLogs)
+                                xlabel(' '); % supress the x label output
+                                set(gca,'XTick',[],'XTickLabel',{});
                             end
-                            LowPassLogVoc = (filtfilt(sos_low,1,InputPiezo)); % low-pass filter the voltage trace
+
                         end
-                        
-                        % Plot the low pass filtered signal of each logger
-                        figure(1)
-                        subplot(length(AudioLogs)+2,1,ll+1)
-                        [Logger_Spec{ll}.to, Logger_Spec{ll}.fo, Logger_Spec{ll}.logB] = spec_only_bats(LowPassLogVoc, Piezo_FS.(Fns_AL{ll})(vv), DB_noise, FHigh_spec_Logger);
-                        if ll<length(AudioLogs)
-                            xlabel(' '); % supress the x label output
-                            set(gca,'XTick',[],'XTickLabel',{});
-                        end
-                        
                     end
                 end
             end
+            
             if SaveRawWave
                 if RawWavChunking
                     warning('Touchy save as we chuncked Rawwave, you might want to check\n')
