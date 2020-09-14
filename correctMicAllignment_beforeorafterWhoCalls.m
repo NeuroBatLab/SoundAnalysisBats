@@ -1,16 +1,15 @@
 function [SaveRawWaveAll] = correctMicAllignment_beforeorafterWhoCalls(Raw_dir, Loggers_dir, Date, ExpStartTime, varargin)
 VolFactorMic=0.5;
-TTL_dir = dir(fullfile(Raw_dir,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
-pnames = {'Working_dir','TTL_Folder'};
-dflts  = {Loggers_dir, TTL_dir};
-[Working_dir, TTL_dir] = internal.stats.parseArgs(pnames,dflts,varargin{:});
+pnames = {'Working_dir'};
+dflts  = {Loggers_dir};
+[Working_dir] = internal.stats.parseArgs(pnames,dflts,varargin{:});
 
 Manual=1; % set to 1 to listen to Mic vocalizations
 
 
 Working_dir_read = fullfile(Working_dir, 'read');
 Working_dir_write = fullfile(Working_dir, 'write');
-
+TTL_dir = dir(fullfile(Raw_dir,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
 TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
 FileNum_u = unique(TTL.File_number);
 
@@ -51,7 +50,7 @@ else
     if ~exist('VocMaxNum','var')
         VocMaxNum=1000;
     end
-    if Nvoc_all>VocMaxNum
+    if (Nvoc_all>VocMaxNum) && (length(DataFiles)>1)
         Nvocs = [0 VocMaxNum:VocMaxNum:Nvoc_all (floor(Nvoc_all/VocMaxNum)*VocMaxNum+rem(Nvoc_all,VocMaxNum))];
     else
         Nvocs = [0 Nvoc_all];
@@ -227,6 +226,8 @@ else
                 if ~strcmp(VocFilename{vv}, TrueVocName)
                     SaveRawWaveName = 1;
                     warning('Filename was also wrong correcting %s -> %s\n',VocFilename{vv},TrueVocName)
+                    % delete old file
+                    delete(VocFilename{vv})
                     VocFilename{vv}= TrueVocName;
                     Voc_filename{vv_in} = TrueVocName;
                 end
