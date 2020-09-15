@@ -389,7 +389,7 @@ else
             
         end
         if ~strcmp(Working_dir_write,Loggers_dir)
-            fprintf(1, 'Erasing local data')
+            fprintf(1, 'Erasing local data\n')
             delete(DataFileRaw);
         end
     end
