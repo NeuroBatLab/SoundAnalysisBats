@@ -16,11 +16,12 @@ addpath(genpath(fullfile(BaseCodeDir,'SoundAnalysisBats')))
 
 DatesDir = dir(fullfile(BaseDataDir,'20*'));
 % We only extract data of recordings that were done in 151 so after
-% 20200714
+% 20200714 and 20190731 did not have TTL pulses recorded so no
+% synchronization
 NDates = length(DatesDir);
 Dates2Keep = nan(1,NDates);
 for dd=1:NDates
-    if str2double(DatesDir(dd).name)<20190715
+    if str2double(DatesDir(dd).name)<20190715 || str2double(DatesDir(dd).name)==20190731
         Dates2Keep(dd) = 0;
     else
         Dates2Keep(dd) = 1;
