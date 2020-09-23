@@ -272,6 +272,10 @@ parfor ll=1:NL % parfor
                         end
                         Mic_Sound = RawWav_mic(mic_start:mic_stop1);
                     end
+                elseif mic_start<0 || mic_stop<0
+                    % This call occured in between 2 file recordings!
+                    fprintf(1, 'This call occured in between 2 file recordings!\n')
+                    continue
                 else
                     Mic_Sound = RawWav_mic(mic_start:mic_stop);
                 end
