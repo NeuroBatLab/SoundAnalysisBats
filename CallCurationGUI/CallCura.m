@@ -89,6 +89,7 @@ end
 fprintf(1,'Grabbing the session...');
 NExpe = length(DoneListDetect{1});
 checkSession=1;
+AlliOk=[];
 while checkSession && ee<=NExpe && (isempty(AlliOk) || (AlliOk==0))
     ee=ee+1;
     BatsID = DoneListDetect{1}{ee};
@@ -126,7 +127,7 @@ while checkSession && ee<=NExpe && (isempty(AlliOk) || (AlliOk==0))
         fprintf(1, '   -> Starting new session\n')
         % Check that the clocks drifts were correctly corrected
         fprintf(1,'*** Check the clock drift correction of the logger ***\n')
-        [AudioDataPath, DataFile ,~]=fileparts(Filepath);
+        [AudioDataPath, DataFile ,~]=fileparts(ParamFile);
         Logger_dir = fullfile(AudioDataPath(1:(strfind(AudioDataPath, 'audio')-1)), 'audiologgers');
         LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
         Check = zeros(length(LoggersDir)+1,1);
