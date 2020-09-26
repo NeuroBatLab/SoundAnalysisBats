@@ -8,6 +8,7 @@ close all;
 
 global WorkingDir Filepath
 global VolDenominatorLogger VolFactorMic Manual MergeThresh;
+global Force_Save_onoffsets_mic SaveFileType;
 global CheckMicChannel UseOld  PlotRMSFig FhGUI;
 global evalMich evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith string_handle2;
 global evalLog6h evalLog7h evalLog8h starth evalLog plotb string_handle;
@@ -36,16 +37,17 @@ addpath(genpath(fullfile(BaseCodeDir, 'LoggerDataProcessing')))
 addpath(genpath(fullfile(BaseCodeDir,'SoundAnalysisBats')))
 
 %% Parameters of WhoCalls
-% optional parameter: Factor_RMS_Mic, Factor by which the RMS of the
-% band-pass filtered baseline signal is multiplied to obtained the
-% threshold of vocalization detection on Microphone
+
 VolDenominatorLogger=5;
 VolFactorMic=0.5;
+
+Force_Save_onoffsets_mic = 0; % Currently useless
+SaveFileType = 'pdf';
 
 MergeThresh=200;
 Manual=1;
 UseOld=1;% Set to 1 if you want to append to existing manually curated data
-CheckMicChannel=0;
+CheckMicChannel=0; % If set to 1 authorize evaluation of Microphone channel (case of an individual without a collar)
 PlotRMSFig = 0; % Set to 1 if you want to plot and save the figure showing the RMS
 
 %% Get the name of the next experiment that needs to be manually curated
@@ -177,61 +179,61 @@ fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.na
 redo=0;
 %% Starting the GUI
 message={'';'';'';'';'';''};
-Use_AppDesigner=0;
-if Use_AppDesigner
-    string_handle='Text';
-    string_handle2='Value';
-    FhGUI=CallCuraGui_App;
-    starth=FhGUI.start;
-    noCallh=FhGUI.noCall;
-    filenameh=FhGUI.filename;
-    mh=FhGUI.message;
-    plotmich=FhGUI.plotMic;
-    plotmicevalh=FhGUI.plotMicEval;
-    plotlog1h=FhGUI.plotLog1;
-    plotlog2h=FhGUI.plotLog2;
-    plotlog3h=FhGUI.plotLog3;
-    plotlog4h=FhGUI.plotLog4;
-    plotlog5h=FhGUI.plotLog5;
-    plotlog6h=FhGUI.plotLog6;
-    plotlog7h=FhGUI.plotLog7;
-    plotlog8h=FhGUI.plotLog8;
-    plotlog9h=FhGUI.plotLog9;
-    plotlog10h=FhGUI.plotLog10;
-    plotevalh=FhGUI.plotEval;
-    plotlogevalh=FhGUI.plotLogEval;
-    sliderLefth=FhGUI.sliderLeft;
-    sliderRighth=FhGUI.sliderRight;
-    redoh=FhGUI.redo;
-    redoEditVoch=FhGUI.redoEditVoc;
-    redoEditSeth=FhGUI.redoEditSet;
-    submith=FhGUI.submit;
-    checkboxh=FhGUI.checkbox;
-    evalMich = FhGUI.evalMic;
-    evalLog1h=FhGUI.evalLog1;
-    evalLog2h=FhGUI.evalLog2;
-    evalLog3h=FhGUI.evalLog3;
-    evalLog4h=FhGUI.evalLog4;
-    evalLog5h=FhGUI.evalLog5;
-    evalLog6h=FhGUI.evalLog6;
-    evalLog7h=FhGUI.evalLog7;
-    evalLog8h=FhGUI.evalLog8;
-    evalLog9h=FhGUI.evalLog9;
-    evalLog10h=FhGUI.evalLog10;
-    playMich=FhGUI.playMic;
-    playMicEvalh=FhGUI.playMicEval;
-    playLogEvalh=FhGUI.playLogEval;
-    playLog1h=FhGUI.playLog1;
-    playLog2h=FhGUI.playLog2;
-    playLog3h=FhGUI.playLog3;
-    playLog4h=FhGUI.playLog4;
-    playLog5h=FhGUI.playLog5;
-    playLog6h=FhGUI.playLog6;
-    playLog7h=FhGUI.playLog7;
-    playLog8h=FhGUI.playLog8;
-    playLog9h=FhGUI.playLog9;
-    playLog10h=FhGUI.playLog10;
-else
+% Use_AppDesigner=0;
+% if Use_AppDesigner
+%     string_handle='Text';
+%     string_handle2='Value';
+%     FhGUI=CallCuraGui_App;
+%     starth=FhGUI.start;
+%     noCallh=FhGUI.noCall;
+%     filenameh=FhGUI.filename;
+%     mh=FhGUI.message;
+%     plotmich=FhGUI.plotMic;
+%     plotmicevalh=FhGUI.plotMicEval;
+%     plotlog1h=FhGUI.plotLog1;
+%     plotlog2h=FhGUI.plotLog2;
+%     plotlog3h=FhGUI.plotLog3;
+%     plotlog4h=FhGUI.plotLog4;
+%     plotlog5h=FhGUI.plotLog5;
+%     plotlog6h=FhGUI.plotLog6;
+%     plotlog7h=FhGUI.plotLog7;
+%     plotlog8h=FhGUI.plotLog8;
+%     plotlog9h=FhGUI.plotLog9;
+%     plotlog10h=FhGUI.plotLog10;
+%     plotevalh=FhGUI.plotEval;
+%     plotlogevalh=FhGUI.plotLogEval;
+%     sliderLefth=FhGUI.sliderLeft;
+%     sliderRighth=FhGUI.sliderRight;
+%     redoh=FhGUI.redo;
+%     redoEditVoch=FhGUI.redoEditVoc;
+%     redoEditSeth=FhGUI.redoEditSet;
+%     submith=FhGUI.submit;
+%     checkboxh=FhGUI.checkbox;
+%     evalMich = FhGUI.evalMic;
+%     evalLog1h=FhGUI.evalLog1;
+%     evalLog2h=FhGUI.evalLog2;
+%     evalLog3h=FhGUI.evalLog3;
+%     evalLog4h=FhGUI.evalLog4;
+%     evalLog5h=FhGUI.evalLog5;
+%     evalLog6h=FhGUI.evalLog6;
+%     evalLog7h=FhGUI.evalLog7;
+%     evalLog8h=FhGUI.evalLog8;
+%     evalLog9h=FhGUI.evalLog9;
+%     evalLog10h=FhGUI.evalLog10;
+%     playMich=FhGUI.playMic;
+%     playMicEvalh=FhGUI.playMicEval;
+%     playLogEvalh=FhGUI.playLogEval;
+%     playLog1h=FhGUI.playLog1;
+%     playLog2h=FhGUI.playLog2;
+%     playLog3h=FhGUI.playLog3;
+%     playLog4h=FhGUI.playLog4;
+%     playLog5h=FhGUI.playLog5;
+%     playLog6h=FhGUI.playLog6;
+%     playLog7h=FhGUI.playLog7;
+%     playLog8h=FhGUI.playLog8;
+%     playLog9h=FhGUI.playLog9;
+%     playLog10h=FhGUI.playLog10;
+% else
     string_handle='String';
     string_handle2='String';
     FhGUI=CallCuraGui;
@@ -285,7 +287,7 @@ else
     playLog8h=findobj(FhGUI,'tag','playLog8');
     playLog9h=findobj(FhGUI,'tag','playLog9');
     playLog10h=findobj(FhGUI,'tag','playLog10');
-end
+% end
 
 plotb{1}=plotmich;
 plotb{2}=plotlog1h;

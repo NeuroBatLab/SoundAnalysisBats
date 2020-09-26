@@ -185,30 +185,27 @@ switch action
         
     case 'Quit'
         close all;
-        clear all;
+        clearvars;
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function who_calls_playless_init
 global Working_dir Filepath Date ExpStartTime DataFiles AudioDataPath;
 global MeanStdAmpRawExtract Voc_filename Nvocs;
-global Factor_RMS_Mic Force_Save_onoffsets_mic SaveFileType;
 global Working_dir_read Working_dir_write;
 global sos_raw_band_listen FS;
 global sos_raw_band BandPassFilter;
-global Consecutive_binsMic Consecutive_binsPiezo Factor_RMS_low Factor_AmpDiff;
+global Consecutive_binsMic Consecutive_binsPiezo Factor_RMS_low Factor_RMS_Mic Factor_AmpDiff;
 global DB_noise FHigh_spec FHigh_spec_Logger Fhigh_power Fs_env;
 global df vv
 
-% Parameters of the GUI
-Factor_RMS_Mic = 3;
-Force_Save_onoffsets_mic = 0;
-SaveFileType = 'pdf';
+
 
 % parameters of the detection
 Consecutive_binsMic = 10; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
 Consecutive_binsPiezo = 15; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
 Factor_RMS_low = 1.5; % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on piezos
+Factor_RMS_Mic = 3; % Factor by which the RMS of the band-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on Microphone
 Factor_AmpDiff = 50; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
 DB_noise = 60; % Noise threshold for the spectrogram colormap
 FHigh_spec = 90000; % Max frequency (Hz) for the raw data spectrogram
@@ -905,9 +902,10 @@ function CallOnLogger(vv,ll)
 % spectrograms of the microphone and logger ll (ll<=10) in the evaluation area;
 % plot the sound extracts in the evaluation area 
 
-global DiffAmp Fns_AL IndVocStart IndVocStop FHigh_spec_Logger FHigh_spec Hline;
+global DiffAmp Fns_AL IndVocStart IndVocStop FHigh_spec_Logger  Hline;
 global RatioAmp RMSRatio RMSDiff Amp_env_Mic sliderRighth logdone;
-global Vocp Factor_AmpDiff DiffRMS Fs_env Call10_ComputerPredict plotlogevalh plotmicevalh;
+global Vocp Factor_AmpDiff DiffRMS Fs_env Call10_ComputerPredict plotlogevalh ;
+% global FHigh_spec plotmicevalh ;
 
 logdone=0;
 if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger or Mic track
@@ -982,11 +980,12 @@ elseif isempty(IndVocStart{ll}) && ll==11
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function evaluatingCalls(vv,ll)
-global IndVocStart Fs_env IndVocStop Hline FHigh_spec_Logger FHigh_spec checkboxh playll;
-global submith noCallh redoh stopclick logdone Listen10_temp;
-global Call10_ComputerPredict PiezoError PiezoErrorType Fns_AL;
+global IndVocStart Fs_env IndVocStop Hline FHigh_spec checkboxh playll;
+global submith noCallh redoh stopclick logdone;
+global  Fns_AL;
 global playMicEvalh playLogEvalh plotmicevalh plotlogevalh;
 global evalLog evalbon string_handle;
+% global FHigh_spec_Logger Call10_ComputerPredict PiezoError PiezoErrorType
 
 playll=ll;
 
