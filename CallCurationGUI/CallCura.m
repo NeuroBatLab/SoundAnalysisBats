@@ -127,8 +127,7 @@ while checkSession && ee<=NExpe && (isempty(AlliOk) || (AlliOk==0))
         fprintf(1, '   -> Starting new session\n')
         % Check that the clocks drifts were correctly corrected
         fprintf(1,'*** Check the clock drift correction of the logger ***\n')
-        [AudioDataPath, DataFile ,~]=fileparts(ParamFile);
-        Logger_dir = fullfile(AudioDataPath(1:(strfind(AudioDataPath, 'audio')-1)), 'audiologgers');
+        Logger_dir = fullfile(ParamFile.folder(1:(strfind(ParamFile.folder, 'audio')-1)), 'audiologgers');
         LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
         Check = zeros(length(LoggersDir)+1,1);
         for ll=1:length(LoggersDir)
@@ -146,7 +145,7 @@ while checkSession && ee<=NExpe && (isempty(AlliOk) || (AlliOk==0))
             close(FigCD)
         end
         fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
-        AllignmentPath = fullfile(AudioDataPath,sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, ExpStartTime));
+        AllignmentPath = fullfile(ParamFile.folder,sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, ExpStartTime));
         FigAP = open(AllignmentPath);
         failsafe=1;
         while failsafe
