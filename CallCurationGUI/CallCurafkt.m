@@ -1,5 +1,24 @@
 function CallCurafkt(action)
-global vv Nvoc df redo DataFiles ManCall FhGUI string_handle string_handle2;
+%% Identify sound elements in each vocalization extract and decide of the vocalizer
+% Output corresponds to onset and offset indices of each vocal element in
+% sound section for each vocalizing logger. A cell array of length the
+% number of sound sections identified by voc_localize or
+% voc_localize_operant. For IndVocStartRaw_merged each cell contains the onset/offset samples of each vocal element in the sound section.
+% For IndVocStartPiezo_merged each cell is a cell array of size the number of
+% audio-loggers where each cell contains the onset or offset sample of
+% individual vocal element emitted by the respective audio-loggers. Note
+% that for both these variables, vocal elements that are within MergeThresh
+% ms were merged in a single vocal element.
+%
+% Run a time window of duration 2 ms to identify who is vocalizing
+% create 2 signals for the logger, one high pass filtered above 5kHz
+% and the other one low pass filtered at 5kHz. The vocalizer will have
+% the highest energy of all vocalizers and will have more energy in the
+% lower compare to higher filtered signal
+
+
+
+global Nvocs df vv redo DataFiles string_handle string_handle2;
 global submith noCallh redoh starth oldvv olddf;
 global redoEditVoch redoEditSeth checkboxh stopclick;
 
@@ -8,69 +27,91 @@ switch action
     
     case 'Start'
         set(starth,'enable','off')
-        initFiles
+        fprintf(1,'\n*** Identify who is calling ***\n')
+        % Initializing output, finding where we left at (finding df and vv)
+        % and grabing the correct set
+        who_calls_playless_init
+        % Loading the next vocalization identified by
+        % Who_calls_playless_init
         loadnextfile(vv)
         
     case 'NoCall'
         disableEvals
         drawnow;
         newmessage('Manual input enforced: Noise (=NoCall)');
-        ManCall=0;
-        savingData
+        % saving data to file
+        savingData(vv)
         if redo
             vv=oldvv;
             df=olddf;
             redo=0;
         end
+        
+        % Switching to next sound extract
         vv=vv+1;
-        if vv<=Nvoc
+        Nvoc = Nvocs(df+1) - Nvocs(df);
+        if vv<=Nvoc % sound extract is in the same set
+            % loading the next sound extract
             loadnextfile(vv)
-        else
-            eraseData
+        else % sound extract is in the next set
+            % if rawwave was updated in the original data, transfer and erase the data we imported 
+            transferEraseSetData
+            
             if df<=length(DataFiles)
-                grabNewDatafile
+                % switch to the next set
+                df=df+1;
+                % grab the new dataset
+                [vv,~] = grabNewDatafile(df);
+                % loading the sound extract
                 loadnextfile(vv)
-            else
+            else % we did all sets of that recording session
                 newmessage('Annotation done!');
-                initFiles
-                loadnextfile(vv)
+                % restart the Gui for the next recording session
+                CallCura
             end
         end
         
     case 'Redo'
+        % disable all evaluation butons
         disableEvals
         drawnow;
-        oldvv=vv-1;
-        olddf=df;
+        
+        
         %grab which file to reevaluate
-        vv=str2num(get(redoEditVoch,string_handle2));
-        df=str2num(get(redoEditSeth,string_handle2));
-        if vv>Nvoc || df>length(DataFiles)
+        vv_requested=str2double(get(redoEditVoch,string_handle2));
+        df_requested=str2double(get(redoEditSeth,string_handle2));
+        Nvoc = Nvocs(df+1) - Nvocs(df);
+        if vv_requested>Nvoc || df_requested>length(DataFiles)
             newmessage('Incorrect Voc# or Set#');
             set([redoh redoEditVoch redoEditSeth],'enable','on')
-            df=olddf; vv=oldvv+1;
             set(redoEditVoch,string_handle2,num2str(vv))
             set(redoEditSeth,string_handle2,num2str(df))
-        elseif vv>oldvv+1 && df>=olddf
+        elseif (vv_requested>(vv+1) && df_requested>=df) || (df_requested>df)
             newmessage('Do not evaluate into the future!')
             set([redoh redoEditVoch redoEditSeth],'enable','on')
-            df=olddf; vv=oldvv+1;
-            set(redoEditVoch,string_handle2,num2str(vv))
-            set(redoEditSeth,string_handle2,num2str(df))
-        elseif df>olddf
-            newmessage('Do not evaluate into the future!')
-            set([redoh redoEditVoch redoEditSeth],'enable','on')
-            df=olddf; vv=oldvv+1;
             set(redoEditVoch,string_handle2,num2str(vv))
             set(redoEditSeth,string_handle2,num2str(df))
         else
+            redo=1;
             newmessage('Redoing evaluation');
-            newmessage(['Grabbing Voc#' num2str(vv) ' and Set#' num2str(df) '...']);
-            if df~=olddf
-                grabNewDatafile
+            newmessage(['Grabbing Voc#' num2str(vv_requested) ' and Set#' num2str(df_requested) '...']);
+            % keep in memory the previous sound extract reference to make sure
+            % we get back to where we are after redoing the requested extract
+            if vv~=1
+                oldvv=vv-1;
+                olddf=df;
+            else % we switch to the next set!
+                oldvv=Nvocs(df) - Nvocs(df-1);
+                olddf=df-1;
+            end
+            if df_requested~=df
+                df = df_requested;
+                [~]=grabNewDatafile(df_requested);
+                vv=vv_requested;
+            else
+                vv=vv_requested;
             end
             loadnextfile(vv)
-            redo=1;
         end
         
     case 'Checkbox'
@@ -85,28 +126,36 @@ switch action
         drawnow;
         set(submith,string_handle,'Submitted')
         set(submith,'BackgroundColor',[204 88 88]./255)
-        %save submit
-        ManCall=1;
+        % save figures and gather manual curation results
         evaluationDone(vv)
-        savingData
+        % saving data to file
+        savingData(vv)
         if redo
             vv=oldvv;
             df=olddf;
             redo=0;
         end
-        %load next file
+        
+        %load next sound extract
         vv=vv+1;
-        if vv<=Nvoc
+        Nvoc = Nvocs(df+1) - Nvocs(df);
+        if vv<=Nvoc % next sound extract is in the same set
             loadnextfile(vv)
-        else
-            eraseData
+        else % next sound extract is in the next set
+            % if rawwave was updated in the original data, transfer and erase the data we imported 
+            transferEraseSetData
+            
             if df<=length(DataFiles)
-                grabNewDatafile
+                % switch to the next set
+                df = df +1;
+                % Grabng this new set
+                [vv,~]=grabNewDatafile(df);
+                % Loading the next file
                 loadnextfile(vv)
-            else
+            else % we did all sets of that recording session
                 newmessage('Annotation done!');
-                initFiles
-                loadnextfile(vv)
+                % restart the Gui for the next recording session
+                CallCura
             end
         end
         set(submith,string_handle,'Submit')
@@ -131,118 +180,63 @@ switch action
         evaluatingCalls(vv,9)
     case 'EvalLog10'
         evaluatingCalls(vv,10)
+    case 'EvalMic'
+        evaluatingCalls(vv,11)
         
     case 'Quit'
         close all;
         clear all;
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function initFiles
-global DoneListDetect BaseDataDir NExpe DoneListWho ParamFile;
-global Date ExpStartTime Logger_dir AudioDataPath ee WorkingDir;
 
-newmessage('Grabbing new session...');
-checkSession=1;
-while checkSession && ee<=NExpe
-    ee=ee+1;
-    BatsID = DoneListDetect{1}{ee};
-    Date = DoneListDetect{2}{ee};
-    Time = DoneListDetect{3}{ee};
-    ParamFile = dir(fullfile(BaseDataDir,['20' Date],'audio',sprintf('%s_%s_%s*RecOnly_param.txt', BatsID, Date, Time)));
-    fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
-    % Check that the file was not already set aside or done
-    if ~isempty(DoneListWho)
-        Done = sum(contains(DoneListWho{1},BatsID) .* contains(DoneListWho{2},Date) .* contains(DoneListWho{3},Time));
-    else
-        Done=0;
-    end
-    if Done
-        fprintf(1, '   -> Data already processed\n')
-        checkSession=1;
-    else
-        checkSession=0;
-    end
-end
-Filepath = fullfile(ParamFile.folder, ParamFile.name);
-% NCalls = result_reconly_DbatsWho(Filepath, WorkingDir);
-
-% In case the identification of bats was already done but you want to re-do it again
-ForceWhoID = 1;
-
-% Get the recording date
-[AudioDataPath, DataFile ,~]=fileparts(Filepath);
-Date = DataFile(6:11);
-ExpStartTime = DataFile(13:16);
-Logger_dir = fullfile(AudioDataPath(1:(strfind(AudioDataPath, 'audio')-1)), 'audiologgers');
-fprintf(1,'*** Check the clock drift correction of the logger ***\n')
-LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
-Check = zeros(length(LoggersDir)+1,1);
-for ll=1:length(LoggersDir)
-    FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
-    failsafe=1;
-    while failsafe
-        Check(ll) = 1;%input('Is everything ok? (yes ->1, No -> 0): ');
-        failsafe=0;
-        if isempty(Check(ll))
-            failsafe=1;
-            disp('Entry is empty, please repeat!')
-        end
-    end
-    fprintf('\n')
-    close(FigCD)
-end
-fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
-AllignmentPath = fullfile(AudioDataPath,sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, ExpStartTime));
-FigAP = open(AllignmentPath);
-failsafe=1;
-while failsafe
-    Check(length(LoggersDir)+1) = 1;%input('Is everything ok? (yes ->1, No -> 0): ');
-    failsafe=0;
-    if isempty(Check(ll))
-        failsafe=1;
-        disp('Entry is empty, please repeat!')
-    end
-end
-fprintf('\n')
-close(FigAP)
-if any(~Check)
-    %NCalls = nan;
-    fprintf(1,'\n****** Error in allignement reported ******\n')
-else
-    
-    %% Identify who is calling
-    fprintf('\n*** Identify who is calling ***\n')
-    WhoCall_dir = dir(fullfile(Logger_dir, sprintf('*%s_%s*whocalls*', Date, ExpStartTime)));
-    if isempty(WhoCall_dir) || ForceWhoID
-        who_calls_playless_init('Working_dir',WorkingDir)
-    else
-        fprintf('\n*** ALREADY DONE: Identify who is calling ***\n')
-        initFiles
-    end
-    %NCalls = sum(cellfun('length',IndVocStartRawMerged));
-    %fprintf(FidWho, '%s\t%s\t%s\t%d\n',ParamFile.name(1:4),ParamFile.name(6:11),ParamFile.name(13:16),NCalls);
-end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function who_calls_playless_init(varargin)
-global DataFiles Working_dir Logger_dir Date ExpStartTime;
-global MeanStdAmpRawExtract Voc_filename AudioDataPath DataFile Nvoc Nvocs;
-global Factor_RMS_Mic Force_Save_onoffsets_mic SaveFileType pnames;
-global MergeThresh df vv;
-global Working_dir_read Working_dir_write PreviousFile;
-global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
-global IndVocStopPiezo_merged IndVocStartRaw IndVocStopRaw IndVocStartPiezo;
-global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
-global MicError PiezoError MicErrorType PiezoErrorType Raw_wave;
-global sos_raw_band_listen FS minvv maxvv UseOld;
-global sos_raw_band BandPassFilter Piezo_wave AudioLogs Piezo_FS DiffRMS RMSLow VocFilename;
-global Fns_AL Consecutive_binsMic Consecutive_binsPiezo Factor_RMS_low Factor_AmpDiff;
+function who_calls_playless_init
+global Working_dir Filepath Date ExpStartTime DataFiles AudioDataPath;
+global MeanStdAmpRawExtract Voc_filename Nvocs;
+global Factor_RMS_Mic Force_Save_onoffsets_mic SaveFileType;
+global Working_dir_read Working_dir_write;
+global sos_raw_band_listen FS;
+global sos_raw_band BandPassFilter;
+global Consecutive_binsMic Consecutive_binsPiezo Factor_RMS_low Factor_AmpDiff;
 global DB_noise FHigh_spec FHigh_spec_Logger Fhigh_power Fs_env;
+global df vv
 
-dflts  = {3,Logger_dir,0,'pdf'};
-[Factor_RMS_Mic,Working_dir,Force_Save_onoffsets_mic,SaveFileType] = internal.stats.parseArgs(pnames,dflts,varargin{:});
+% Parameters of the GUI
+Factor_RMS_Mic = 3;
+Force_Save_onoffsets_mic = 0;
+SaveFileType = 'pdf';
 
+% parameters of the detection
+Consecutive_binsMic = 10; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
+Consecutive_binsPiezo = 15; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
+Factor_RMS_low = 1.5; % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on piezos
+Factor_AmpDiff = 50; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
+DB_noise = 60; % Noise threshold for the spectrogram colormap
+FHigh_spec = 90000; % Max frequency (Hz) for the raw data spectrogram
+FHigh_spec_Logger = 10000; % Max frequency (Hz) for the raw data spectrogram
+BandPassFilter = [1000 5000 9900]; % Frequency bands chosen for digital signal processing
+Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
+Fs_env = 1000; % Sample frequency of the enveloppe
+
+% design filters of raw ambient recording
+% bandpass filter for detection
+% and plotting
+[z,p,k] = butter(6,[BandPassFilter(1) 90000]/(FS/2),'bandpass');
+sos_raw_band = zp2sos(z,p,k);
+
+% design filters of raw ambient recording, bandpass, for
+% listening to microphone recordings
+[z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
+sos_raw_band_listen = zp2sos(z,p,k);
+
+
+%% Defining Path to Data and specific parameters of that session
 Working_dir_read = fullfile(Working_dir, 'read');
 Working_dir_write = fullfile(Working_dir, 'write');
+
+[AudioDataPath,ParamFile,~]=fileparts(Filepath);
+Date = ParamFile(6:11);
+ExpStartTime = ParamFile(13:16);
+Logger_dir = fullfile(AudioDataPath(1:(strfind(AudioDataPath, 'audio')-1)), 'audiologgers');
 
 if ~strcmp(Logger_dir,Working_dir) && (~exist(Working_dir,'dir') || ~exist(Working_dir_read,'dir') || ~exist(Working_dir_write,'dir'))
     mkdir(Working_dir)
@@ -253,20 +247,21 @@ elseif strcmp(Logger_dir,Working_dir)
     Working_dir_write = Logger_dir;
 end
 
+%% Grabbing the Data coresponding to the particular date and find the correct file at which the curation was stopped
 DataFiles = dir(fullfile(Logger_dir, sprintf('%s_%s_VocExtractData*.mat', Date, ExpStartTime)));
 if isempty(DataFiles)
-    warning('Vocalization data were not extracted by get_logger_data_voc.m')
-    initFiles
-    loadnextfile(vv)
+    warning('Vocalization data were not extracted by get_logger_data_voc.m\nData cannot be found\n')
+    CallCura
 else
     % select the correct files
     Gdf = zeros(length(DataFiles),1);
-    for df=1:length(DataFiles)
-        if length(strfind(DataFiles(df).name, '_'))==2
-            Gdf(df)=1;
+    for dfi=1:length(DataFiles)
+        if length(strfind(DataFiles(dfi).name, '_'))==2
+            Gdf(dfi)=1;
         end
     end
     DataFiles = DataFiles(logical(Gdf));
+    
     % gather File indices to reorder them
     IndDataFiles = nan(length(DataFiles),1);
     for nfile = 1:length(DataFiles)
@@ -276,8 +271,13 @@ else
     end
     [~,AscendOrd] = sort(IndDataFiles);
     DataFiles = DataFiles(AscendOrd);
+   
+    % Load the list of sound events to manually cure, and the threshold on
+    % the Microphone
     load(fullfile(AudioDataPath, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)),...
         'MeanStdAmpRawExtract','Voc_filename')
+    
+    % Find the expected number of vocalizations Nvoc in each file
     Nvoc_all = length(Voc_filename);
     DataFile = fullfile(DataFiles(1).folder, DataFiles(1).name);
     load(DataFile, 'VocMaxNum')
@@ -289,127 +289,149 @@ else
     else
         Nvocs = [0 Nvoc_all];
     end
-    check=1;
-    df=6;
-    while check && df<=length(DataFiles)
-        
-        %% Identify sound elements in each vocalization extract and decide of the vocalizer
-        % Output corresponds to onset and offset indices of each vocal element in
-        % sound section for each vocalizing logger. A cell array of length the
-        % number of sound sections identified by voc_localize or
-        % voc_localize_operant. For IndVocStartRaw_merged each cell contains the onset/offset samples of each vocal element in the sound section.
-        % For IndVocStartPiezo_merged each cell is a cell array of size the number of
-        % audio-loggers where each cell contains the onset or offset sample of
-        % individual vocal element emitted by the respective audio-loggers. Note
-        % that for both these variables, vocal elements that are within MergeThresh
-        % ms were merged in a single vocal element.
-        %
-        % Run a time window of duration 2 ms to identify who is vocalizing
-        % create 2 signals for the logger, one high pass filtered above 5kHz
-        % and the other one low pass filtered at 5kHz. The vocalizer will have
-        % the highest energy of all vocalizers and will have more energy in the
-        % lower compare to higher filtered signal
-        
-        Nvoc = Nvocs(df+1) - Nvocs(df);
-        DataFile = fullfile(DataFiles(df).folder, DataFiles(df).name);
-        
-        PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat',...
-            Date, ExpStartTime, df,MergeThresh));
-        if ~isfile(PreviousFile)
-            PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData_%d.mat',...
-                Date, ExpStartTime,MergeThresh));
-        end
-        if ~isempty(dir(PreviousFile)) && UseOld
-            load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged',...
-                'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', ...
-                'IndVocStartRaw','IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo',...
-                'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
-                'vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
-            if ~exist('vv','var') % There is no previous data but just data regarding piezo numbers and bats_ID
-                vv=1;
-            end
-            
-        else
-            vv=1;
-        end
-        
-        % Check if that set of vocalizations was alread fully completed
-        if vv==Nvoc
-            % All done
-            df=df+1;
-            vv=1;
-        else
-            check=0;
-            if ~strcmp(Working_dir_write,Logger_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df).name))
-                fprintf(1,'Bringing data locally from the server\n')
-                [s,m,e]=copyfile(DataFile, Working_dir_read, 'f');
-                if ~s
-                    fprintf(1,'File transfer did not occur correctly\n')
-                    keyboard
-                else
-                    DataFile = fullfile(Working_dir_read,DataFiles(df).name);
-                end
-            end
-            load(DataFile,'Raw_wave')
-            if Nvoc ~= length(Raw_wave)
-                warning('Looks like there might be an issue there!! Check variables!!')
-                keyboard
-            end
-            if Nvoc<=100
-                minvv = 1;
-                maxvv = Nvoc;
-                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
-            else % often problem of memory, we're going to chunck file loading
-                if ~mod(vv,100)
-                    minvv=floor((vv-1)/100)*100 +1;
-                    maxvv=ceil(vv/100)*100;
-                else
-                    minvv = floor(vv/100)*100 +1;
-                    maxvv = ceil(vv/100)*100;
-                    if maxvv<minvv
-                        maxvv = ceil((vv+1)/100)*100;
-                    end
-                end
-                Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
-                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
-            end
+    
+    % Loop through sets (files) to find where we left at and load the
+    % previous data if requested (UseOld=1) or start from scratch (UseOld=0)
+    for df=1:length(DataFiles)
+        [vv,Success] = grabNewDatafile(df);
+        if Success
+            break
         end
     end
+    if (df==length(DataFiles)) && ~Success
+        newmessage('All Sets Done!');
+        CallCura
+    end
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function savingData(vv)
+% Save the data to files
+global PreviousFile Working_dir_write Date ExpStartTime df MergeThresh;
+global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
+global IndVocStopPiezo_merged IndVocStartRaw IndVocStopRaw IndVocStartPiezo;
+global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
+global IndHearStartRaw IndHearStopRaw IndHearStartPiezo;
+global IndHearStopPiezo IndHearStart_all IndHearStop_all;
+global MicError PiezoError MicErrorType PiezoErrorType SaveRawWave Raw_wave;
+global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename
+
+newmessage('Saving data...')
+if ~isempty(dir(PreviousFile))
+    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
+        'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', ...
+        'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo',...
+        'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
+        'IndHearStartRaw', 'IndHearStopRaw', 'IndHearStartPiezo', 'IndHearStopPiezo',...
+        'IndHearStart_all', 'IndHearStop_all',...
+        'vv','MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
+else
+    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
+        'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged',...
+        'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo',...
+        'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
+        'IndHearStartRaw', 'IndHearStopRaw', 'IndHearStartPiezo', 'IndHearStopPiezo',...
+        'IndHearStart_all', 'IndHearStop_all',...
+        'vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+end
+if SaveRawWave
+    if Chunking_RawWav
+        warning('Make sure you want to change that variable!! NOT recommended here as we are chuncking the loading!!!')
+        keyboard
+    end
+    save(DataFile, 'Raw_wave','-append')
+end
+if SaveRawWaveName
+    if Chunking_RawWav
+        warning('Highly not recommended!! We are chuncking the loading, you might loose the entire Raw_wave data here')
+        keyboard
+    end
+    save(DataFile, 'VocFilename','-append')
+    save(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_filename','-append')
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function [vv,Success] = grabNewDatafile(df_local)
+% input
+global Nvocs DataFiles PreviousFile Working_dir_write redo;
+global Date ExpStartTime MergeThresh UseOld Logger_dir Working_dir_read;
+% output variables
+global Nvoc DataFile 
+global Raw_wave  minvv  maxvv;
+global Piezo_wave AudioLogs Piezo_FS FS DiffRMS RMSLow VocFilename Fns_AL;
+global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
+global IndVocStopPiezo_merged IndVocStartRaw IndVocStopRaw IndVocStartPiezo;
+global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
+global IndHearStart_all IndHearStop_all IndHearStartRaw IndHearStartPiezo IndHearStopRaw IndHearStopPiezo;
+global MicError PiezoError MicErrorType PiezoErrorType;
+global Chunking_RawWav
+
+newmessage('Grabbing new set...');
+Nvoc = Nvocs(df_local+1) - Nvocs(df_local);
+DataFile = fullfile(DataFiles(df_local).folder, DataFiles(df_local).name);
+
+PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat',...
+    Date, ExpStartTime, df_local,MergeThresh));
+if ~isfile(PreviousFile)
+    % Compatibility with old version of the code
+    PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData_%d.mat',...
+        Date, ExpStartTime,MergeThresh));
+end
+
+if ~isempty(dir(PreviousFile)) && UseOld
+    load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged',...
+        'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', ...
+        'IndVocStartRaw','IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo',...
+        'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
+        'vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+    
+    if ~exist('vv','var')
+        % There is no previous data but just data regarding piezo numbers and bats_ID
+        vv=1;
+    end
+else
+    vv=1;
+end
+
+if vv~=Nvoc % This is the file that we need to complete
+    if ~strcmp(Working_dir_write,Logger_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df_local).name))
+        fprintf(1,'Bringing data locally from the server\n')
+        [s,m,e]=copyfile(DataFile, Working_dir_read, 'f'); %#ok<ASGLU>
+        if ~s
+            fprintf(1,'File transfer did not occur correctly\n')
+            keyboard
+        else
+            DataFile = fullfile(Working_dir_read,DataFiles(df_local).name);
+        end
+    end
+    load(DataFile,'Raw_wave')
+    if Nvoc ~= length(Raw_wave)
+        warning('Looks like there might be an issue there!! Check variables!!')
+        keyboard
+    end
+    if Nvoc<=100
+        Chunking_RawWav = 0;
+        minvv = 1;
+        maxvv = Nvoc;
+        load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
+    else % often problem of memory, we're going to chunck file loading
+        Chunking_RawWav = 1;
+        if ~mod(vv,100)
+            minvv=floor((vv-1)/100)*100 +1;
+            maxvv=ceil(vv/100)*100;
+        else
+            minvv = floor(vv/100)*100 +1;
+            maxvv = ceil(vv/100)*100;
+            if maxvv<minvv
+                maxvv = ceil((vv+1)/100)*100;
+            end
+        end
+        Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
+        load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
+    end
+    
     Fns_AL = fieldnames(Piezo_wave);
-    
-    % parameters
-    Consecutive_binsMic = 10; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
-    Consecutive_binsPiezo = 15; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
-    Factor_RMS_low = 1.5.*ones(length(AudioLogs),1); % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on piezos
-    Factor_AmpDiff = 50; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
-    DB_noise = 60; % Noise threshold for the spectrogram colormap
-    FHigh_spec = 90000; % Max frequency (Hz) for the raw data spectrogram
-    FHigh_spec_Logger = 10000; % Max frequency (Hz) for the raw data spectrogram
-    BandPassFilter = [1000 5000 9900]; % Frequency bands chosen for digital signal processing
-    Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
-    Fs_env = 1000; % Sample frequency of the enveloppe
-    
-    % if df==1 || ~exist('sos_raw_band', 'var')
-    % design filters of raw ambient recording, bandpass and low pass which was
-    % used for the cross correlation
-    [z,p,k] = butter(6,[BandPassFilter(1) 90000]/(FS/2),'bandpass');
-    sos_raw_band = zp2sos(z,p,k);
-    % [z,p,k] = butter(6,BandPassFilter(1:2)/(FS/2),'bandpass');
-    % sos_raw_low = zp2sos(z,p,k);
-    [z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
-    sos_raw_band_listen = zp2sos(z,p,k);
-    %   end
-    
-    
-    % if df==1 || ~exist('sos_raw_band_listen', 'var')
-    % design filters of raw ambient recording, bandpass, for
-    % listening
-    [z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
-    sos_raw_band_listen = zp2sos(z,p,k);
-    % end
-    
     % Initialize variables
-    
     if vv==1 % We need to initialize variables!
         IndVocStart_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers+microphone and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
         IndVocStop_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
@@ -424,160 +446,93 @@ else
         IndVocStopRaw_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the raw recording
         IndVocStartPiezo_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start vocalizing in the piezo recording
         IndVocStopPiezo_merged = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop vocalizingin the piezo recording
+        
+        IndHearStart_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers+microphone and for each logger the index onset of when the animal start HEARING in the piezo recording before merge in envelope unit (FS_env)
+        IndHearStop_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal start HEARING in the piezo recording before merge in envelope unit (FS_env)
+        IndHearStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc)
+        % a cell array of the size the number of loggers + 1 in case only one bat without a logger
+        % or +2 incase no identification possible but you want to keep onset/offset of each voc and
+        % for each logger the index onset of when the animal start HEARING in the raw recording before merge
+        IndHearStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start HEARING in the piezo recording before merge
+        IndHearStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop HEARING the raw recording before merge
+        IndHearStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop HEARING in the piezo recording before merge
+        
+        
         RMSRatio_all = cell(1,Nvoc);
         RMSDiff_all = cell(1,Nvoc);
         MicError = [0 0];% first element = number of corrections. second = number of detection (question)
         MicErrorType = [0 0];% first element false negative (detected as noise or already detected when it is a new call), second element false positive (vice versa)
         PiezoError = [0 0];% first element = number of corrections. second = number of detection (question)
         PiezoErrorType = [0 0]; % first element false negative (detected as noise or hearing when it is a new call), second element false positive (vice versa)
-        
     end
-end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function savingData
-global PreviousFile Working_dir_write Date ExpStartTime df MergeThresh vv;
-global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
-global IndVocStopPiezo_merged IndVocStartRaw IndVocStopRaw IndVocStartPiezo;
-global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
-global MicError PiezoError MicErrorType PiezoErrorType SaveRawWave Raw_wave;
-
-while 0
-    newmessage('Saving data...')
-    if ~isempty(dir(PreviousFile))
-        save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
-            'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', ...
-            'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo',...
-            'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
-            'vv','MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
-    else
-        save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
-            'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged',...
-            'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo',...
-            'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
-            'vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
-    end
-    while 0
-        if SaveRawWave
-            warning('Make sure you want to change that variable!! NOT recommended here as we are chuncking the loading!!!')
-            keyboard
-            save(DataFile, 'Raw_wave','-append')
-        end
-    end
-end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function grabNewDatafile
-global df Nvocs Nvoc DataFile DataFiles PreviousFile Working_dir_write;
-global Date ExpStartTime MergeThresh UseOld vv Logger_dir Working_dir_read;
-global Raw_wave  minvv  maxvv;
-global Piezo_wave AudioLogs Piezo_FS FS DiffRMS RMSLow VocFilename;
-global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
-global IndVocStopPiezo_merged IndVocStartRaw IndVocStopRaw IndVocStartPiezo;
-global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
-global MicError PiezoError MicErrorType PiezoErrorType;
-
-newmessage('Grabbing new set...');
-df=df+1;
-Nvoc = (df+1) - Nvocs(df);%not sure why this line?
-DataFile = fullfile(DataFiles(df).folder, DataFiles(df).name);
-
-PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat',...
-    Date, ExpStartTime, df,MergeThresh));
-if ~isfile(PreviousFile)
-    PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData_%d.mat',...
-        Date, ExpStartTime,MergeThresh));
-end
-if ~isempty(dir(PreviousFile)) && UseOld
-    load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged',...
-        'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', ...
-        'IndVocStartRaw','IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo',...
-        'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
-        'vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
-    % There is no previous data but just data regarding piezo numbers and bats_ID
-    if ~exist('vv','var')
-        vv=1;
-    end
+    Success = 1;
+    newmessage('Set sucessfully loaded!');
     
-else
-    vv=1;
+elseif vv==Nvoc && ~redo
+    newmessage('Set already done!');
+    Success = 0;
+elseif vv==Nvoc && redo
+    Success = 1;
+    newmessage('Set sucessfully loaded for doing again manual annotation!');
 end
-
-if ~strcmp(Working_dir_write,Logger_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df).name))
-    fprintf(1,'Bringing data locally from the server\n')
-    [s,m,e]=copyfile(DataFile, Working_dir_read, 'f');
-    if ~s
-        fprintf(1,'File transfer did not occur correctly\n')
-        keyboard
-    else
-        DataFile = fullfile(Working_dir_read,DataFiles(df).name);
-    end
-end
-load(DataFile,'Raw_wave')
-if Nvoc ~= length(Raw_wave)
-    warning('Looks like there might be an issue there!! Check variables!!')
-    keyboard
-end
-if Nvoc<=100
-    minvv = 1;
-    maxvv = Nvoc;
-    load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
-else % often problem of memory, we're going to chunck file loading
-    if ~mod(vv,100)
-        minvv=floor((vv-1)/100)*100 +1;
-        maxvv=ceil(vv/100)*100;
-    else
-        minvv = floor(vv/100)*100 +1;
-        maxvv = ceil(vv/100)*100;
-        if maxvv<minvv
-            maxvv = ceil((vv+1)/100)*100;
-        end
-    end
-    Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
-    load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename');
-end
+    
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function loadnextfile(vv)
 global Nvoc df DataFiles AudioLogs Amp_env_LowPassLogVoc filenameh;
-global Date ee NExpe ParamFile redoEditVoch redoEditSeth string_handle string_handle2;
+global ParamFile redoEditVoch redoEditSeth string_handle string_handle2;
+% Loading sound extract vv and getting ready for evaluation (calculating
+% spectrograms, plotting them,finding calls...)
 
 newmessage('Grabbing new vocalization...');
-fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
+
+% Find the correct wavfile
 checkforerror(vv)
+
+% Edit the Gui Info
 flindx=strfind(ParamFile.name,'_');
 set(filenameh,string_handle,[ParamFile.name(1:flindx(3)-1) ':      Voc sequence ' num2str(vv) '/' num2str(Nvoc)...
     ' Set ' num2str(df) '/' num2str(length(DataFiles))])
 set(redoEditVoch,string_handle2,num2str(vv))
 set(redoEditSeth,string_handle2,num2str(df))
+
+% Load, Check and plot the microphone file on the left pannel
 grabAmbientMic(vv)
+
+% Load piezo data, calculate envelope of high pass and low pass fltered
+% signals and plot the piezo signals on the left pannel
 grabLoggers(vv)
-% No logger data, just isolate onset/offset of vocalizations on the microphone
+
+
 if sum(cellfun('isempty',(Amp_env_LowPassLogVoc))) == length(AudioLogs)
+    % No logger data, just isolate onset/offset of vocalizations on the microphone
     newmessage('CANNOT DETERMINE OWNERSHIP NO DETECTION OF ONSET/OFFSET')
     %ForceSaveOnOffSetMic(vv)
+    %!!!! This option is not availabe as of now!!!!
 else
-    DataOnLogger_prep
+    % Get ready variables
+    % Detect vocalizations on Loggers and enable buttons for manual evaluation
+    % of loggers that have sound events
     prepfindCaller(vv)
-    enableEvals
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function eraseData
-global DataFile SaveRawWave DataFiles df;
+function transferEraseSetData
+global DataFile SaveRawWave DataFiles df Working_dir_read;
 
-while 0
-    if SaveRawWave
-        [s2,m,e]=copyfile(DataFile, fullfile(DataFiles(df).folder,DataFiles(df).name), 'f');
+if SaveRawWave && ~strcmp(Working_dir_read,DataFiles(df).folder)
+        [s2,m,e]=copyfile(DataFile, fullfile(DataFiles(df).folder,DataFiles(df).name), 'f'); %#ok<ASGLU>
         if ~s2
-            fprintf(1,'File transfer did not occur correctly\n')
+            warning('File transfer of %s to %s did not occur correctly\n',DataFile,fullfile(DataFiles(df).folder,DataFiles(df).name))
             keyboard
         end
         if s2  %erase local data
-            [sdel,mdel,edel]=rmdir(DataFile, 's');
+%             [sdel,mdel,edel]=rmdir(DataFile, 's');
+            [~]=rmdir(DataFile, 's');
         end
-    end
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function checkforerror(vv)
-global minvv maxvv Raw_wave DataFile Piezo_wave Raw_wave_nn;
+global minvv maxvv Raw_wave DataFile Piezo_wave Raw_wave_nn Chunking_RawWav;
 global SaveRawWave VocFilename FS;
 
 % Patch for previous error in the code
@@ -586,6 +541,7 @@ if vv<=maxvv
 else
     clear Raw_wave Piezo_wave
     load(DataFile,'Raw_wave')
+    Chunking_RawWav = 1;
     if ~mod(vv,100)
         minvv=floor((vv-1)/100)*100 +1;
         maxvv=ceil(vv/100)*100;
@@ -600,82 +556,121 @@ else
     load(DataFile,'Piezo_wave')
     Raw_wave_nn = Raw_wave{vv - (minvv -1)};
 end
-while 0
-    if isempty(Raw_wave_nn)
-        warning('That should not be empty now!!')
-        keyboard
-        SaveRawWave = 1;
-        [Raw_wave{vv}, FS] = audioread(VocFilename{vv});
-    else
-        SaveRawWave = 0;
-    end
+
+if isempty(Raw_wave_nn)
+    warning('That should not be empty now!!')
+    keyboard
+    SaveRawWave = 1;
+    [Raw_wave{vv}, FS] = audioread(VocFilename{vv});
+else
+    SaveRawWave = 0;
 end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function grabAmbientMic(vv)
-global DataFiles Raw_wave_nn Nvoc df sos_raw_band Amp_env_Mic;
+% Load, Check and plot the microphone file for sound event vv
+global DataFile AudioDataPath Date ExpStartTime
+global Raw_wave_nn Nvoc Nvocs df sos_raw_band Amp_env_Mic;
+global Voc_filename VocFilename
 global Filt_RawVoc FS Fhigh_power Fs_env DB_noise FHigh_spec ColorCode;
-global Raw_Spec sliderLefth;
-global plotmich;
+global Raw_Spec;
+global SaveRawWaveName SaveRawWave
+
+%% Check that correct microphone file was saved (Trying to
+% detect/fix bug from voc_localize_using_piezo
+
+% retrieving file name index of the microphone
+Voc_i_start = Nvocs(df)+1;
+vv_in = vv + Voc_i_start-1;
+if ~strcmp(Voc_filename{vv_in}, VocFilename{vv})
+    warning('Issues with Mic file name\n')
+    keyboard
+end
+fprintf(1, 'Microphone File: %s\n', Voc_filename{vv_in})
+if Nvoc>100
+    warning('Probably wrong audio file name, the code is not updated for older version of previous extraction\n')
+end
+
+
+load(DataFile,'Voc_transc_time_refined');
+TTL_dir = dir(fullfile(AudioDataPath,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
+TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
+FileNum_u = unique(TTL.File_number);
+OnOffTranscTime_ms = Voc_transc_time_refined(vv,:);
+FileNumIdx = find(TTL.Pulse_TimeStamp_Transc<OnOffTranscTime_ms(1,1),1,'Last');
+MicVoc_File = TTL.File_number(FileNumIdx);
+IndFileNum = find(FileNum_u == MicVoc_File);
+TranscTime_zs = (OnOffTranscTime_ms - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
+MicVoc_samp_idx =round(TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1));
+WavFileStruc_local = dir(fullfile(Raw_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File)));
+Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
+[Raw_10minwav2, FS2] = audioread(Raw_filename);
+if MicVoc_samp_idx(1)>length(Raw_10minwav2) % This vocalization occured in the next file
+    MicVoc_File = MicVoc_File+1;
+    IndFileNum = find(FileNum_u == MicVoc_File);
+    TranscTime_zs = (OnOffTranscTime_ms - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
+    MicVoc_samp_idx =round(TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1));
+    WavFileStruc_local = dir(fullfile(Raw_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File)));
+    Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
+    [Raw_10minwav2, FS2] = audioread(Raw_filename);
+end
+Raw_wave_ex = Raw_10minwav2(MicVoc_samp_idx(1) : min(MicVoc_samp_idx(2),length(Raw_10minwav2)));
+if length(Raw_wave_ex)<length(Raw_wave_nn)
+    Corr(1) = corr(Raw_wave_ex,Raw_wave_nn(1:length(Raw_wave_ex)));
+    Corr(2) = corr(Raw_wave_ex,Raw_wave_nn(end-length(Raw_wave_ex)+1:end));
+elseif length(Raw_wave_ex)>length(Raw_wave_nn)
+    Corr(1) = corr(Raw_wave_nn,Raw_wave_ex(1:length(Raw_wave_nn)));
+    Corr(2) = corr(Raw_wave_nn,Raw_wave_ex(end-length(Raw_wave_nn)+1:end));
+elseif length(Raw_wave_ex)==length(Raw_wave_nn)
+    Corr = corr(Raw_wave_ex,Raw_wave_nn);
+end
+if all(Corr<0.99)
+    warning('Error in the microphone file that was previosuly saved, fixing the issue now!\n')
+    %                 keyboard
+    SaveRawWave = 1;
+    Raw_wave_nn = Raw_wave_ex;
+    Raw_wave{vv} = Raw_wave_ex;
+    TrueVocName = fullfile(Raw_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',WavFileStruc_local.name(1:4),Date,ExpStartTime, MicVoc_File, MicVoc_samp_idx(1)));
+    if ~strcmp(VocFilename{vv}, TrueVocName)
+        warning('Filename was also wrong correcting %s -> %s\n',VocFilename{vv},TrueVocName)
+        VocFilename{vv}= TrueVocName;
+        Voc_filename{vv_in} = TrueVocName;
+        SaveRawWaveName = 1;
+    end
+    audiowrite(VocFilename{vv} , Raw_wave{vv}, FS2);
+end
+
 
 %% First calculate the time varying RMS of the ambient microphone
 % bandpass filter the ambient mic recording
 Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
 Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
-% Plot the spectrogram of the ambient microphone
+
+%% Plot the spectrogram of the ambient microphone on the left pannel
 ColorCode = [get(groot,'DefaultAxesColorOrder');1 1 1; 0 1 1; 1 1 0];
 [Raw_Spec.to, Raw_Spec.fo, Raw_Spec.logB] = ...
     spec_only_bats_gui(Filt_RawVoc, FS, DB_noise, FHigh_spec);
-maxB = max(max(Raw_Spec.logB));
-minB = maxB-DB_noise;
-axes(plotmich);
-cla(plotmich ,'reset')
-hold on;
-imagesc(plotmich,Raw_Spec.to*1000,Raw_Spec.fo,Raw_Spec.logB);          % to is in seconds
-hold on;
-axis xy;
-caxis('manual');
-caxis([minB maxB]);
-cmap = spec_cmap();
-colormap(cmap);
+plotMic(vv,1)
 
-v_axis = axis;
-v_axis(3)=0;
-v_axis(4)=FHigh_spec+5e3;
-axis(v_axis);
-set(gca,'xlim',[0 Raw_Spec.to(end)*1000],'ylim',[0 FHigh_spec+5e3],...
-    'ytick',[0 FHigh_spec/2 FHigh_spec]);
-
-xlabel('time (ms)'), ylabel('Frequency');
-yyaxis left;
-plotmich.YColor='w';
-
-hold on
-yyaxis right
-plot(plotmich,(1:length(Amp_env_Mic))/Fs_env*1000, Amp_env_Mic, 'r-', 'LineWidth',2)
-%ylabel(sprintf('Amp\nMic'))
-title(sprintf('Voc %d/%d Set %d/%d',vv,Nvoc, df,length(DataFiles)))
-xlabel(' ')
-set(gca, 'XTick',[],'XTickLabel',{})
-set(gca,'ytick','')
-drawnow;
-hold off;
-set(sliderLefth,'SliderStep', [1/(length(Amp_env_Mic)-1), 10/(length(Amp_env_Mic)-1)], ...
-    'Min', 1, 'Max', length(Amp_env_Mic), 'Value', 1)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function grabLoggers(vv)
+% Load piezo data, calculate envelope of high pass and low pass fltered
+% signals and plot the piezo signals
 global AudioLogs Piezo_wave Piezo_FS Fns_AL BandPassFilter;
 global Fhigh_power Fs_env Amp_env_LowPassLogVoc;
-global Amp_env_HighPassLogVoc LowPassLogVoc;
+global Amp_env_HighPassLogVoc LowPassLogVoc Logger_Spec;
 
 Amp_env_LowPassLogVoc = cell(length(AudioLogs),1);
 Amp_env_HighPassLogVoc = cell(length(AudioLogs),1);
 LowPassLogVoc = cell(length(AudioLogs),1);
+
 %% Loop through the loggers and check the extracts length
 LengthLoggersData = nan(length(AudioLogs),1);
 for ll=1:length(AudioLogs)
     LengthLoggersData(ll) = length(Piezo_wave.(Fns_AL{ll}){vv});
 end
 %% Loop through the loggers and calculate envelopes
+Logger_Spec = cell(length(AudioLogs),1);
 for ll=1:length(AudioLogs)
     if isnan(Piezo_FS.(Fns_AL{ll})(vv)) || isempty(Piezo_wave.(Fns_AL{ll}){vv})
         newmessage( 'NO DATA for Vocalization %d from %s\n', vv, Fns_AL{ll})
@@ -719,7 +714,7 @@ for ll=1:length(AudioLogs)
             if ll<=10
                 plotLogger(vv,ll,1)
             else
-                newmessage('Logger # higher than 10, not plotted!')
+                newmessage(sprintf('Logger %d higher than 10, not plotted!',ll))
             end
         else
             Amp_env_LowPassLogVoc{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})),...
@@ -731,44 +726,25 @@ for ll=1:length(AudioLogs)
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function prepfindCaller(vv)
-global DiffAmp AudioLogs CheckMicChannel RowSize;
-global IndVocStartRaw IndVocStartPiezo IndVocStopRaw IndVocStopPiezo ;
-global IndVocStart IndVocStop IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
-global IndVocStartPiezo_merge_local IndVocStopPiezo_merge_local;
-global RMSRatio RMSDiff;
-global Vocp;
-
-%% Find out which calls are emitted by each individual,
-%if checking the microphone is requested it means that a single animal did not
-%have a collar and all microphone calls not detected on any piezo will be attributed to it
-% This is the output of the decision criterion to determine at each time point
-%if a bat is vocalizing or not. each row=a logger, each column = a time point
-Vocp = nan(size(DiffAmp) + [1 0]);
-if CheckMicChannel
-    RowSize = length(AudioLogs) +1;
-else
-    RowSize = length(AudioLogs);
-end
-IndVocStartRaw{vv} = cell(RowSize,1);
-IndVocStartPiezo{vv} = cell(RowSize,1);
-IndVocStopRaw{vv} = cell(RowSize,1);
-IndVocStopPiezo{vv} = cell(RowSize,1);
-IndVocStart = cell(RowSize,1);
-IndVocStop = cell(RowSize,1);
-IndVocStartRaw_merge_local = cell(RowSize,1);
-IndVocStopRaw_merge_local = cell(RowSize,1);
-IndVocStartPiezo_merge_local = cell(RowSize,1);
-IndVocStopPiezo_merge_local = cell(RowSize,1);
-RMSRatio = cell(RowSize,1);
-RMSDiff = cell(RowSize,1);
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function DataOnLogger_prep
 global Amp_env_LowPassLogVoc Amp_env_HighPassLogVoc;
 global AudioLogs ColorCode Fns_AL Factor_AmpDiff DiffRMS BandPassFilter;
 global Factor_RMS_low RMSLow;
 global DiffAmp RatioAmp;
 global Amp_env_LowPassLogVoc_MAT Amp_env_HighPassLogVoc_MAT;
-global F2 FhGUI;
+global RMSFig FhGUI;
+
+global CheckMicChannel RowSize;
+global IndVocStartRaw IndVocStartPiezo IndVocStopRaw IndVocStopPiezo ;
+global IndVocStart IndVocStop IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
+global IndVocStartPiezo_merge_local IndVocStopPiezo_merge_local;
+global IndHearStartRaw IndHearStartPiezo IndHearStopRaw IndHearStopPiezo ;
+global IndHearStart IndHearStop
+global RMSRatio RMSDiff PlotRMSFig;
+global Vocp;
+
+global Consecutive_binsPiezo  evalLog evalMich playb string_handle;
+global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
+global playMich submith plotmicevalh plotlogevalh evalbon evalmicbon ;
 
 %% There is some data on the logger, extract the id of the vocalizing bat
 % Treat the case where some approximations of the calculations led to
@@ -785,8 +761,11 @@ Amp_env_LowPassLogVoc_MAT = cell2mat(Amp_env_LowPassLogVoc);
 Amp_env_HighPassLogVoc_MAT = cell2mat(Amp_env_HighPassLogVoc);
 RatioAmp = (Amp_env_LowPassLogVoc_MAT +1)./(Amp_env_HighPassLogVoc_MAT+1);
 DiffAmp = Amp_env_LowPassLogVoc_MAT-Amp_env_HighPassLogVoc_MAT;
-while 0
-    F2=figure(2);
+
+
+%% plot the RMS values if requested
+if PlotRMSFig
+    RMSFig=figure(2);
     % Plot the ratio of time varying RMS, the difference in time varying
     % RMS between the high and low frequency bands and the absolute time
     % varying RMS of the low frequency band
@@ -810,7 +789,7 @@ while 0
             'Color',ColorCode(ll,:),'LineStyle','--');
         hold on
     end
-    legend({Fns_AL{:} 'calling detection threshold' 'calling detection threshold'})
+    legend([Fns_AL(:)' {'calling detection threshold' 'calling detection threshold'}])
     subplot(3,1,1)
     for ll=1:length(AudioLogs)
         plot(Amp_env_LowPassLogVoc_MAT(ll,:), 'LineWidth',2, 'Color', ColorCode(ll,:))
@@ -820,38 +799,83 @@ while 0
     ylabel(sprintf('Running RMS %dHz-%dHz', BandPassFilter(1:2)))
     title('Detection of vocalizations on each logger')
     for ll=1:length(AudioLogs)
-        plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_RMS_low(ll) * RMSLow.(Fns_AL{ll})(1)*ones(2,1),...
+        plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_RMS_low * RMSLow.(Fns_AL{ll})(1)*ones(2,1),...
             'Color',ColorCode(ll,:),'LineStyle','--');
         hold on
     end
-    legend({Fns_AL{:} 'Microphone' 'voc detection threshold' 'voc detection threshold'})
-    winontopch=WinOnTop( FhGUI );
+    legend([Fns_AL(:)' {'Microphone' 'voc detection threshold' 'voc detection threshold'}])
+    WinOnTop( FhGUI );
 end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function enableEvals
-global Amp_env_LowPassLogVoc_MAT AudioLogs Factor_RMS_low RMSLow Fns_AL;
-global Consecutive_binsPiezo Vocp IndVocStart evalb playb string_handle;
-global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
-global playMich submith plotmicevalh plotlogevalh evalbon;
 
+%% Initialize variables to find out which calls are emitted by each individual,
+%if checking the microphone is requested it means that a single animal did not
+%have a collar and all microphone calls not detected on any piezo will be attributed to it
+% This is the output of the decision criterion to determine at each time point
+%if a bat is vocalizing or not. each row=a logger, each column = a time point
+Vocp = nan(size(DiffAmp) + [1 0]);
+if CheckMicChannel
+    RowSize = length(AudioLogs) +1;
+else
+    RowSize = length(AudioLogs);
+end
+evalbon = nan(length(AudioLogs),1); % This vector keeps track of which
+% logger would still need to be evaluated (potential calls)
+IndVocStartRaw{vv} = cell(RowSize,1);
+IndVocStartPiezo{vv} = cell(RowSize,1);
+IndVocStopRaw{vv} = cell(RowSize,1);
+IndVocStopPiezo{vv} = cell(RowSize,1);
+IndVocStart = cell(RowSize,1);
+IndVocStop = cell(RowSize,1);
+IndVocStartRaw_merge_local = cell(RowSize,1);
+IndVocStopRaw_merge_local = cell(RowSize,1);
+IndVocStartPiezo_merge_local = cell(RowSize,1);
+IndVocStopPiezo_merge_local = cell(RowSize,1);
+IndHearStartRaw{vv} = cell(RowSize,1);
+IndHearStartPiezo{vv} = cell(RowSize,1);
+IndHearStopRaw{vv} = cell(RowSize,1);
+IndHearStopPiezo{vv} = cell(RowSize,1);
+IndHearStart = cell(RowSize,1);
+IndHearStop = cell(RowSize,1);
+
+RMSRatio = cell(RowSize,1);
+RMSDiff = cell(RowSize,1);
+
+
+%% Detect vocalizations on Loggers and enable buttons for manual evaluation
 for ll=1:length(AudioLogs)
     if ll<=10
         % Time points above amplitude threshold on the low-passed logger signal
-        Vocp(ll,:) = Amp_env_LowPassLogVoc_MAT(ll,:)>(Factor_RMS_low(ll) * RMSLow.(Fns_AL{ll})(1));
+        Vocp(ll,:) = Amp_env_LowPassLogVoc_MAT(ll,:)>(Factor_RMS_low * RMSLow.(Fns_AL{ll})(1));
         %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
         IndVocStart{ll} = strfind(Vocp(ll,:), ones(1,Consecutive_binsPiezo));
         if isempty(IndVocStart{ll})
-            fprintf('\nNo vocalization detected on %s\n',Fns_AL{ll});
-            set(evalb{ll},'enable','off')
+            fprintf(1, '\nNo vocalization detected on %s\n',Fns_AL{ll});
+            set(evalLog{ll},'enable','off')
             evalbon(ll)=0;
         else
-            set(evalb{ll},'enable','on')
+            set(evalLog{ll},'enable','on')
             evalbon(ll)=1;
         end
-        set(evalb{ll},string_handle,['Eval' Fns_AL{ll}([1:3 7:end])])
+        set(evalLog{ll},string_handle,['Eval' Fns_AL{ll}([1:3 7:end])])
         set(playb{ll},'enable','on',string_handle,['Play' Fns_AL{ll}([1:3 7:end])])
     end
 end
+
+if CheckMicChannel
+    VocpMic = Amp_env_Mic>(Factor_RMS_Mic * MeanStdAmpRawExtract(Nvocs(df)+vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
+    Vocp(length(AudioLogs)+1,:) = reshape(VocpMic,1,length(VocpMic));
+    IndVocStart{length(AudioLogs)+1} = strfind(Vocp(length(AudioLogs)+1,:), ones(1,Consecutive_binsMic)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
+    if isempty(IndVocStart{length(AudioLogs)+1})
+        fprintf(1,'\nNo vocalization detected on microphone\n');
+        set(evalMich,'enable','off')
+        evalmicbon=0;
+    else% Some vocalizations were detected
+        set(evalMich,'enable','on')
+        evalmicbon=1;
+    end
+    set(evalMich,string_handle,'Eval Mic')
+end
+
 set([submith noCallh redoh redoEditVoch...
     redoEditSeth sliderLefth sliderRighth playMich],'enable','on')
 set(submith,'BackgroundColor',[19 159 255]./255)
@@ -860,39 +884,55 @@ cla(plotmicevalh ,'reset')
 axes(plotlogevalh);
 cla(plotlogevalh ,'reset')
 newmessage('Ready for evaluation')
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function disableEvals
-global submith evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h evalLog6h;
-global evalLog7h evalLog8h evalLog9h checkboxh;
+global submith evalLog;
+global  checkboxh;
 global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich playLog1h playLog2h playLog3h playLog4h playLog5h playLog6h;
-global playLog7h playLog8h  playLog9h playLog10h playMicEvalh playLogEvalh evalLog10h;
+global playLog7h playLog8h  playLog9h playLog10h playMicEvalh playLogEvalh;
 
-set([evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith evalLog6h...
-    evalLog7h evalLog8h evalLog9h evalLog10h noCallh redoh redoEditVoch...
+set([evalLog{1} evalLog{2} evalLog{3} evalLog{4} evalLog{5} submith evalLog{6}...
+    evalLog{7} evalLog{8} evalLog{9} evalLog{10} noCallh redoh redoEditVoch...
     redoEditSeth playMich playLog1h playLog2h...
     playLog3h playLog4h playLog5h playLog6h playLog7h playLog8h playMicEvalh...
     playLog9h playLog10h playLogEvalh sliderLefth sliderRighth checkboxh],'enable','off')
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function CallOnLogger(vv,ll)
-global DiffAmp Fns_AL IndVocStart IndVocStop FHigh_spec_Logger FHigh_spec;
-global RatioAmp RMSRatio RMSDiff Amp_env_Mic sliderRighth logdone Call1Listen0_temp;
-global Vocp Factor_AmpDiff DiffRMS Fs_env Call1Hear0_temp plotlogevalh plotmicevalh;
+% finding the offset of each sound extract in that logger or on Mic (ll>10); plot the
+% spectrograms of the microphone and logger ll (ll<=10) in the evaluation area;
+% plot the sound extracts in the evaluation area 
+
+global DiffAmp Fns_AL IndVocStart IndVocStop FHigh_spec_Logger FHigh_spec Hline;
+global RatioAmp RMSRatio RMSDiff Amp_env_Mic sliderRighth logdone;
+global Vocp Factor_AmpDiff DiffRMS Fs_env Call10_ComputerPredict plotlogevalh plotmicevalh;
 
 logdone=0;
-if ~isempty(IndVocStart{ll})
+if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger or Mic track
     IndVocStart_diffind = find(diff(IndVocStart{ll})>1);
     % these two lines get rid of overlapping sequences that werer detected several times
     IndVocStart{ll} = [IndVocStart{ll}(1) IndVocStart{ll}(IndVocStart_diffind +1)];
     % This is the number of detected potential vocalization
     NV = length(IndVocStart{ll});
     IndVocStop{ll} = nan(1,NV);
-    RMSRatio{ll} = nan(NV,1);
-    RMSDiff{ll} = nan(NV,1);
-    Call1Hear0_temp = zeros(NV,1);
-    Call1Listen0_temp= zeros(NV,1);
+    Call10_ComputerPredict = zeros(NV,1);
+    if ll<=10 % this is a logger
+        RMSRatio{ll} = nan(NV,1);
+        RMSDiff{ll} = nan(NV,1);
+    end
+    
+    % Plot the spectrogram of the microphone in the upper evaluation area
     plotMic(vv,3)
-    plotLogger(vv,ll,3)
+    % Plot the spectrogram of the logger or Microphone in the lower evaluation area
+    if ll<=10
+        plotLogger(vv,ll,3)
+    else
+        plotMic(vv,2)
+    end
+    Hline = cell(NV,1); % This contains the handle to the lines to change...
+    % their colors in evaluatingCalls
     for ii=1:NV
         IVStop = find(Vocp(ll,IndVocStart{ll}(ii):end)==0, 1, 'first');
         if ~isempty(IVStop)
@@ -903,61 +943,72 @@ if ~isempty(IndVocStart{ll})
         
         % Calculate the Average RMS Ratio for each sound extract
         % and decide about the vocalization ownership
-        RMSRatio{ll}(ii) = mean(RatioAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
-        RMSDiff{ll}(ii) = mean(DiffAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
-        Call1Hear0_temp(ii) = RMSDiff{ll}(ii) > Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1);
+        if ll<=10
+            RMSRatio{ll}(ii) = mean(RatioAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
+            RMSDiff{ll}(ii) = mean(DiffAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
+            Call10_ComputerPredict(ii) = RMSDiff{ll}(ii) > Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1);
+        end
         
-        % update figure(3) with the decision
-        
+        % update the logger evaluation pannel (right) with the position of
+        % the sound extracts in black
         hold on
         yyaxis left
-        line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-            [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
-        yyaxis left
-        line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-            [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[0 0 0])
-        
-        if Call1Hear0_temp(ii)
-            %computer guess is calling
-            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[.6 0 .7])
-        else
-            %computer guess is hearing/noise
-            line(plotmicevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                [FHigh_spec FHigh_spec]-3e3,'linewidth',20,'color',[0 .7 .8])
+        Hline{ii} = line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+            [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0]);
+        if ll<=10
+            % Computer prediction of calling behavior
+            if Call10_ComputerPredict(ii)
+                %computer guess is calling
+                line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[.6 0 .7]);
+            else
+                %computer guess is not calling
+                line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[0 0 0]);
+            end
         end
         hold off
         set(sliderRighth,'SliderStep', [1/(length(Amp_env_Mic)-1), 10/(length(Amp_env_Mic)-1)], ...
             'Min', 1, 'Max', length(Amp_env_Mic), 'Value', 1)
         
     end
-else
-    newmessage('Evaluation done for this logger')
+elseif isempty(IndVocStart{ll}) && ll<=10
+    newmessage('Evaluation done for this logger: no vocalizations')
     logdone=1;
+elseif isempty(IndVocStart{ll}) && ll==11
+    newmessage('Evaluation done for the microphone: no vocalizations')
+    logdone=1;
+    
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function evaluatingCalls(vv,ll)
-global IndVocStart Fs_env IndVocStop FHigh_spec_Logger checkboxh playll;
-global submith noCallh redoh stopclick logdone Call1Listen0_temp;
-global Call1Hear0_temp PiezoError PiezoErrorType Fns_AL;
+global IndVocStart Fs_env IndVocStop Hline FHigh_spec_Logger FHigh_spec checkboxh playll;
+global submith noCallh redoh stopclick logdone Listen10_temp;
+global Call10_ComputerPredict PiezoError PiezoErrorType Fns_AL;
 global playMicEvalh playLogEvalh plotmicevalh plotlogevalh;
-global evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h evalLog6h;
-global evalLog7h evalLog8h evalLog9h evalLog10h evalbon string_handle;
+global evalLog evalbon string_handle;
 
 playll=ll;
+
+% finding the offset of each sound extract in that logger; plot the
+% spectrograms of the microphone and logger ll in the evaluation area;
+% plot the sound extracts in the evaluation area 
 CallOnLogger(vv,ll)
+
+% Now enabling Play buttons of microphone and logger in the evaluation pannel
+% disable evaluation button on the left pannel and gather clicking
+% data
 if logdone==0
     NV = length(IndVocStart{ll});
-    Call1Hear0_man = zeros(NV,1);
-    Call1Listen0_man = zeros(NV,1);
+    NoiseCallListen012_man = zeros(NV,1); % Initialize all sound elements as noise
     set(playLogEvalh,'enable','on',string_handle,['Play' Fns_AL{ll}([1:3 7:end])])
     set([playMicEvalh playLogEvalh],'enable','on')
     set([submith noCallh redoh],'enable','off');
     set(checkboxh,string_handle,'V')
     set(checkboxh,'BackgroundColor',[0 255 0]./255)
     set(checkboxh,'enable','on')
-    set([evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith evalLog6h...
-        evalLog7h evalLog8h evalLog9h evalLog10h],'enable','off')
+    set([evalLog{1} evalLog{2} evalLog{3} evalLog{4} evalLog{5} submith evalLog{6}...
+        evalLog{7} evalLog{8} evalLog{9} evalLog{10}],'enable','off')
     hold on;
     stopclick=1;
     axes(plotlogevalh);
@@ -965,10 +1016,11 @@ if logdone==0
     axes(plotmicevalh);
     axorigm = axis;
     while  stopclick%|| clickxv<arrowfieldl || clickyv>= arrowfield
-        axes(plotlogevalh);
+        axes(plotlogevalh); %#ok<*LAXES>
         [clickxv,clickyv,b]=ginput(1);%_ax(axcl,1);
-        if b==2
-            ax= axis;width=ax(2)-ax(1);
+        if b==2 % Click on middle button of the mouse or Shift + click zoom in on the xaxis
+            ax= axis;
+            width=ax(2)-ax(1);
             axis([clickxv-width/2 clickxv+width/2 ax(3) ax(4)]);
             zoom xon;
             zoom(2)
@@ -977,82 +1029,80 @@ if logdone==0
             axis([ax(1:2) axorigm(3) axorigm(4)])
             axes(plotlogevalh)
             axis([ax(1:2) axorigl(3) axorigl(4)])
-        elseif b==3
+        elseif b==3 % Right click recover the original axis
             axes(plotlogevalh);
-            axis([axorigl]);
+            axis(axorigl);
             axes(plotmicevalh);
-            axis([axorigm]);
-        else
-            check=1;
-            ii=0;
-            while check && ii<NV
-                ii=ii+1;
-                if clickxv>=(IndVocStart{ll}(ii)/Fs_env)*1e3  && clickxv<=(IndVocStop{ll}(ii)/Fs_env)*1e3
-                    if clickyv<FHigh_spec_Logger
-                        if Call1Hear0_man(ii)==1
-                            Call1Hear0_man(ii)=0;
-                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[0 0 0])
-                        else
-                            Call1Hear0_man(ii)=1;
-                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[1 0 0])
-                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
-                        end
-                    elseif clickyv>FHigh_spec_Logger+2e3 && clickyv<FHigh_spec_Logger+8e3
-                        if Call1Listen0_man(ii)==1
-                            Call1Listen0_man(ii)=0;
-                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0])
-                        else
-                            Call1Listen0_man(ii)=1;
-                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 1])
-                            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                                [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[0 0 0])
-                        end
-                    else
-                        newmessage('Not valid click field')
-                        newmessage('No choice made')
-                    end
-                    check=0;
+            axis(axorigm);
+        else % left click do a selection
+            % find the indices of the sound element that was selected
+            ii = find((clickxv>=(IndVocStart{ll}/Fs_env)*1e3) .* (clickxv<=(IndVocStop{ll}(ii)/Fs_env)*1e3));
+            if isempty(ii) %This was an incorrect click
+                newmessage('Not valid click field')
+                newmessage('No choice made')
+                continue
+            elseif clickyv>0 && clickyv<FHigh_spec + 3e3
+                NoiseCallListen012_man(ii) = NoiseCallListen012_man(ii)+1;
+                if NoiseCallListen012_man(ii)>2 % Make sure we are iterating through the 3 possibilities (noise ->0, vocalize->1, hear->2)
+                    NoiseCallListen012_man(ii)=0;
                 end
+                if NoiseCallListen012_man(ii)==0 % Noise
+                    Hline{ii}.Color = [0 0 0];
+                elseif NoiseCallListen012_man(ii)==1 % vocalize
+                    Hline{ii}.Color = [1 0 0];
+                elseif NoiseCallListen012_man(ii)==2 %hear
+                    Hline{ii}.Color = [0 0 1];
+                end
+            else
+                newmessage('Not valid click field')
+                newmessage('No choice made')
             end
         end
         pause(.1)
         if clickxv<0 && strcmp(get(checkboxh,string_handle),'X')
             drawnow;
-            stopclick=0;
+            stopclick=0; % this sounds useless to me as the checkboxh callback function already set stopclick to 0  
         end
     end
-    for ii=1:NV
-        Agree = Call1Hear0_temp(ii)== Call1Hear0_man(ii);
-        if ~Agree
-            Call1Hear0_temp(ii) = Call1Hear0_man(ii);
-            PiezoError = PiezoError + [1 1];
-            PiezoErrorType = PiezoErrorType + [Call1Hear0_temp(ii) ~Call1Hear0_temp(ii)];
-        else
-            PiezoError = PiezoError + [0 1];
-        end
-        Agree = Call1Hear0_temp(ii)== Call1Listen0_man(ii);
-        if ~Agree
-            Call1Listen0_temp(ii) = Call1Listen0_man(ii);
-        end
-    end
-    updateLoggerEval(vv,ll)
+    
+    
+    
+%     for ii=1:NV
+%         Agree = (Call10_ComputerPredict(ii)) && (NoiseCallListen012_man(ii)==1);
+%         if ~Agree
+%             Call10_ComputerPredict(ii) = NoiseCallListen012_man(ii);
+%             PiezoError = PiezoError + [1 1];
+%             PiezoErrorType = PiezoErrorType + [NoiseCallListen012_man(ii) ~NoiseCallListen012_man(ii)];
+%         else
+%             PiezoError = PiezoError + [0 1];
+%         end
+%     end
+
+    % Save production and hearing data for that logger, merge produced
+    % vocalizations, update bottom plot on left panel with produced
+    % vocalizations.
+    updateLoggerEval(vv,ll,NoiseCallListen012_man)
+    
+    % Indicate evaluation as done
     evalbon(ll)=0;
+    
+    % Enable evaluation buttons of each logger that still need to be evaluated
+    % according to variable evalbon and reset evaluation panel plots
     enableEvals_again
 end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function enableEvals_again
+
+% Enable evaluation buttons of each logger that still need to be evaluated
+% according to variable evalbon and reset evaluation panel plots
 global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
-global playMich submith plotmicevalh plotlogevalh evalb evalbon;
+global playMich submith plotmicevalh plotlogevalh evalLog evalbon;
 
 for ll=1:length(evalbon)
     if ll<=10
         if evalbon(ll)
-            set(evalb{ll},'enable','on')
+            set(evalLog{ll},'enable','on')
         end
     end
 end
@@ -1069,10 +1119,13 @@ global AudioLogs;
 global IndVocStart IndVocStop IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
 global IndVocStartPiezo_merge_local IndVocStopPiezo_merge_local Fns_AL;
 global RMSRatio RMSDiff Working_dir_write df MergeThresh FileVoc;
-global ManCall SaveFileType VocFilename plotmich plotevalh Figcopy F2;
+global SaveFileType VocFilename plotmich plotevalh plotb RMSFig PlotRMSFig;
 global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
 global IndVocStopPiezo_merged IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
+global IndHearStart IndHearStop IndHearStart_all IndHearStop_all
 
+% Update the figure on the left panel, in particular scale the bottom
+% summary plot
 axes(plotmich)
 XLIM = get(gca, 'XLim');
 axes(plotevalh)
@@ -1084,29 +1137,29 @@ ylabel('AL ID')
 xlabel('Time (ms)')
 [~,FileVoc]=fileparts(VocFilename{vv});
 
-
-while 0
-    % Only save the RMS and spectro figures if there was a vocalization
-    if ManCall
-        copyFigure
-        if strcmp(SaveFileType,'pdf')
-            fprintf(1,'saving figures...\n')
-            print(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
-                FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
-            saveas(F2,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',...
-                FileVoc,vv, df,MergeThresh)),'pdf')
-        elseif strcmp(SaveFileType,'fig')
-            fprintf(1,'saving figures...\n')
-            saveas(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig',...
-                FileVoc,vv, df,MergeThresh)))
-            saveas(F2,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig',...
-                FileVoc,vv, df,MergeThresh)))
-        end
+% Save the RMS and spectro figures
+Figcopy = copyFigure(plotb); % copy left pannel in a figure
+if strcmp(SaveFileType,'pdf')
+    fprintf(1,'saving figures...\n')
+    print(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
+        FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
+    if PlotRMSFig
+        saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',...
+        FileVoc,vv, df,MergeThresh)),'pdf')
+    end
+elseif strcmp(SaveFileType,'fig')
+    fprintf(1,'saving figures...\n')
+    saveas(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig',...
+        FileVoc,vv, df,MergeThresh)))
+    if PlotRMSFig
+        saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig',...
+        FileVoc,vv, df,MergeThresh)))
     end
 end
 
-%clf(Figcopy)
-%clf(F2)
+clf(Figcopy)
+clf(RMSFig)
+
 % Gather Vocalization production data:
 IndVocStart_all{vv} = IndVocStart;
 IndVocStop_all{vv} = IndVocStop;
@@ -1116,9 +1169,14 @@ IndVocStartPiezo_merged{vv} = IndVocStartPiezo_merge_local;
 IndVocStopPiezo_merged{vv} = IndVocStopPiezo_merge_local;
 RMSRatio_all{vv} = RMSRatio;
 RMSDiff_all{vv} = RMSDiff;
+% Gather vocalization hearing data
+IndHearStart_all{vv} = IndHearStart;
+IndHearStop_all{vv} = IndHearStop;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
-function copyFigure
-global Figcopy AudioLogs plotb;
+function Figcopy = copyFigure(plotb)
+% Create a copy of the left pannel to save it as a pdf
+global AudioLogs;
 
 Figcopy=figure(10);
 for ll=1:length(AudioLogs)+2
@@ -1127,26 +1185,36 @@ for ll=1:length(AudioLogs)+2
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function updateLoggerEval(vv,ll)
-global Call1Hear0_temp;
+function updateLoggerEval(vv,ll, NoiseCallListen012_man)
+% Save production and hearing data for that logger, merge produced
+% vocalizations, update bottom plot on left panel with produced
+% vocalizations.
 global IndVocStartRaw IndVocStartPiezo IndVocStopRaw IndVocStopPiezo ;
 global IndVocStart IndVocStop IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
-global IndVocStartPiezo_merge_local IndVocStopPiezo_merge_local Fns_AL;
-global ColorCode FS Piezo_FS Logger_Spec;
+global IndVocStartPiezo_merge_local IndVocStopPiezo_merge_local;
+global IndHearStartRaw IndHearStartPiezo IndHearStopRaw IndHearStopPiezo ;
+global IndHearStart IndHearStop
+global Fns_AL ColorCode FS Piezo_FS Logger_Spec;
 global Fs_env MergeThresh;
 global plotb;
 
-%!!!!!!!!!!!!!!!!!Still add evaluation of listener in Call1Listen0_temp!!!!!!!!!!!!!!!!!!!
+% Keep vocalizations that were heared by the bat
+IndHearStart{ll} = IndVocStart{ll}(logical(NoiseCallListen012_man==2));
+IndHearStop{ll} = IndVocStop{ll}(logical(NoiseCallListen012_man==2));
+IndHearStartRaw{vv}{ll} = round(IndHearStart{ll}/Fs_env*FS);
+IndHearStartPiezo{vv}{ll} = round(IndHearStart{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+IndHearStopRaw{vv}{ll} = round(IndHearStop{ll}/Fs_env*FS);
+IndHearStopPiezo{vv}{ll} = round(IndHearStop{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
 
 % Stash noise and Only keep vocalizations that were produced by the bat
 % according to the high RMSRatio value
-IndVocStart{ll} = IndVocStart{ll}(logical(Call1Hear0_temp));
-IndVocStop{ll} = IndVocStop{ll}(logical(Call1Hear0_temp));
+IndVocStart{ll} = IndVocStart{ll}(logical(NoiseCallListen012_man==1));
+IndVocStop{ll} = IndVocStop{ll}(logical(NoiseCallListen012_man==1));
 IndVocStartRaw{vv}{ll} = round(IndVocStart{ll}/Fs_env*FS);
 IndVocStartPiezo{vv}{ll} = round(IndVocStart{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
 IndVocStopRaw{vv}{ll} = round(IndVocStop{ll}/Fs_env*FS);
 IndVocStopPiezo{vv}{ll} = round(IndVocStop{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
-NV = sum(Call1Hear0_temp);
+NV = sum(NoiseCallListen012_man==1);
 
 if NV
     % Now merge detected vocalizations that are within MergeThresh
@@ -1190,13 +1258,17 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function plotMic(vv,FigN)
 global Raw_Spec  Nvoc df DataFiles FHigh_spec;
-global DB_noise plotmich plotmicevalh;
+global DB_noise plotmich plotmicevalh plotlogevalh;
+global Amp_env_Mic Fs_env sliderLefth
 
 if FigN==1
     axpl=plotmich;
-else
+elseif FigN==3
     axpl=plotmicevalh;
+elseif FigN ==2
+    axpl=plotlogevalh;
 end
+    
 maxB = max(max(Raw_Spec.logB));
 minB = maxB-DB_noise;
 axes(axpl);
@@ -1217,11 +1289,24 @@ set(gca,'xlim',[0 Raw_Spec.to(end)*1000],'ylim',[0 FHigh_spec+5e3],...
 axpl.YColor='w';
 xlabel('time (ms)'), ylabel('Frequency');
 if FigN==1
-    title(sprintf('Ambient Microphone Voc %d/%d Set %d/%d',vv,Nvoc,df,length(DataFiles)))
+    hold on
+    yyaxis right
+    plot(axpl,(1:length(Amp_env_Mic))/Fs_env*1000, Amp_env_Mic, 'r-', 'LineWidth',2)
+    %ylabel(sprintf('Amp\nMic'))
+    title(sprintf('Voc %d/%d Set %d/%d',vv,Nvoc, df,length(DataFiles)))
+    xlabel(' ')
+    set(gca, 'XTick',[],'XTickLabel',{})
+    set(gca,'ytick','')
+    drawnow;
+    hold off;
+    set(sliderLefth,'SliderStep', [1/(length(Amp_env_Mic)-1), 10/(length(Amp_env_Mic)-1)], ...
+    'Min', 1, 'Max', length(Amp_env_Mic), 'Value', 1)
+else
+    drawnow;
+    hold off;
 end
 
-drawnow;
-hold off;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
 function plotLogger(vv,ll,FigN)
 global LowPassLogVoc Piezo_FS Fns_AL DB_noise FHigh_spec_Logger;
@@ -1285,6 +1370,7 @@ end
 
 hold off;
 zoom on;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function newmessage(mstring)
 global message mh string_handle2;

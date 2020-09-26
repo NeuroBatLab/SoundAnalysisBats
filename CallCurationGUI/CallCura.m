@@ -1,10 +1,16 @@
-clear all;
+%% Script calling the Gui CallCuraGui (code in CallCurafkt) for manual
+% curation of vocalizations extracted from microphone and loggers. It is
+% the faithful Gui version of Who_calls_playless
+
+% This code gets ready the Gui input
+
 close all;
 
-global BaseDataDir WorkingDir VolDenominatorLogger VolFactorMic Manual MergeThresh;
-global CheckMicChannel pnames NExpe UseOld FhGUI ee DoneListDetect DoneListWho;
-global evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith string_handle2;
-global evalLog6h evalLog7h evalLog8h starth evalb plotb string_handle;
+global WorkingDir Filepath
+global VolDenominatorLogger VolFactorMic Manual MergeThresh;
+global CheckMicChannel UseOld  PlotRMSFig FhGUI;
+global evalMich evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith string_handle2;
+global evalLog6h evalLog7h evalLog8h starth evalLog plotb string_handle;
 global filenameh noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich playLog1h playLog2h playLog3h playLog4h playLog5h playLog6h;
 global playLog7h playLog8h playMicEvalh playLogEvalh redo checkboxh playLog9h;
@@ -14,20 +20,35 @@ global plotlog6h plotlog7h plotlog8h plotlog9h plotlog10h plotevalh plotlogevalh
 
 
 
-
+%% These are specific to the dataset and computer
 BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
 BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\';
 WorkingDir = 'C:\Users\BatLab\Documents\DeafWhoWorkDir\';
+ExpLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSal.txt');
+WhoLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalWho.txt');
+AlliLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalAllignement.txt');
 
+%% Paths to code
+% you should have pulled from github the last versions of
+% LMC,LoggerDataProcessing and SoundAnalysisBats
 addpath(genpath(fullfile(BaseCodeDir,'LMC')))
 addpath(genpath(fullfile(BaseCodeDir, 'LoggerDataProcessing')))
 addpath(genpath(fullfile(BaseCodeDir,'SoundAnalysisBats')))
 
-DatesDir = dir(fullfile(BaseDataDir,'20*'));
-NDates = length(DatesDir);
-ExpLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSal.txt');
-WhoLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalWho.txt');
+%% Parameters of WhoCalls
+% optional parameter: Factor_RMS_Mic, Factor by which the RMS of the
+% band-pass filtered baseline signal is multiplied to obtained the
+% threshold of vocalization detection on Microphone
+VolDenominatorLogger=5;
+VolFactorMic=0.5;
 
+MergeThresh=200;
+Manual=1;
+UseOld=1;% Set to 1 if you want to append to existing manually curated data
+CheckMicChannel=0;
+PlotRMSFig = 0; % Set to 1 if you want to plot and save the figure showing the RMS
+
+%% Get the name of the next experiment that needs to be manually curated
 ee=0;
 if ~exist(ExpLog, 'file')
     error('Cannot find the list of file to run in: %s \n',ExpLog);
@@ -50,22 +71,113 @@ else
     FidWho = fopen(WhoLog, 'a');
 end
 
-%general variables
-NExpe = length(DoneListDetect{1});
-% optional parameter: Factor_RMS_Mic, Factor by which the RMS of the
-% band-pass filtered baseline signal is multiplied to obtained the
-% threshold of vocalization detection on Microphone
-VolDenominatorLogger=5;
-VolFactorMic=0.5;
-pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic','SaveFileType'};
-MergeThresh=200;
-Manual=1;
-UseOld=1;
-CheckMicChannel=0;
-redo=0;
+if ~exist(AlliLog, 'file')
+    FidAlli = fopen(AlliLog, 'a');
+    fprintf(FidAlli, 'Subject\tDate\tTime\tAllignement\n');
+    ListAlliOk = [];
+else
+    FidAlli = fopen(AlliLog, 'r');
+    Header = textscan(FidAlli,'%s\t%s\t%s\t%s\n',1);
+    ListAlliOk = textscan(FidAlli,'%s\t%s\t%s\t%d');
+    fclose(FidAlli);
+    FidAlli = fopen(AlliLog, 'a');
+end
 
+%Grabbing a new Session
+fprintf(1,'Grabbing the session...');
+NExpe = length(DoneListDetect{1});
+checkSession=1;
+while checkSession && ee<=NExpe && (isempty(AlliOk) || (AlliOk==0))
+    ee=ee+1;
+    BatsID = DoneListDetect{1}{ee};
+    Date = DoneListDetect{2}{ee};
+    ExpStartTime = DoneListDetect{3}{ee};
+    ParamFile = dir(fullfile(BaseDataDir,['20' Date],'audio',sprintf('%s_%s_%s*RecOnly_param.txt', BatsID, Date, ExpStartTime)));
+    fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
+    
+    % Check that the file was not already set aside or done
+    if ~isempty(DoneListWho)
+        Done = sum(contains(DoneListWho{1},BatsID) .* contains(DoneListWho{2},Date) .* contains(DoneListWho{3},ExpStartTime));
+    else
+        Done=0;
+    end
+    
+    if ~isempty(ListAlliOk)
+        AlliOkInd = find(contains(ListAlliOk{1},BatsID) .* contains(ListAlliOk{2},Date) .* contains(ListAlliOk{3},ExpStartTime));
+        AlliOk = ListAlliOk{4}(AlliOkInd);
+    else
+        AlliOk=[];
+    end
+    
+    if Done
+        fprintf(1, '   -> Data already processed\n')
+        checkSession=1;
+    elseif ~Done && ~isempty(AlliOk)
+        if AlliOk
+            fprintf(1, '   -> Starting from where we left on this session\n')
+            checkSession=0;
+        else
+            fprintf(1, '   -> Session flagged as not alligned correctly\n')
+            checkSession=1;
+        end
+    elseif ~Done && isempty(AlliOk)
+        fprintf(1, '   -> Starting new session\n')
+        % Check that the clocks drifts were correctly corrected
+        fprintf(1,'*** Check the clock drift correction of the logger ***\n')
+        [AudioDataPath, DataFile ,~]=fileparts(Filepath);
+        Logger_dir = fullfile(AudioDataPath(1:(strfind(AudioDataPath, 'audio')-1)), 'audiologgers');
+        LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
+        Check = zeros(length(LoggersDir)+1,1);
+        for ll=1:length(LoggersDir)
+            FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
+            failsafe=1;
+            while failsafe
+                Check(ll) = input('Is everything ok? (yes ->1, No -> 0): ');
+                failsafe=0;
+                if isempty(Check(ll))
+                    failsafe=1;
+                    disp('Entry is empty, please repeat!')
+                end
+            end
+            fprintf('\n')
+            close(FigCD)
+        end
+        fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
+        AllignmentPath = fullfile(AudioDataPath,sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, ExpStartTime));
+        FigAP = open(AllignmentPath);
+        failsafe=1;
+        while failsafe
+            Check(length(LoggersDir)+1) = input('Is everything ok? (yes ->1, No -> 0): ');
+            failsafe=0;
+            if isempty(Check(ll))
+                failsafe=1;
+                disp('Entry is empty, please repeat!')
+            end
+        end
+        fprintf('\n')
+        close(FigAP)
+        if any(~Check)
+            AlliOk=0;
+            fprintf(FidAlli, '%s\t%s\t%s\t%d\n',BatsID,Date,ExpStartTime,AlliOk);
+            fprintf(1,'\n****** Error in allignement reported ******\n')
+            checkSession=1;
+        else
+            AlliOk=1;
+            fprintf(FidAlli, '%s\t%s\t%s\t%d\n',BatsID,Date,ExpStartTime,AlliOk);
+            fprintf(1,'\n****** Allignement reported as good! ******\n')
+            checkSession=0;
+        end
+    end
+    
+end
+% This is the name to the experiment that needs to be analyzed
+Filepath = fullfile(ParamFile.folder, ParamFile.name);
+fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
+% Initializing variables
+redo=0;
+%% Starting the GUI
 message={'';'';'';'';'';''};
-Use_AppDesigner=1;
+Use_AppDesigner=0;
 if Use_AppDesigner
     string_handle='Text';
     string_handle2='Value';
@@ -95,6 +207,7 @@ if Use_AppDesigner
     redoEditSeth=FhGUI.redoEditSet;
     submith=FhGUI.submit;
     checkboxh=FhGUI.checkbox;
+    evalMich = FhGUI.evalMic;
     evalLog1h=FhGUI.evalLog1;
     evalLog2h=FhGUI.evalLog2;
     evalLog3h=FhGUI.evalLog3;
@@ -120,7 +233,7 @@ if Use_AppDesigner
     playLog10h=FhGUI.playLog10;
 else
     string_handle='String';
-     string_handle2='String';
+    string_handle2='String';
     FhGUI=CallCuraGui;
     starth=findobj(FhGUI,'tag','start');
     noCallh=findobj(FhGUI,'tag','noCall');
@@ -147,16 +260,18 @@ else
     redoEditSeth=findobj(FhGUI,'tag','redoEditSet');
     submith=findobj(FhGUI,'tag','submit');
     checkboxh=findobj(FhGUI,'tag','checkbox');
-    evalLog1h=findobj(FhGUI,'tag','evalLog1');
-    evalLog2h=findobj(FhGUI,'tag','evalLog2');
-    evalLog3h=findobj(FhGUI,'tag','evalLog3');
-    evalLog4h=findobj(FhGUI,'tag','evalLog4');
-    evalLog5h=findobj(FhGUI,'tag','evalLog5');
-    evalLog6h=findobj(FhGUI,'tag','evalLog6');
-    evalLog7h=findobj(FhGUI,'tag','evalLog7');
-    evalLog8h=findobj(FhGUI,'tag','evalLog8');
-    evalLog9h=findobj(FhGUI,'tag','evalLog9');
-    evalLog10h=findobj(FhGUI,'tag','evalLog10');
+    evalLog = cell(10,1);
+    evalLog{1}=findobj(FhGUI,'tag','evalLog1');
+    evalLog{2}=findobj(FhGUI,'tag','evalLog2');
+    evalLog{3}=findobj(FhGUI,'tag','evalLog3');
+    evalLog{4}=findobj(FhGUI,'tag','evalLog4');
+    evalLog{5}=findobj(FhGUI,'tag','evalLog5');
+    evalLog{6}=findobj(FhGUI,'tag','evalLog6');
+    evalLog{7}=findobj(FhGUI,'tag','evalLog7');
+    evalLog{8}=findobj(FhGUI,'tag','evalLog8');
+    evalLog{9}=findobj(FhGUI,'tag','evalLog9');
+    evalLog{10}=findobj(FhGUI,'tag','evalLog10');
+    evalMich =findobj(FhGUI,'tag','evalMic');
     playMich=findobj(FhGUI,'tag','playMic');
     playMicEvalh=findobj(FhGUI,'tag','playMicEval');
     playLogEvalh=findobj(FhGUI,'tag','playLogEval');
@@ -171,18 +286,6 @@ else
     playLog9h=findobj(FhGUI,'tag','playLog9');
     playLog10h=findobj(FhGUI,'tag','playLog10');
 end
-
-evalb{1}=evalLog1h;
-evalb{2}=evalLog2h;
-evalb{3}=evalLog3h;
-evalb{4}=evalLog4h;
-evalb{5}=evalLog5h;
-evalb{6}=evalLog6h;
-evalb{7}=evalLog7h;
-evalb{8}=evalLog8h;
-evalb{9}=evalLog9h;
-evalb{10}=evalLog10h;
-
 
 plotb{1}=plotmich;
 plotb{2}=plotlog1h;
@@ -208,7 +311,7 @@ playb{8}=playLog8h;
 playb{9}=playLog9h;
 playb{10}=playLog10h;
 
-set([evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith evalLog6h...
+set([evalMich evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith evalLog6h...
     evalLog7h evalLog8h evalLog9h evalLog10h noCallh redoh redoEditVoch...
     redoEditSeth sliderLefth sliderRighth playMich playLog1h playLog2h...
     playLog3h playLog4h playLog5h playLog6h playLog7h playLog8h playLog9h playLog10h...

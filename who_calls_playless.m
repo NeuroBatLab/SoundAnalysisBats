@@ -261,6 +261,7 @@ else
             if Nvoc>100
                 warning('Probably wrong audio file name, the code is not updated for older version of previous extraction\n')
             end
+            
             if isempty(Raw_wave_nn)
                 warning('Raw_wave should not be empty now!!')
                 keyboard
@@ -318,6 +319,7 @@ else
                 end
                 audiowrite(VocFilename{vv} , Raw_wave{vv}, FS2);
             end
+            
             % bandpass filter the ambient mic recording
             Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
             Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
