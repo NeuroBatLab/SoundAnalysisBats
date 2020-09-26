@@ -214,16 +214,7 @@ BandPassFilter = [1000 5000 9900]; % Frequency bands chosen for digital signal p
 Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
 Fs_env = 1000; % Sample frequency of the enveloppe
 
-% design filters of raw ambient recording
-% bandpass filter for detection
-% and plotting
-[z,p,k] = butter(6,[BandPassFilter(1) 90000]/(FS/2),'bandpass');
-sos_raw_band = zp2sos(z,p,k);
 
-% design filters of raw ambient recording, bandpass, for
-% listening to microphone recordings
-[z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
-sos_raw_band_listen = zp2sos(z,p,k);
 
 
 %% Defining Path to Data and specific parameters of that session
@@ -298,6 +289,17 @@ else
     if (df==length(DataFiles)) && ~Success
         newmessage('All Sets Done!');
         CallCura
+    else
+        %% % design filters of raw ambient recording
+        % bandpass filter for detection 
+        % and plotting (now that FS was loaded by grabNewDatafile
+        [z,p,k] = butter(6,[BandPassFilter(1) 90000]/(FS/2),'bandpass');
+        sos_raw_band = zp2sos(z,p,k);
+
+        % design filters of raw ambient recording, bandpass, for
+        % listening to microphone recordings
+        [z,p,k] = butter(6,[100 20000]/(FS/2),'bandpass');
+        sos_raw_band_listen = zp2sos(z,p,k);
     end
 end
 
@@ -361,7 +363,7 @@ global IndVocStopPiezo_merged IndVocStartRaw IndVocStopRaw IndVocStartPiezo;
 global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
 global IndHearStart_all IndHearStop_all IndHearStartRaw IndHearStartPiezo IndHearStopRaw IndHearStopPiezo;
 global MicError PiezoError MicErrorType PiezoErrorType;
-global Chunking_RawWav
+global Chunking_RawWav;
 
 newmessage('Grabbing new set...');
 Nvoc = Nvocs(df_local+1) - Nvocs(df_local);
