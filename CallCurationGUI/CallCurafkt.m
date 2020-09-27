@@ -36,6 +36,9 @@ switch action
         % Who_calls_playless_init
         loadnextfile(vv)
         
+    case 'MaybeCall'
+        loadnextfile2(vv)
+        
     case 'NoCall'
         disableEvals
         drawnow;
@@ -120,7 +123,7 @@ switch action
             loadnextfile(vv)
         end
         
-    case 'Checkbox'
+    case 'Checkbox' %(Selection Done)
         stopclick=0;
         set(checkboxh,string_handle,'X')
         set(checkboxh,'BackgroundColor',[88 117 88]./255)
@@ -324,7 +327,7 @@ global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
 global IndHearStartRaw IndHearStopRaw IndHearStartPiezo;
 global IndHearStopPiezo IndHearStart_all IndHearStop_all;
 global MicError PiezoError MicErrorType PiezoErrorType SaveRawWave Raw_wave;
-global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename
+global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename redo
 
 newmessage(sprintf('Saving data Voc %d...', vv))
 if ~isempty(dir(PreviousFile))
@@ -334,7 +337,7 @@ if ~isempty(dir(PreviousFile))
         'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
         'IndHearStartRaw', 'IndHearStopRaw', 'IndHearStartPiezo', 'IndHearStopPiezo',...
         'IndHearStart_all', 'IndHearStop_all',...
-        'vv','MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
+        'MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
 else
     save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
         'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged',...
@@ -342,7 +345,11 @@ else
         'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
         'IndHearStartRaw', 'IndHearStopRaw', 'IndHearStartPiezo', 'IndHearStopPiezo',...
         'IndHearStart_all', 'IndHearStop_all',...
-        'vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+        'MicError','PiezoError','MicErrorType','PiezoErrorType');
+end
+if ~redo
+    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
+        'vv','-append');
 end
 if SaveRawWave
     if Chunking_RawWav
@@ -488,10 +495,11 @@ end
     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function loadnextfile(vv)
-global Nvoc df DataFiles AudioLogs Amp_env_LowPassLogVoc filenameh;
+global Nvoc df DataFiles filenameh;
 global Filepath redoEditVoch redoEditSeth string_handle string_handle2;
-% Loading sound extract vv and getting ready for evaluation (calculating
-% spectrograms, plotting them,finding calls...)
+global noCallh maybeCallh plotb AudioLogs
+% Loading sound extract vv calculating microphone
+% spectrogram + playing microphone
 
 newmessage(sprintf('Grabbing next vocalization #%d...',vv));
 
@@ -508,6 +516,20 @@ set(redoEditSeth,string_handle2,num2str(df))
 
 % Load, Check and plot the microphone file on the left pannel
 grabAmbientMic(vv)
+for ll=1:(length(AudioLogs)+1)
+    axes(plotb{ll+1});
+    cla(plotb{ll+1} ,'reset')
+end
+set([noCallh maybeCallh],'enable','on')
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function loadnextfile2(vv)
+global AudioLogs Amp_env_LowPassLogVoc noCallh maybeCallh;
+% Getting ready for evaluation (calculating
+% spectrograms of loggers, plotting them,finding calls...)
+set([noCallh maybeCallh],'enable','off')
+newmessage(sprintf('Finishing loading #%d...',vv));
 
 % Load piezo data, calculate envelope of high pass and low pass fltered
 % signals and plot the piezo signals on the left pannel
@@ -902,12 +924,12 @@ newmessage('Ready for evaluation')
 function disableEvals
 global submith evalLog evalMich;
 global  checkboxh;
-global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
+global noCallh maybeCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich playLog1h playLog2h playLog3h playLog4h playLog5h playLog6h;
 global playLog7h playLog8h  playLog9h playLog10h playMicEvalh playLogEvalh;
 
 set([evalLog{1} evalLog{2} evalLog{3} evalLog{4} evalLog{5} submith evalLog{6}...
-    evalLog{7} evalLog{8} evalLog{9} evalLog{10} evalMich noCallh redoh redoEditVoch...
+    evalLog{7} evalLog{8} evalLog{9} evalLog{10} evalMich noCallh maybeCallh redoh redoEditVoch...
     redoEditSeth playMich playLog1h playLog2h...
     playLog3h playLog4h playLog5h playLog6h playLog7h playLog8h playMicEvalh...
     playLog9h playLog10h playLogEvalh sliderLefth sliderRighth checkboxh],'enable','off')

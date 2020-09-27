@@ -12,7 +12,7 @@ global Force_Save_onoffsets_mic SaveFileType;
 global CheckMicChannel UseOld  PlotRMSFig FhGUI;
 global evalMich evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith string_handle2;
 global evalLog6h evalLog7h evalLog8h starth evalLog plotb string_handle;
-global filenameh noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
+global filenameh noCallh maybeCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich playLog1h playLog2h playLog3h playLog4h playLog5h playLog6h;
 global playLog7h playLog8h playMicEvalh playLogEvalh redo checkboxh playLog9h;
 global playLog10h evalLog9h evalLog10h playb message mh;
@@ -239,6 +239,7 @@ message={'';'';'';'';'';''};
     FhGUI=CallCuraGui;
     starth=findobj(FhGUI,'tag','start');
     noCallh=findobj(FhGUI,'tag','noCall');
+    maybeCallh=findobj(FhGUI,'tag','maybeCall');
     filenameh=findobj(FhGUI,'tag','filename');
     mh=findobj(FhGUI,'tag','message');
     plotmich=findobj(FhGUI,'tag','plotMic');
@@ -314,7 +315,7 @@ playb{9}=playLog9h;
 playb{10}=playLog10h;
 
 set([evalMich evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith evalLog6h...
-    evalLog7h evalLog8h evalLog9h evalLog10h noCallh redoh redoEditVoch...
+    evalLog7h evalLog8h evalLog9h evalLog10h noCallh maybeCallh redoh redoEditVoch...
     redoEditSeth sliderLefth sliderRighth playMich playLog1h playLog2h...
     playLog3h playLog4h playLog5h playLog6h playLog7h playLog8h playLog9h playLog10h...
     playMicEvalh playLogEvalh checkboxh],'enable','off')
