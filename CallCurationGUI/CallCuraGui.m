@@ -22,7 +22,7 @@ function varargout = CallCuraGui(varargin)
 
 % Edit the above text to modify the response to help CallCuraGui
 
-% Last Modified by GUIDE v2.5 25-Sep-2020 14:16:46
+% Last Modified by GUIDE v2.5 26-Sep-2020 19:07:14
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -153,8 +153,8 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in pushbutton32.
-function pushbutton32_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton32 (see GCBO)
+% --- Executes on button press in evalMic.
+function evalMic_Callback(hObject, eventdata, handles)
+% hObject    handle to evalMic (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
