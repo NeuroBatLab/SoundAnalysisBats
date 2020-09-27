@@ -1180,10 +1180,16 @@ function Figcopy = copyFigure(plotb)
 global AudioLogs;
 
 Figcopy=figure(10);
-for ll=1:length(AudioLogs)+2
-    axcopy=subplot(length(AudioLogs)+2,1,ll);
-    copyobj(plotb{ll}.Children,axcopy)
+clf(Figcopy)
+Axcopy = subplot(length(AudioLogs)+2,1,1);
+plotMic(vv,0,Axcopy);
+for ll=1:length(AudioLogs)
+    Axcopy = subplot(length(AudioLogs)+2,1,ll+1);
+    plotLogger(vv,ll,0,Axcopy);
 end
+AxcopyLast=subplot(length(AudioLogs)+2,1,length(AudioLogs)+2);
+copyobj(plotb{length(AudioLogs)+2}.Children,AxcopyLast)
+AxcopyLast.XLim = Axcopy.XLim;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function updateLoggerEval(vv,ll, NoiseCallListen012_man)
@@ -1257,7 +1263,7 @@ if NV
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function plotMic(vv,FigN)
+function plotMic(vv,FigN, axpl)
 global Raw_Spec  Nvoc df DataFiles FHigh_spec;
 global DB_noise plotmich plotmicevalh plotlogevalh;
 global Amp_env_Mic Fs_env sliderLefth
@@ -1268,6 +1274,10 @@ elseif FigN==3
     axpl=plotmicevalh;
 elseif FigN ==2
     axpl=plotlogevalh;
+elseif FigN == 0
+    if nargin<3
+        error('Provide the axis handle to wear the figure should be plotted')
+    end
 end
     
 maxB = max(max(Raw_Spec.logB));
@@ -1285,11 +1295,19 @@ v_axis = axis;
 v_axis(3)=0;
 v_axis(4)=FHigh_spec+5e3;
 axis(v_axis);
-set(gca,'xlim',[0 Raw_Spec.to(end)*1000],'ylim',[0 FHigh_spec+5e3],...
+if FigN==0
+    set(gca,'xlim',[0 Raw_Spec.to(end)*1000],'ylim',[0 FHigh_spec],...
     'ytick',[0 FHigh_spec/2 FHigh_spec])
-axpl.YColor='w';
-xlabel('time (ms)'), ylabel('Frequency');
-if FigN==1
+    xlabel(' ')
+    set(gca, 'XTick',[],'XTickLabel',{})
+else
+    set(gca,'xlim',[0 Raw_Spec.to(end)*1000],'ylim',[0 FHigh_spec+5e3],...
+    'ytick',[0 FHigh_spec/2 FHigh_spec])
+    xlabel('time (ms)');
+end
+ylabel('Frequency');
+
+if FigN==1 || FigN==0
     hold on
     yyaxis right
     plot(axpl,(1:length(Amp_env_Mic))/Fs_env*1000, Amp_env_Mic, 'r-', 'LineWidth',2)
@@ -1300,16 +1318,22 @@ if FigN==1
     set(gca,'ytick','')
     drawnow;
     hold off;
-    set(sliderLefth,'SliderStep', [1/(length(Amp_env_Mic)-1), 10/(length(Amp_env_Mic)-1)], ...
-    'Min', 1, 'Max', length(Amp_env_Mic), 'Value', 1)
+    if FigN==1
+        yyaxis left
+        axpl.YColor='w';
+        set(sliderLefth,'SliderStep', [1/(length(Amp_env_Mic)-1), 10/(length(Amp_env_Mic)-1)], ...
+        'Min', 1, 'Max', length(Amp_env_Mic), 'Value', 1)
+    end
 else
+    yyaxis left
+    axpl.YColor='w';
     drawnow;
     hold off;
 end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
-function plotLogger(vv,ll,FigN)
+function plotLogger(vv,ll,FigN, axpl)
 global LowPassLogVoc Piezo_FS Fns_AL DB_noise FHigh_spec_Logger;
 global Amp_env_LowPassLogVoc Amp_env_HighPassLogVoc Fs_env AudioLogs;
 global plotb plotlogevalh plotevalh Logger_Spec;
@@ -1322,10 +1346,13 @@ if FigN==1
         spec_only_bats_gui(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv),...
         DB_noise, FHigh_spec_Logger);
     val=0;
-else
+elseif FigN==3
     axpl=plotlogevalh;
     val=5e3;
+elseif nargin<3
+    error('Provide the axis handle to wear the figure should be plotted')
 end
+
 maxB = max(max(Logger_Spec{ll}.logB));
 minB = maxB-DB_noise;
 axes(axpl);
@@ -1351,7 +1378,9 @@ yyaxis left;
 axpl.YColor='w';
 yyaxis right;
 set(gca,'ytick','')
-if FigN==1
+if FigN==3
+    axpl.XColor='w';
+else
     hold on;
     if ll<length(AudioLogs)
         xlabel(' '); % supress the x label output
@@ -1363,14 +1392,16 @@ if FigN==1
     hold on
     plot(axpl,(1:length(Amp_env_HighPassLogVoc{ll}))/Fs_env*1000,...
         Amp_env_HighPassLogVoc{ll}, 'r-','LineWidth',2);
-    %ylabel(sprintf('Amp\n%s',Fns_AL{ll}([1:3 7:end])))
+    if FigN==0
+        ylabel(sprintf('Amp\n%s',Fns_AL{ll}([1:3 7:end])))
+    end
     hold off
-else
-    axpl.XColor='w';
 end
 
 hold off;
-zoom on;
+if FigN~=0
+    zoom on;
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function newmessage(mstring)
