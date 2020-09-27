@@ -28,6 +28,7 @@ switch action
     case 'Start'
         set(starth,'enable','off')
         fprintf(1,'\n*** Identify who is calling ***\n')
+        newmessage('STARTING...')
         % Initializing output, finding where we left at (finding df and vv)
         % and grabing the correct set
         who_calls_playless_init
@@ -42,9 +43,14 @@ switch action
         % saving data to file
         savingData(vv)
         if redo
-            vv=oldvv;
-            df=olddf;
             redo=0;
+            vv=oldvv;
+            if df~=olddf
+                df=olddf;
+                grabNewDatafile(df);
+            else
+                df=olddf;
+            end
         end
         
         % Switching to next sound extract
@@ -131,9 +137,14 @@ switch action
         % saving data to file
         savingData(vv)
         if redo
-            vv=oldvv;
-            df=olddf;
             redo=0;
+            vv=oldvv;
+            if df~=olddf
+                df=olddf;
+                grabNewDatafile(df);
+            else
+                df=olddf;
+            end
         end
         
         %load next sound extract
@@ -392,7 +403,7 @@ else
     vv=1;
 end
 
-if vv~=Nvoc % This is the file that we need to complete
+if vv~=Nvoc || redo % This is the file that we need to complete
     if ~strcmp(Working_dir_write,Logger_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df_local).name))
         fprintf(1,'Bringing data locally from the server\n')
         [s,m,e]=copyfile(DataFile, Working_dir_read, 'f'); %#ok<ASGLU>
@@ -465,14 +476,14 @@ if vv~=Nvoc % This is the file that we need to complete
         PiezoErrorType = [0 0]; % first element false negative (detected as noise or hearing when it is a new call), second element false positive (vice versa)
     end
     Success = 1;
-    newmessage(sprintf('Set %d sucessfully loaded!', df_local));
-    
+    if redo
+        newmessage('Set sucessfully loaded for doing again manual annotation!');
+    else
+        newmessage(sprintf('Set %d sucessfully loaded!', df_local));
+    end
 elseif vv==Nvoc && ~redo
     newmessage(sprintf('Set %d already done!', df_local));
     Success = 0;
-elseif vv==Nvoc && redo
-    Success = 1;
-    newmessage('Set sucessfully loaded for doing again manual annotation!');
 end
     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -651,6 +662,7 @@ ColorCode = [get(groot,'DefaultAxesColorOrder');1 1 1; 0 1 1; 1 1 0];
 [Raw_Spec.to, Raw_Spec.fo, Raw_Spec.logB] = ...
     spec_only_bats_gui(Filt_RawVoc, FS, DB_noise, FHigh_spec);
 plotMic(vv,1)
+PlayCallfkt('PlayMic')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function grabLoggers(vv)
@@ -1139,7 +1151,7 @@ xlabel('Time (ms)')
 [~,FileVoc]=fileparts(VocFilename{vv});
 
 % Save the RMS and spectro figures
-Figcopy = copyFigure(plotb); % copy left pannel in a figure
+Figcopy = copyFigure(plotb,vv); % copy left pannel in a figure
 if strcmp(SaveFileType,'pdf')
     fprintf(1,'saving figures...\n')
     print(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
@@ -1175,7 +1187,7 @@ IndHearStart_all{vv} = IndHearStart;
 IndHearStop_all{vv} = IndHearStop;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
-function Figcopy = copyFigure(plotb)
+function Figcopy = copyFigure(plotb, vv)
 % Create a copy of the left pannel to save it as a pdf
 global AudioLogs;
 
@@ -1338,6 +1350,7 @@ global LowPassLogVoc Piezo_FS Fns_AL DB_noise FHigh_spec_Logger;
 global Amp_env_LowPassLogVoc Amp_env_HighPassLogVoc Fs_env AudioLogs;
 global plotb plotlogevalh plotevalh Logger_Spec;
 
+val=0;
 if FigN==1
     axes(plotevalh);
     cla(plotevalh ,'reset')
@@ -1345,7 +1358,6 @@ if FigN==1
     [Logger_Spec{ll}.to, Logger_Spec{ll}.fo, Logger_Spec{ll}.logB] = ...
         spec_only_bats_gui(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv),...
         DB_noise, FHigh_spec_Logger);
-    val=0;
 elseif FigN==3
     axpl=plotlogevalh;
     val=5e3;
