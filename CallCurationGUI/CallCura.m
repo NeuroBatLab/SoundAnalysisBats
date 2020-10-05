@@ -175,9 +175,10 @@ end
 % This is the name to the experiment that needs to be analyzed
 Filepath = fullfile(ParamFile.folder, ParamFile.name);
 fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
+
+%% Starting the GUI
 % Initializing variables
 redo=0;
-%% Starting the GUI
 message={'';'';'';'';'';''};
 % Use_AppDesigner=0;
 % if Use_AppDesigner
