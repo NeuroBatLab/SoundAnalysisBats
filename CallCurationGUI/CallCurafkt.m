@@ -204,7 +204,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function who_calls_playless_init
-global WorkingDir Filepath Date ExpStartTime DataFiles AudioDataPath;
+global WorkingDir Filepath Date ExpStartTime DataFiles AudioDataPath Logger_dir;
 global MeanStdAmpRawExtract Voc_filename Nvocs;
 global Working_dir_read Working_dir_write;
 global sos_raw_band_listen FS;
@@ -238,7 +238,6 @@ Working_dir_write = fullfile(WorkingDir, 'write');
 [AudioDataPath,ParamFile,~]=fileparts(Filepath);
 Date = ParamFile(6:11);
 ExpStartTime = ParamFile(13:16);
-Logger_dir = fullfile(AudioDataPath(1:(strfind(AudioDataPath, 'audio')-1)), 'audiologgers');
 
 if ~strcmp(Logger_dir,WorkingDir) && (~exist(WorkingDir,'dir') || ~exist(Working_dir_read,'dir') || ~exist(Working_dir_write,'dir'))
     mkdir(WorkingDir)
