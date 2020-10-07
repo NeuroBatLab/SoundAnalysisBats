@@ -319,7 +319,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function savingData(vv)
 % Save the data to files
-global PreviousFile Working_dir_write Date ExpStartTime df MergeThresh;
+global PreviousFile Working_dir_write Date ExpStartTime df MergeThresh AudioDataPath;
 global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
 global IndVocStopPiezo_merged IndVocStartRaw IndVocStopRaw IndVocStartPiezo;
 global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
