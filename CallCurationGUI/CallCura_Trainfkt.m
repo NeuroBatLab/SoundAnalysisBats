@@ -19,8 +19,8 @@ function CallCura_Trainfkt(action)
 
 
 global Nvocs df vv redo DataFiles string_handle string_handle2;
-global submith noCallh redoh starth oldvv olddf;
-global redoEditVoch redoEditSeth checkboxh stopclick;
+global submith noCallh redoh starth oldvv olddf IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
+global redoEditVoch redoEditSeth checkboxh stopclick ErrorCount TraineeName;
 
 
 switch action
@@ -43,6 +43,12 @@ switch action
         disableEvals
         drawnow;
         newmessage('Manual input enforced: Noise (=NoCall)');
+        
+        % Check results
+        IndVocStartRaw_merge_local = cell(1,1);
+        IndVocStopRaw_merge_local = cell(1,1);
+        check_result(vv)
+        
         % saving data to file
         savingData(vv)
         if redo
@@ -66,18 +72,19 @@ switch action
             % if rawwave was updated in the original data, transfer and erase the data we imported 
             transferEraseSetData
             
-            if df<=length(DataFiles)
-                % switch to the next set
-                df=df+1;
-                % grab the new dataset
-                [vv,~] = grabNewDatafile(df);
-                % loading the sound extract
-                loadnextfile(vv)
-            else % we did all sets of that recording session
-                newmessage('Annotation done!');
+%             if df<=length(DataFiles)
+%                 % switch to the next set
+%                 df=df+1;
+%                 % grab the new dataset
+%                 [vv,~] = grabNewDatafile(df);
+%                 % loading the sound extract
+%                 loadnextfile(vv)
+%             else % we did all sets of that recording session
+                newmessage('Training Annotation done!');
+                newmessage(sprintf('SCORE for %s: %d%%', TraineeName, sum(ErrorCount)))
                 % restart the Gui for the next recording session
-                CallCura
-            end
+                CallCura_Train
+%             end
         end
         
     case 'Redo'
@@ -106,9 +113,14 @@ switch action
             newmessage(['Grabbing Voc#' num2str(vv_requested) ' and Set#' num2str(df_requested) '...']);
             % keep in memory the previous sound extract reference to make sure
             % we get back to where we are after redoing the requested extract
-            if vv~=1
-                oldvv=vv-1;
-                olddf=df;
+            if vv_requested~=1
+                if vv_requested~=vv
+                    oldvv=vv-1;
+                    olddf=df;
+                elseif vv_requested==vv
+                    oldvv=vv;
+                    olddf=df;
+                end
             else % we switch to the next set!
                 oldvv=Nvocs(df) - Nvocs(df-1);
                 olddf=df-1;
@@ -159,18 +171,19 @@ switch action
             % if rawwave was updated in the original data, transfer and erase the data we imported 
             transferEraseSetData
             
-            if df<=length(DataFiles)
-                % switch to the next set
-                df = df +1;
-                % Grabng this new set
-                [vv,~]=grabNewDatafile(df);
-                % Loading the next file
-                loadnextfile(vv)
-            else % we did all sets of that recording session
-                newmessage('Annotation done!');
+%             if df<=length(DataFiles)
+%                 % switch to the next set
+%                 df = df +1;
+%                 % Grabng this new set
+%                 [vv,~]=grabNewDatafile(df);
+%                 % Loading the next file
+%                 loadnextfile(vv)
+%             else % we did all sets of that recording session
+                newmessage('Training Annotation done!');
+                newmessage(sprintf('SCORE for %s: %d%%', TraineeName, sum(ErrorCount)))
                 % restart the Gui for the next recording session
-                CallCura
-            end
+                CallCura_Train
+%             end
         end
         set(submith,string_handle,'Submit')
         
@@ -204,7 +217,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function who_calls_playless_init
-global WorkingDir Filepath Date ExpStartTime DataFiles AudioDataPath;
+global WorkingDir Filepath Date ExpStartTime DataFiles AudioDataPath Logger_dir;
 global MeanStdAmpRawExtract Voc_filename Nvocs;
 global Working_dir_read Working_dir_write;
 global sos_raw_band_listen FS;
@@ -238,22 +251,21 @@ Working_dir_write = fullfile(WorkingDir, 'write');
 [AudioDataPath,ParamFile,~]=fileparts(Filepath);
 Date = ParamFile(6:11);
 ExpStartTime = ParamFile(13:16);
-Logger_dir = fullfile(AudioDataPath(1:(strfind(AudioDataPath, 'audio')-1)), 'audiologgers');
+
 
 if ~strcmp(Logger_dir,WorkingDir) && (~exist(WorkingDir,'dir') || ~exist(Working_dir_read,'dir') || ~exist(Working_dir_write,'dir'))
     mkdir(WorkingDir)
     mkdir(Working_dir_read)
     mkdir(Working_dir_write)
 elseif strcmp(Logger_dir,WorkingDir)
-    Working_dir_read = Logger_dir;
-    Working_dir_write = Logger_dir;
+    error('This training version will not work if the working directory is indentical to the original data directory')
 end
 
 %% Grabbing the Data coresponding to the particular date and find the correct file at which the curation was stopped
 DataFiles = dir(fullfile(Logger_dir, sprintf('%s_%s_VocExtractData*.mat', Date, ExpStartTime)));
 if isempty(DataFiles)
     warning('Vocalization data were not extracted by get_logger_data_voc.m\nData cannot be found\n')
-    CallCura
+    CallCura_Train
 else
     % select the correct files
     Gdf = zeros(length(DataFiles),1);
@@ -292,17 +304,14 @@ else
         Nvocs = [0 Nvoc_all];
     end
     
-    % Loop through sets (files) to find where we left at and load the
-    % previous data if requested (UseOld=1) or start from scratch (UseOld=0)
-    for df=1:length(DataFiles)
-        [vv,Success] = grabNewDatafile(df);
-        if Success
-            break
-        end
-    end
-    if (df==length(DataFiles)) && ~Success
-        newmessage('All Sets Done!');
-        CallCura
+    % Grab the set we want to work with
+    [vv,Success] = grabNewDatafile(df);
+        
+%     if (df==length(DataFiles)) && ~Success
+    if ~Success
+        newmessage('Done with the training Set');
+        newmessage('Change your name if you want to redo');
+        CallCura_Train
     else
         %% % design filters of raw ambient recording
         % bandpass filter for detection 
@@ -320,35 +329,34 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function savingData(vv)
 % Save the data to files
-global PreviousFile Working_dir_write Date ExpStartTime df MergeThresh;
+global PreviousFile Working_dir_write Date ExpStartTime df MergeThresh AudioDataPath;
+global TraineeName;
 global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
 global IndVocStopPiezo_merged IndVocStartRaw IndVocStopRaw IndVocStartPiezo;
 global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
 global IndHearStartRaw IndHearStopRaw IndHearStartPiezo;
 global IndHearStopPiezo IndHearStart_all IndHearStop_all;
-global MicError PiezoError MicErrorType PiezoErrorType SaveRawWave Raw_wave;
-global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename redo
+global ErrorCount SaveRawWave Raw_wave;
+global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename redo;
 
 newmessage(sprintf('Saving data Voc %d...', vv))
 if ~isempty(dir(PreviousFile))
-    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
+    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d_%s.mat', Date, ExpStartTime,df, MergeThresh,TraineeName)),...
         'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', ...
         'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo',...
         'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
         'IndHearStartRaw', 'IndHearStopRaw', 'IndHearStartPiezo', 'IndHearStopPiezo',...
-        'IndHearStart_all', 'IndHearStop_all',...
-        'MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
+        'IndHearStart_all', 'IndHearStop_all', 'ErrorCount','-append');
 else
-    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
+    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d_%s.mat', Date, ExpStartTime,df, MergeThresh, TraineeName)),...
         'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged',...
         'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo',...
         'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
         'IndHearStartRaw', 'IndHearStopRaw', 'IndHearStartPiezo', 'IndHearStopPiezo',...
-        'IndHearStart_all', 'IndHearStop_all',...
-        'MicError','PiezoError','MicErrorType','PiezoErrorType');
+        'IndHearStart_all', 'IndHearStop_all','ErrorCount');
 end
 if ~redo
-    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
+    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d_%s.mat', Date, ExpStartTime,df, MergeThresh,TraineeName)),...
         'vv','-append');
 end
 if SaveRawWave
@@ -370,7 +378,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [vv,Success] = grabNewDatafile(df_local)
 % input
-global Nvocs DataFiles PreviousFile Working_dir_write redo;
+global Nvocs DataFiles PreviousFile Working_dir_write redo TraineeName;
 global Date ExpStartTime MergeThresh UseOld Logger_dir Working_dir_read;
 % output variables
 global Nvoc DataFile 
@@ -380,27 +388,26 @@ global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
 global IndVocStopPiezo_merged IndVocStartRaw IndVocStopRaw IndVocStartPiezo;
 global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
 global IndHearStart_all IndHearStop_all IndHearStartRaw IndHearStartPiezo IndHearStopRaw IndHearStopPiezo;
-global MicError PiezoError MicErrorType PiezoErrorType;
-global Chunking_RawWav;
+global MicError PiezoError MicErrorType PiezoErrorType ErrorCount;
+global Chunking_RawWav TrueRes traineeNameh;
 
-newmessage(sprintf('Grabbing new set #%d...', df_local));
+newmessage(sprintf('Grabbing training set #%d...', df_local));
 Nvoc = Nvocs(df_local+1) - Nvocs(df_local);
 DataFile = fullfile(DataFiles(df_local).folder, DataFiles(df_local).name);
 
-PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat',...
-    Date, ExpStartTime, df_local,MergeThresh));
-if ~isfile(PreviousFile)
-    % Compatibility with old version of the code
-    PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData_%d.mat',...
-        Date, ExpStartTime,MergeThresh));
-end
+% Get the name of the trainee
+TraineeName = get(traineeNameh, 'string');
+
+% Load the file that this trainee has maybe done
+PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d_%s.mat',...
+    Date, ExpStartTime, df_local,MergeThresh, TraineeName));
 
 if ~isempty(dir(PreviousFile)) && UseOld
     load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged',...
         'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', ...
         'IndVocStartRaw','IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo',...
         'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
-        'vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+        'vv', 'ErrorCount');
     
     if ~exist('vv','var')
         % There is no previous data but just data regarding piezo numbers and bats_ID
@@ -409,6 +416,21 @@ if ~isempty(dir(PreviousFile)) && UseOld
 else
     vv=1;
 end
+
+% Load the true results (done by JEE)
+ResultFile = fullfile(Logger_dir, sprintf('%s_%s_VocExtractData%d_%d.mat',...
+    Date, ExpStartTime, df_local,MergeThresh));
+if ~isfile(ResultFile)
+    % Compatibility with old version of the code
+    ResultFile = fullfile(Logger_dir, sprintf('%s_%s_VocExtractData_%d.mat',...
+        Date, ExpStartTime,MergeThresh));
+end
+TrueRes = load(ResultFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged',...
+        'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', ...
+        'IndVocStartRaw','IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo',...
+        'IndVocStart_all', 'IndVocStop_all');
+
+
 
 if vv~=Nvoc || redo % This is the file that we need to complete
     if ~strcmp(Working_dir_write,Logger_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df_local).name))
@@ -473,7 +495,7 @@ if vv~=Nvoc || redo % This is the file that we need to complete
         IndHearStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start HEARING in the piezo recording before merge
         IndHearStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop HEARING the raw recording before merge
         IndHearStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop HEARING in the piezo recording before merge
-        
+        ErrorCount = nan(Nvoc,1);
         
         RMSRatio_all = cell(1,Nvoc);
         RMSDiff_all = cell(1,Nvoc);
@@ -497,7 +519,7 @@ end
 function loadnextfile(vv)
 global Nvoc df DataFiles filenameh;
 global Filepath redoEditVoch redoEditSeth string_handle string_handle2;
-global noCallh maybeCallh plotb AudioLogs
+global noCallh maybeCallh plotb AudioLogs playMich redoh;
 % Loading sound extract vv calculating microphone
 % spectrogram + playing microphone
 
@@ -516,11 +538,14 @@ set(redoEditSeth,string_handle2,num2str(df))
 
 % Load, Check and plot the microphone file on the left pannel
 grabAmbientMic(vv)
-for ll=1:(length(AudioLogs)+1)
+for ll=1:(length(AudioLogs))
     axes(plotb{ll+1});
     cla(plotb{ll+1} ,'reset')
 end
-set([noCallh maybeCallh],'enable','on')
+axes(plotb{end});
+cla(plotb{end} ,'reset')
+set([noCallh maybeCallh playMich redoh redoEditVoch...
+    redoEditSeth],'enable','on')
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -659,7 +684,7 @@ elseif length(Raw_wave_ex)==length(Raw_wave_nn)
 end
 if all(Corr<0.99)
     warning('Error in the microphone file that was previosuly saved, fixing the issue now!\n')
-    %                 keyboard
+    keyboard
     SaveRawWave = 1;
     Raw_wave_nn = Raw_wave_ex;
     Raw_wave{vv} = Raw_wave_ex;
@@ -942,7 +967,7 @@ function CallOnLogger(vv,ll)
 
 global DiffAmp Fns_AL IndVocStart IndVocStop FHigh_spec_Logger  Hline;
 global RatioAmp RMSRatio RMSDiff Amp_env_Mic sliderRighth logdone;
-global Vocp Factor_AmpDiff DiffRMS Fs_env Call10_ComputerPredict plotlogevalh ;
+global Vocp Factor_AmpDiff DiffRMS Fs_env NoiseCall01_ComputerPredict plotlogevalh ;
 % global FHigh_spec plotmicevalh ;
 
 logdone=0;
@@ -953,7 +978,7 @@ if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger 
     % This is the number of detected potential vocalization
     NV = length(IndVocStart{ll});
     IndVocStop{ll} = nan(1,NV);
-    Call10_ComputerPredict = zeros(NV,1);
+    NoiseCall01_ComputerPredict = zeros(NV,1);
     if ll<=10 % this is a logger
         RMSRatio{ll} = nan(NV,1);
         RMSDiff{ll} = nan(NV,1);
@@ -982,25 +1007,28 @@ if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger 
         if ll<=10
             RMSRatio{ll}(ii) = mean(RatioAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
             RMSDiff{ll}(ii) = mean(DiffAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
-            Call10_ComputerPredict(ii) = RMSDiff{ll}(ii) > Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1);
+            NoiseCall01_ComputerPredict(ii) = RMSDiff{ll}(ii) > Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1);
         end
         
         % update the logger evaluation pannel (right) with the position of
         % the sound extracts in black
         hold on
         yyaxis left
-        Hline{ii} = line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-            [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0]);
+        
         if ll<=10
             % Computer prediction of calling behavior
-            if Call10_ComputerPredict(ii)
+            if NoiseCall01_ComputerPredict(ii)
                 %computer guess is calling
+                Hline{ii} = line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                [FHigh_spec_Logger FHigh_spec_Logger]-2e3,'linewidth',20,'color',[1 0 0]);
                 line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[.6 0 .7]);
+                [FHigh_spec_Logger FHigh_spec_Logger]+1e3,'linewidth',20,'color',[.6 0 .7]);
             else
                 %computer guess is not calling
+                Hline{ii} = line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                [FHigh_spec_Logger FHigh_spec_Logger]-2e3,'linewidth',20,'color',[0 0 0]);
                 line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[0 0 0]);
+                [FHigh_spec_Logger FHigh_spec_Logger]+1e3,'linewidth',20,'color',[0 0 0]);
             end
         end
         hold off
@@ -1020,10 +1048,10 @@ end
 function evaluatingCalls(vv,ll)
 global IndVocStart Fs_env IndVocStop Hline FHigh_spec checkboxh playll;
 global submith noCallh redoh stopclick logdone;
-global  Fns_AL;
+global  Fns_AL NoiseCall01_ComputerPredict;
 global playMicEvalh playLogEvalh plotmicevalh plotlogevalh;
 global evalLog evalMich evalbon string_handle;
-% global FHigh_spec_Logger Call10_ComputerPredict PiezoError PiezoErrorType
+% global FHigh_spec_Logger PiezoError PiezoErrorType
 
 playll=ll;
 
@@ -1036,8 +1064,7 @@ CallOnLogger(vv,ll)
 % disable evaluation button on the left pannel and gather clicking
 % data
 if logdone==0
-    NV = length(IndVocStart{ll});
-    NoiseCallListen012_man = zeros(NV,1); % Initialize all sound elements as noise
+    NoiseCallListen012_man = NoiseCall01_ComputerPredict; % Initialize all sound elements as computer predictions
     set(playLogEvalh,'enable','on',string_handle,['Play' Fns_AL{ll}([1:3 7:end])])
     set([playMicEvalh playLogEvalh],'enable','on')
     set([submith noCallh redoh],'enable','off');
@@ -1100,9 +1127,9 @@ if logdone==0
     
     
 %     for ii=1:NV
-%         Agree = (Call10_ComputerPredict(ii)) && (NoiseCallListen012_man(ii)==1);
+%         Agree = (NoiseCall01_ComputerPredict(ii)) && (NoiseCallListen012_man(ii)==1);
 %         if ~Agree
-%             Call10_ComputerPredict(ii) = NoiseCallListen012_man(ii);
+%             NoiseCall01_ComputerPredict(ii) = NoiseCallListen012_man(ii);
 %             PiezoError = PiezoError + [1 1];
 %             PiezoErrorType = PiezoErrorType + [NoiseCallListen012_man(ii) ~NoiseCallListen012_man(ii)];
 %         else
@@ -1150,14 +1177,15 @@ axes(plotlogevalh);
 cla(plotlogevalh ,'reset')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function evaluationDone(vv)
-global AudioLogs;
+global AudioLogs ;
 global IndVocStart IndVocStop IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
 global IndVocStartPiezo_merge_local IndVocStopPiezo_merge_local Fns_AL;
-global RMSRatio RMSDiff Working_dir_write df MergeThresh FileVoc;
-global SaveFileType VocFilename plotmich plotevalh plotb RMSFig PlotRMSFig;
+global RMSRatio RMSDiff FileVoc;
+global VocFilename plotmich plotevalh;
 global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
 global IndVocStopPiezo_merged IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
 global IndHearStart IndHearStop IndHearStart_all IndHearStop_all
+% global TraineeName Working_dir_write df MergeThresh SaveFileType plotb RMSFig PlotRMSFig;
 
 % Update the figure on the left panel, in particular scale the bottom
 % summary plot
@@ -1168,32 +1196,38 @@ set(gca, 'YTick', 1:length(AudioLogs))
 set(gca, 'YTickLabel', [Fns_AL; 'Mic'])
 set(gca, 'YLim', [0 length(AudioLogs)+1])
 set(gca, 'XLim', XLIM);
+set(gca, 'YColor', 'w');
+set(gca, 'XColor', 'w');
 ylabel('AL ID')
 xlabel('Time (ms)')
 [~,FileVoc]=fileparts(VocFilename{vv});
 
-% Save the RMS and spectro figures
-Figcopy = copyFigure(plotb,vv); % copy left pannel in a figure
-if strcmp(SaveFileType,'pdf')
-    fprintf(1,'saving figures...\n')
-    print(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
-        FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
-    if PlotRMSFig
-        saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',...
-        FileVoc,vv, df,MergeThresh)),'pdf')
-    end
-elseif strcmp(SaveFileType,'fig')
-    fprintf(1,'saving figures...\n')
-    saveas(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig',...
-        FileVoc,vv, df,MergeThresh)))
-    if PlotRMSFig
-        saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig',...
-        FileVoc,vv, df,MergeThresh)))
-    end
-end
+% Check results
+check_result(vv)
 
-clf(Figcopy)
-clf(RMSFig)
+% Save the RMS and spectro figures
+% Figcopy = copyFigure(plotb,vv); % copy left pannel in a figure
+% if strcmp(SaveFileType,'pdf')
+%     fprintf(1,'saving figures...\n')
+%     print(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d_%s.pdf',...
+%         FileVoc,vv, df,MergeThresh,TraineeName)),'-dpdf','-fillpage')
+%     if PlotRMSFig
+%         saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d_%s.pdf',...
+%         FileVoc,vv, df,MergeThresh, TraineeName)),'pdf')
+%         clf(RMSFig)
+%     end
+% elseif strcmp(SaveFileType,'fig')
+%     fprintf(1,'saving figures...\n')
+%     saveas(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d_%s.fig',...
+%         FileVoc,vv, df,MergeThresh,TraineeName)))
+%     if PlotRMSFig
+%         saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d_%s.fig',...
+%         FileVoc,vv, df,MergeThresh,TraineeName)))
+%         clf(RMSFig)
+%     end
+% end
+% clf(Figcopy)
+
 
 % Gather Vocalization production data:
 IndVocStart_all{vv} = IndVocStart;
@@ -1208,10 +1242,54 @@ RMSDiff_all{vv} = RMSDiff;
 IndHearStart_all{vv} = IndHearStart;
 IndHearStop_all{vv} = IndHearStop;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function check_result(vv)
+global ErrorCount TrueRes TraineeName;
+global IndVocStartRaw_merge_local IndVocStopRaw_merge_local ;
+global Logger_dir df MergeThresh VocFilename;
+
+[~,FileVoc]=fileparts(VocFilename{vv});
+if isempty(TrueRes.IndVocStart_all{vv})
+    if isempty([IndVocStartRaw_merge_local{:}])
+        newmessage(sprintf('GOOD JOB! %s', TraineeName))
+        ErrorCount(vv) = 0;
+    else
+        newmessage('!!None of these are calls!!')
+        drawnow
+        ErrorCount(vv) = 1;
+    end
+elseif isempty([IndVocStartRaw_merge_local{:}])
+    newmessage('!!There ARE some calls, CHECK!!')
+    newmessage('(close window and press any key when you are done checking to access next sequence)')
+    open(fullfile(Logger_dir,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
+        FileVoc,vv, df,MergeThresh)));
+    ErrorCount(vv) = 1;
+    pause()
+    newmessage('Loading next sequence...')
+    drawnow
+else
+    
+    if any(cellfun(@length, IndVocStartRaw_merge_local)~= cellfun(@length,TrueRes.IndVocStartRaw_merged{vv})) || any([TrueRes.IndVocStartRaw_merged{vv}{:}] ~= [IndVocStartRaw_merge_local{:}]) || any([TrueRes.IndVocStopRaw_merged{vv}{:}] ~= [IndVocStopRaw_merge_local{:}])
+        newmessage('!!Some Errors detected, CHECK!!')
+        newmessage('(close window and press any key when you are done checking to access next sequence)')
+        open(fullfile(Logger_dir,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
+            FileVoc,vv, df,MergeThresh)));
+        ErrorCount(vv) = 1;
+        pause()
+        newmessage('Loading next sequence...')
+        drawnow
+    else
+        newmessage(sprintf('GOOD JOB %s!', TraineeName))
+        ErrorCount(vv) = 0;
+    end
+end
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function Figcopy = copyFigure(plotb, vv)
 % Create a copy of the left pannel to save it as a pdf
-global AudioLogs;
+global AudioLogs Fns_AL;
 
 Figcopy=figure(10);
 clf(Figcopy)
@@ -1220,10 +1298,21 @@ plotMic(vv,0,Axcopy);
 for ll=1:length(AudioLogs)
     Axcopy = subplot(length(AudioLogs)+2,1,ll+1);
     plotLogger(vv,ll,0,Axcopy);
+    yyaxis left
+    Axcopy.YColor = 'k';
+    yyaxis right
+    Axcopy.YColor = 'k';
 end
 AxcopyLast=subplot(length(AudioLogs)+2,1,length(AudioLogs)+2);
-copyobj(plotb{length(AudioLogs)+2}.Children,AxcopyLast)
+copyobj(plotb{end}.Children,AxcopyLast)
 AxcopyLast.XLim = Axcopy.XLim;
+AxcopyLast.YTick = 1:length(AudioLogs);
+AxcopyLast.YTickLabel = [Fns_AL; 'Mic'];
+AxcopyLast.YLim = [0 length(AudioLogs)+1];
+AxcopyLast.YColor = 'k';
+AxcopyLast.XColor = 'k';
+ylabel('AL ID')
+xlabel('Time (ms)')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function updateLoggerEval(vv,ll, NoiseCallListen012_man)
@@ -1286,10 +1375,12 @@ if NV
         YLim = get(gca, 'YLim');
         plot(plotb{ll+1},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
             [YLim(2)*4/5 YLim(2)*4/5], 'k-', 'LineWidth',2)
+        hold off
+        axes(plotb{end})
         hold on
         plot(plotb{end},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
             [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-        axes(plotb{end})
+        hold on
         set(gca,'xlim',[0 Logger_Spec{1}.to(end)*1000])
         drawnow;
         hold off
@@ -1382,7 +1473,7 @@ if FigN==1
         DB_noise, FHigh_spec_Logger);
 elseif FigN==3
     axpl=plotlogevalh;
-    val=5e3;
+    val=3e3;
 elseif nargin<3
     error('Provide the axis handle to wear the figure should be plotted')
 end

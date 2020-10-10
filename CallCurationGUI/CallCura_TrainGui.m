@@ -22,7 +22,7 @@ function varargout = CallCura_TrainGui(varargin)
 
 % Edit the above text to modify the response to help CallCuraGui
 
-% Last Modified by GUIDE v2.5 26-Sep-2020 22:14:34
+% Last Modified by GUIDE v2.5 08-Oct-2020 11:24:14
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -165,3 +165,26 @@ function maybeCall_Callback(hObject, eventdata, handles)
 % hObject    handle to maybeCall (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+
+
+function trainee_name_Callback(hObject, eventdata, handles)
+% hObject    handle to trainee_name (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of trainee_name as text
+%        str2double(get(hObject,'String')) returns contents of trainee_name as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function trainee_name_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to trainee_name (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end

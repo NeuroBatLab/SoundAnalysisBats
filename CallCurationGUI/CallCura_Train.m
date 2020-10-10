@@ -6,13 +6,14 @@
 
 close all;
 
-global WorkingDir Filepath
+global WorkingDir Filepath df Logger_dir
 global VolDenominatorLogger VolFactorMic Manual MergeThresh;
 global Force_Save_onoffsets_mic SaveFileType;
 global CheckMicChannel UseOld  PlotRMSFig FhGUI;
 global evalMich evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith string_handle2;
 global evalLog6h evalLog7h evalLog8h starth evalLog plotb string_handle;
 global filenameh noCallh maybeCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
+global traineeNameh
 global playMich playLog1h playLog2h playLog3h playLog4h playLog5h playLog6h;
 global playLog7h playLog8h playMicEvalh playLogEvalh redo checkboxh playLog9h;
 global playLog10h evalLog9h evalLog10h playb message mh;
@@ -22,12 +23,12 @@ global plotlog6h plotlog7h plotlog8h plotlog9h plotlog10h plotevalh plotlogevalh
 
 
 %% These are specific to the dataset and computer
-BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
-BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\';
-WorkingDir = 'C:\Users\BatLab\Documents\DeafWhoWorkDir\';
-ExpLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSal.txt');
-WhoLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalWho.txt');
-AlliLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalAllignement.txt');
+% BaseDataDir = 'Z:\users\JulieE\LMC\LMC_CoEd\audio';
+BaseDataDir = '/Volumes/JulieE4T/LMC_CoEd/audio';
+% BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\';
+BaseCodeDir = '/Users/elie/Documents/CODE/';
+% WorkingDir = 'C:\Users\BatLab\Documents\DeafWhoWorkDir\';
+WorkingDir = '/Users/elie/Documents/DeafWhoWorkDir/';
 
 %% Paths to code
 % you should have pulled from github the last versions of
@@ -51,131 +52,19 @@ CheckMicChannel=0; % If set to 1 authorize evaluation of Microphone channel (cas
 PlotRMSFig = 0; % Set to 1 if you want to plot and save the figure showing the RMS
 
 %% Get the name of the next experiment that needs to be manually curated
-ee=0;
-if ~exist(ExpLog, 'file')
-    error('Cannot find the list of file to run in: %s \n',ExpLog);
-else
-    FidExp = fopen(ExpLog, 'r');
-    Header = textscan(FidExp,'%s\t%s\t%s\t%s\t%s\n',1);
-    DoneListDetect = textscan(FidExp,'%s\t%s\t%s\t%.1f\t%d');
-    fclose(FidExp);
-end
-
-if ~exist(WhoLog, 'file')
-    FidWho = fopen(WhoLog, 'a');
-    fprintf(FidWho, 'Subject\tDate\tTime\tNCalls\n');
-    DoneListWho = [];
-else
-    FidWho = fopen(WhoLog, 'r');
-    Header = textscan(FidWho,'%s\t%s\t%s\t%s\n',1);
-    DoneListWho = textscan(FidWho,'%s\t%s\t%s\t%d');
-    fclose(FidWho);
-    FidWho = fopen(WhoLog, 'a');
-end
-
-if ~exist(AlliLog, 'file')
-    FidAlli = fopen(AlliLog, 'a');
-    fprintf(FidAlli, 'Subject\tDate\tTime\tAllignement\n');
-    ListAlliOk = [];
-else
-    FidAlli = fopen(AlliLog, 'r');
-    Header = textscan(FidAlli,'%s\t%s\t%s\t%s\n',1);
-    ListAlliOk = textscan(FidAlli,'%s\t%s\t%s\t%d');
-    fclose(FidAlli);
-    FidAlli = fopen(AlliLog, 'a');
-end
-
 %Grabbing a new Session
 fprintf(1,'Grabbing the session...');
-NExpe = length(DoneListDetect{1});
-checkSession=1;
-AlliOk=[];
-while checkSession && ee<=NExpe && (isempty(AlliOk) || (AlliOk==0))
-    ee=ee+1;
-    BatsID = DoneListDetect{1}{ee};
-    Date = DoneListDetect{2}{ee};
-    ExpStartTime = DoneListDetect{3}{ee};
-    ParamFile = dir(fullfile(BaseDataDir,['20' Date],'audio',sprintf('%s_%s_%s*RecOnly_param.txt', BatsID, Date, ExpStartTime)));
-    fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
-    
-    % Check that the file was not already set aside or done
-    if ~isempty(DoneListWho)
-        Done = sum(contains(DoneListWho{1},BatsID) .* contains(DoneListWho{2},Date) .* contains(DoneListWho{3},ExpStartTime));
-    else
-        Done=0;
-    end
-    
-    if ~isempty(ListAlliOk)
-        AlliOkInd = find(contains(ListAlliOk{1},BatsID) .* contains(ListAlliOk{2},Date) .* contains(ListAlliOk{3},ExpStartTime));
-        AlliOk = ListAlliOk{4}(AlliOkInd);
-    else
-        AlliOk=[];
-    end
-    
-    if Done
-        fprintf(1, '   -> Data already processed\n')
-        checkSession=1;
-    elseif ~Done && ~isempty(AlliOk)
-        if AlliOk
-            fprintf(1, '   -> Starting from where we left on this session\n')
-            checkSession=0;
-        else
-            fprintf(1, '   -> Session flagged as not alligned correctly\n')
-            checkSession=1;
-        end
-    elseif ~Done && isempty(AlliOk)
-        fprintf(1, '   -> Starting new session\n')
-        % Check that the clocks drifts were correctly corrected
-        fprintf(1,'*** Check the clock drift correction of the logger ***\n')
-        Logger_dir = fullfile(ParamFile.folder(1:(strfind(ParamFile.folder, 'audio')-1)), 'audiologgers');
-        LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
-        Check = zeros(length(LoggersDir)+1,1);
-        for ll=1:length(LoggersDir)
-            FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
-            failsafe=1;
-            while failsafe
-                Check(ll) = input('Is everything ok? (yes ->1, No -> 0): ');
-                failsafe=0;
-                if isempty(Check(ll))
-                    failsafe=1;
-                    disp('Entry is empty, please repeat!')
-                end
-            end
-            fprintf('\n')
-            close(FigCD)
-        end
-        fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
-        AllignmentPath = fullfile(ParamFile.folder,sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, ExpStartTime));
-        FigAP = open(AllignmentPath);
-        failsafe=1;
-        while failsafe
-            Check(length(LoggersDir)+1) = input('Is everything ok? (yes ->1, No -> 0): ');
-            failsafe=0;
-            if isempty(Check(ll))
-                failsafe=1;
-                disp('Entry is empty, please repeat!')
-            end
-        end
-        fprintf('\n')
-        close(FigAP)
-        if any(~Check)
-            AlliOk=0;
-            fprintf(FidAlli, '%s\t%s\t%s\t%d\n',BatsID,Date,ExpStartTime,AlliOk);
-            fprintf(1,'\n****** Error in allignement reported ******\n')
-            checkSession=1;
-        else
-            AlliOk=1;
-            fprintf(FidAlli, '%s\t%s\t%s\t%d\n',BatsID,Date,ExpStartTime,AlliOk);
-            fprintf(1,'\n****** Allignement reported as good! ******\n')
-            checkSession=0;
-        end
-    end
-    
-end
-% This is the name to the experiment that needs to be analyzed
-Filepath = fullfile(ParamFile.folder, ParamFile.name);
-fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
 
+% This is the name to the experiment that needs to be analyzed
+BatsID = 'CoEd';
+Date = '190612';
+ExpStartTime = '1438';
+ParamFile = dir(fullfile(BaseDataDir,['20' Date],sprintf('%s_%s_%s*RecOnly_param.txt', BatsID, Date, ExpStartTime)));
+Filepath = fullfile(ParamFile.folder, ParamFile.name);
+fprintf(1, '\n\n\n Date: %s, experiment:\n%s\n', Date,ParamFile.name)
+Logger_dir = fullfile(ParamFile.folder(1:(strfind(ParamFile.folder, 'audio')-1)), 'logger',['20' Date]);
+% this is the set # we want to focus on
+df = 4;
 %% Starting the GUI
 % Initializing variables
 redo=0;
@@ -237,7 +126,7 @@ message={'';'';'';'';'';''};
 % else
     string_handle='String';
     string_handle2='String';
-    FhGUI=CallCuraGui;
+    FhGUI=CallCura_TrainGui;
     starth=findobj(FhGUI,'tag','start');
     noCallh=findobj(FhGUI,'tag','noCall');
     maybeCallh=findobj(FhGUI,'tag','maybeCall');
@@ -262,6 +151,7 @@ message={'';'';'';'';'';''};
     redoh=findobj(FhGUI,'tag','redo');
     redoEditVoch=findobj(FhGUI,'tag','redoEditVoc');
     redoEditSeth=findobj(FhGUI,'tag','redoEditSet');
+    traineeNameh=findobj(FhGUI,'tag','trainee_name');
     submith=findobj(FhGUI,'tag','submit');
     checkboxh=findobj(FhGUI,'tag','checkbox');
     evalLog = cell(10,1);

@@ -74,6 +74,7 @@ switch action
                 % loading the sound extract
                 loadnextfile(vv)
             else % we did all sets of that recording session
+                transferresults
                 newmessage('Annotation done!');
                 % restart the Gui for the next recording session
                 CallCura
@@ -106,9 +107,14 @@ switch action
             newmessage(['Grabbing Voc#' num2str(vv_requested) ' and Set#' num2str(df_requested) '...']);
             % keep in memory the previous sound extract reference to make sure
             % we get back to where we are after redoing the requested extract
-            if vv~=1
-                oldvv=vv-1;
-                olddf=df;
+            if vv_requested~=1
+                if vv_requested~=vv
+                    oldvv=vv-1;
+                    olddf=df;
+                elseif vv_requested==vv
+                    oldvv=vv;
+                    olddf=df;
+                end
             else % we switch to the next set!
                 oldvv=Nvocs(df) - Nvocs(df-1);
                 olddf=df-1;
@@ -168,6 +174,7 @@ switch action
                 loadnextfile(vv)
             else % we did all sets of that recording session
                 newmessage('Annotation done!');
+                transferresults
                 % restart the Gui for the next recording session
                 CallCura
             end
@@ -410,7 +417,7 @@ else
 end
 
 if vv~=Nvoc || redo % This is the file that we need to complete
-    if ~strcmp(Working_dir_write,Logger_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df_local).name))
+    if ~strcmp(Working_dir_read,Logger_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df_local).name))
         fprintf(1,'Bringing data locally from the server\n')
         [s,m,e]=copyfile(DataFile, Working_dir_read, 'f'); %#ok<ASGLU>
         if ~s
@@ -496,7 +503,7 @@ end
 function loadnextfile(vv)
 global Nvoc df DataFiles filenameh;
 global Filepath redoEditVoch redoEditSeth string_handle string_handle2;
-global noCallh maybeCallh plotb AudioLogs
+global noCallh maybeCallh plotb AudioLogs playMich redoh;
 % Loading sound extract vv calculating microphone
 % spectrogram + playing microphone
 
@@ -515,11 +522,14 @@ set(redoEditSeth,string_handle2,num2str(df))
 
 % Load, Check and plot the microphone file on the left pannel
 grabAmbientMic(vv)
-for ll=1:(length(AudioLogs)+1)
+for ll=1:(length(AudioLogs))
     axes(plotb{ll+1});
     cla(plotb{ll+1} ,'reset')
 end
-set([noCallh maybeCallh],'enable','on')
+axes(plotb{end});
+cla(plotb{end} ,'reset')
+set([noCallh maybeCallh playMich redoh redoEditVoch...
+    redoEditSeth],'enable','on')
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -562,6 +572,25 @@ if SaveRawWave && ~strcmp(Working_dir_read,DataFiles(df).folder)
             [~]=rmdir(DataFile, 's');
         end
 end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function transferresults
+global Working_dir_write Loggers_dir
+%%% TRANSFER DATA BACK ON SERVER%%%%
+if ~strcmp(Working_dir_write,Loggers_dir)
+    newmessage(1,'Transferring data back on the server\n')
+    [s1,m,e]=copyfile(fullfile(Working_dir_write,'*'), Loggers_dir, 'f');
+    if ~s1
+        newmessage(1,'!!!! File transfer did not occur correctly!!!!\n')
+        newmessage(1,'!!!! Contact JULIE Asap via Slack, Stop here!!!!\n')
+        keyboard
+    end
+    if s1  %erase local data
+        [sdel,mdel,edel]=rmdir(Working_dir_write, 's');
+    end
+    
+end
+                
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function checkforerror(vv)
 global minvv maxvv Raw_wave DataFile Piezo_wave Raw_wave_nn Chunking_RawWav;
@@ -941,7 +970,7 @@ function CallOnLogger(vv,ll)
 
 global DiffAmp Fns_AL IndVocStart IndVocStop FHigh_spec_Logger  Hline;
 global RatioAmp RMSRatio RMSDiff Amp_env_Mic sliderRighth logdone;
-global Vocp Factor_AmpDiff DiffRMS Fs_env Call10_ComputerPredict plotlogevalh ;
+global Vocp Factor_AmpDiff DiffRMS Fs_env NoiseCall01_ComputerPredict plotlogevalh ;
 % global FHigh_spec plotmicevalh ;
 
 logdone=0;
@@ -952,7 +981,7 @@ if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger 
     % This is the number of detected potential vocalization
     NV = length(IndVocStart{ll});
     IndVocStop{ll} = nan(1,NV);
-    Call10_ComputerPredict = zeros(NV,1);
+    NoiseCall01_ComputerPredict = zeros(NV,1);
     if ll<=10 % this is a logger
         RMSRatio{ll} = nan(NV,1);
         RMSDiff{ll} = nan(NV,1);
@@ -981,25 +1010,27 @@ if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger 
         if ll<=10
             RMSRatio{ll}(ii) = mean(RatioAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
             RMSDiff{ll}(ii) = mean(DiffAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
-            Call10_ComputerPredict(ii) = RMSDiff{ll}(ii) > Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1);
+            NoiseCall01_ComputerPredict(ii) = RMSDiff{ll}(ii) > Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1);
         end
         
         % update the logger evaluation pannel (right) with the position of
         % the sound extracts in black
         hold on
         yyaxis left
-        Hline{ii} = line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-            [FHigh_spec_Logger FHigh_spec_Logger]+3e3,'linewidth',20,'color',[0 0 0]);
         if ll<=10
             % Computer prediction of calling behavior
-            if Call10_ComputerPredict(ii)
+            if NoiseCall01_ComputerPredict(ii)
                 %computer guess is calling
+                Hline{ii} = line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                [FHigh_spec_Logger FHigh_spec_Logger]-2e3,'linewidth',20,'color',[1 0 0]);
                 line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[.6 0 .7]);
+                [FHigh_spec_Logger FHigh_spec_Logger]+1e3,'linewidth',20,'color',[.6 0 .7]);
             else
                 %computer guess is not calling
+                Hline{ii} = line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+                [FHigh_spec_Logger FHigh_spec_Logger]-2e3,'linewidth',20,'color',[0 0 0]);
                 line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-                [FHigh_spec_Logger FHigh_spec_Logger]-3e3,'linewidth',20,'color',[0 0 0]);
+                [FHigh_spec_Logger FHigh_spec_Logger]+1e3,'linewidth',20,'color',[0 0 0]);
             end
         end
         hold off
@@ -1019,10 +1050,10 @@ end
 function evaluatingCalls(vv,ll)
 global IndVocStart Fs_env IndVocStop Hline FHigh_spec checkboxh playll;
 global submith noCallh redoh stopclick logdone;
-global  Fns_AL;
+global  Fns_AL NoiseCall01_ComputerPredict;
 global playMicEvalh playLogEvalh plotmicevalh plotlogevalh;
 global evalLog evalMich evalbon string_handle;
-% global FHigh_spec_Logger Call10_ComputerPredict PiezoError PiezoErrorType
+% global FHigh_spec_Logger NoiseCall01_ComputerPredict PiezoError PiezoErrorType
 
 playll=ll;
 
@@ -1036,7 +1067,7 @@ CallOnLogger(vv,ll)
 % data
 if logdone==0
     NV = length(IndVocStart{ll});
-    NoiseCallListen012_man = zeros(NV,1); % Initialize all sound elements as noise
+    NoiseCallListen012_man = NoiseCall01_ComputerPredict; % Initialize all sound elements as noise
     set(playLogEvalh,'enable','on',string_handle,['Play' Fns_AL{ll}([1:3 7:end])])
     set([playMicEvalh playLogEvalh],'enable','on')
     set([submith noCallh redoh],'enable','off');
@@ -1099,9 +1130,9 @@ if logdone==0
     
     
 %     for ii=1:NV
-%         Agree = (Call10_ComputerPredict(ii)) && (NoiseCallListen012_man(ii)==1);
+%         Agree = (NoiseCall01_ComputerPredict(ii)) && (NoiseCallListen012_man(ii)==1);
 %         if ~Agree
-%             Call10_ComputerPredict(ii) = NoiseCallListen012_man(ii);
+%             NoiseCall01_ComputerPredict(ii) = NoiseCallListen012_man(ii);
 %             PiezoError = PiezoError + [1 1];
 %             PiezoErrorType = PiezoErrorType + [NoiseCallListen012_man(ii) ~NoiseCallListen012_man(ii)];
 %         else
@@ -1169,6 +1200,8 @@ set(gca, 'YLim', [0 length(AudioLogs)+1])
 set(gca, 'XLim', XLIM);
 ylabel('AL ID')
 xlabel('Time (ms)')
+set(gca, 'YColor', 'w');
+set(gca, 'XColor', 'w');
 [~,FileVoc]=fileparts(VocFilename{vv});
 
 % Save the RMS and spectro figures
@@ -1180,6 +1213,7 @@ if strcmp(SaveFileType,'pdf')
     if PlotRMSFig
         saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',...
         FileVoc,vv, df,MergeThresh)),'pdf')
+        clf(RMSFig)
     end
 elseif strcmp(SaveFileType,'fig')
     fprintf(1,'saving figures...\n')
@@ -1188,11 +1222,11 @@ elseif strcmp(SaveFileType,'fig')
     if PlotRMSFig
         saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig',...
         FileVoc,vv, df,MergeThresh)))
+        clf(RMSFig)
     end
 end
 
 clf(Figcopy)
-clf(RMSFig)
 
 % Gather Vocalization production data:
 IndVocStart_all{vv} = IndVocStart;
@@ -1210,7 +1244,7 @@ IndHearStop_all{vv} = IndHearStop;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
 function Figcopy = copyFigure(plotb, vv)
 % Create a copy of the left pannel to save it as a pdf
-global AudioLogs;
+global AudioLogs Fns_AL;
 
 Figcopy=figure(10);
 clf(Figcopy)
@@ -1219,10 +1253,21 @@ plotMic(vv,0,Axcopy);
 for ll=1:length(AudioLogs)
     Axcopy = subplot(length(AudioLogs)+2,1,ll+1);
     plotLogger(vv,ll,0,Axcopy);
+    yyaxis left
+    Axcopy.YColor = 'k';
+    yyaxis right
+    Axcopy.YColor = 'k';
 end
 AxcopyLast=subplot(length(AudioLogs)+2,1,length(AudioLogs)+2);
-copyobj(plotb{length(AudioLogs)+2}.Children,AxcopyLast)
+copyobj(plotb{end}.Children,AxcopyLast)
 AxcopyLast.XLim = Axcopy.XLim;
+AxcopyLast.YTick = 1:length(AudioLogs);
+AxcopyLast.YTickLabel = [Fns_AL; 'Mic'];
+AxcopyLast.YLim = [0 length(AudioLogs)+1];
+AxcopyLast.YColor = 'k';
+AxcopyLast.XColor = 'k';
+ylabel('AL ID')
+xlabel('Time (ms)')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function updateLoggerEval(vv,ll, NoiseCallListen012_man)
@@ -1285,10 +1330,11 @@ if NV
         YLim = get(gca, 'YLim');
         plot(plotb{ll+1},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
             [YLim(2)*4/5 YLim(2)*4/5], 'k-', 'LineWidth',2)
+        hold off
+        axes(plotb{end})
         hold on
         plot(plotb{end},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
             [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-        axes(plotb{end})
         set(gca,'xlim',[0 Logger_Spec{1}.to(end)*1000])
         drawnow;
         hold off
@@ -1381,7 +1427,7 @@ if FigN==1
         DB_noise, FHigh_spec_Logger);
 elseif FigN==3
     axpl=plotlogevalh;
-    val=5e3;
+    val=3e3;
 elseif nargin<3
     error('Provide the axis handle to wear the figure should be plotted')
 end
