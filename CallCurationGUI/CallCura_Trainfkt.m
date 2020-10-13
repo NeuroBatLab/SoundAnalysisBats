@@ -82,9 +82,12 @@ switch action
 %                 loadnextfile(vv)
 %             else % we did all sets of that recording session
                 newmessage('Training Annotation done!');
-                newmessage(sprintf('SCORE for %s: %d%%', TraineeName, sum(ErrorCount)))
+                newmessage(sprintf('SCORE for %s: %d%%', TraineeName, 100*(length(ErrorCount)-sum(ErrorCount))/length(ErrorCount)))
+                newmessage('(press any key when you are done taking the screenshot to access quit)')
+                pause()
+                
                 % restart the Gui for the next recording session
-                CallCura_Train
+%                 CallCura_Train
 %             end
         end
         
@@ -181,9 +184,11 @@ switch action
 %                 loadnextfile(vv)
 %             else % we did all sets of that recording session
                 newmessage('Training Annotation done!');
-                newmessage(sprintf('SCORE for %s: %d%%', TraineeName, sum(ErrorCount)))
+                newmessage(sprintf('SCORE for %s: %d%%', TraineeName, 100*(length(ErrorCount)-sum(ErrorCount))/length(ErrorCount)))
+                newmessage('(press any key when you are done taking the screenshot to access quit)')
+                pause()
                 % restart the Gui for the next recording session
-                CallCura_Train
+%                 CallCura_Train
 %             end
         end
         set(submith,string_handle,'Submit')
