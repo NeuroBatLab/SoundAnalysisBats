@@ -23,12 +23,12 @@ global plotlog6h plotlog7h plotlog8h plotlog9h plotlog10h plotevalh plotlogevalh
 
 
 %% These are specific to the dataset and computer
-% BaseDataDir = 'Z:\users\JulieE\LMC\LMC_CoEd\audio';
-BaseDataDir = '/Volumes/JulieE4T/LMC_CoEd/audio';
-% BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\';
-BaseCodeDir = '/Users/elie/Documents/CODE/';
-% WorkingDir = 'C:\Users\BatLab\Documents\DeafWhoWorkDir\';
-WorkingDir = '/Users/elie/Documents/DeafWhoWorkDir/';
+BaseDataDir = 'Z:\users\JulieE\LMC\LMC_CoEd\audio';
+% BaseDataDir = '/Volumes/JulieE4T/LMC_CoEd/audio';
+BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\';
+% BaseCodeDir = '/Users/elie/Documents/CODE/';
+WorkingDir = 'C:\Users\BatLab\Documents\TrainWhoWorkDir\';
+% WorkingDir = '/Users/elie/Documents/TrainWhoWorkDir/';
 
 %% Paths to code
 % you should have pulled from github the last versions of
