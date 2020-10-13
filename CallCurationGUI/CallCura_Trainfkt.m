@@ -26,6 +26,7 @@ global redoEditVoch redoEditSeth checkboxh stopclick ErrorCount TraineeName;
 switch action
     
     case 'Start'
+        set(gcf, 'units', 'normalized', 'outerposition', [0 0 1 1])
         set(starth,'enable','off')
         fprintf(1,'\n*** Identify who is calling ***\n')
         newmessage('STARTING...')
