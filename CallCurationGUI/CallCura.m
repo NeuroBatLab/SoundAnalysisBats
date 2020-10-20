@@ -118,6 +118,7 @@ while checkSession && ee<=NExpe && (isempty(AlliOk) || (AlliOk==0))
     elseif ~Done && ~isempty(AlliOk)
         if AlliOk
             fprintf(1, '   -> Starting from where we left on this session\n')
+            Logger_dir = fullfile(ParamFile.folder(1:(strfind(ParamFile.folder, 'audio')-1)), 'audiologgers');
             checkSession=0;
         else
             fprintf(1, '   -> Session flagged as not alligned correctly\n')
