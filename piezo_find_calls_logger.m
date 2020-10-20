@@ -381,6 +381,10 @@ else
             SoundEvent_TranscTime_ms(ee,1) = Timestamps_of_first_samples_usec(IndTSOn)*10^-3 + (SoundEvent_LoggerSamp(ee,1)-Indices_of_first_and_last_samples(IndTSOn,1)) / FS_local*10^3;
             SoundEvent_TranscTime_ms(ee,2) = Timestamps_of_first_samples_usec(IndTSOff)*10^-3 + (SoundEvent_LoggerSamp(ee,2)-Indices_of_first_and_last_samples(IndTSOff,1)) / FS_local*10^3;
         end
+        if isnan(SoundEvent_TranscTime_ms(ee,1))
+            warning('This should not be Nan! Check!\n')
+            keyboard
+        end
     end
 end
 %% SAVE

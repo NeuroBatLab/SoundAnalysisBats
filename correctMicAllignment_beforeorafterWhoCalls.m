@@ -219,6 +219,9 @@ else
             TranscTime_zs = (OnOffTranscTime_ms - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
             MicVoc_samp_idx =round(TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1));
             WavFileStruc_local = dir(fullfile(Raw_dir, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File)));
+            if isempty(WavFileStruc_local)
+                keyboard
+            end
             Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
             [Raw_10minwav2, FS2] = audioread(Raw_filename);
             if MicVoc_samp_idx(1)>length(Raw_10minwav2) % This vocalization occured in the next file
