@@ -52,6 +52,10 @@ for dd=1:NDates
         BatsID = ParamFile(nn).name(1:4);
         Date = ParamFile(nn).name(6:11);
         Time = ParamFile(nn).name(13:16);
+        if str2double(Date)==20200228
+            fprintf('-> No Logger data on that day\n')
+            continue
+        end
         if ~isempty(DoneList)
             Done = sum(contains(DoneList{1},BatsID) .* contains(DoneList{2},Date) .* contains(DoneList{3},Time));
         else
