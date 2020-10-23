@@ -52,7 +52,7 @@ for dd=1:NDates
         BatsID = ParamFile(nn).name(1:4);
         Date = ParamFile(nn).name(6:11);
         Time = ParamFile(nn).name(13:16);
-        if str2double(Date)==20200228
+        if str2double(Date)==200228
             fprintf('-> No Logger data on that day\n')
             continue
         end
