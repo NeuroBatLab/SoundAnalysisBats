@@ -788,7 +788,7 @@ for ll=1:length(AudioLogs)
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function prepfindCaller(vv)
-global Amp_env_LowPassLogVoc Amp_env_HighPassLogVoc;
+global Amp_env_LowPassLogVoc Amp_env_HighPassLogVoc Amp_env_Mic;
 global AudioLogs ColorCode Fns_AL Factor_AmpDiff DiffRMS BandPassFilter;
 global Factor_RMS_low RMSLow;
 global DiffAmp RatioAmp;
