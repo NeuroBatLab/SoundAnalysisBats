@@ -21,6 +21,7 @@ function CallCurafkt(action)
 global Nvocs df vv redo DataFiles string_handle string_handle2;
 global submith noCallh redoh starth oldvv olddf;
 global redoEditVoch redoEditSeth checkboxh stopclick;
+global RowSize
 
 
 switch action
@@ -202,7 +203,7 @@ switch action
     case 'EvalLog10'
         evaluatingCalls(vv,10)
     case 'EvalMic'
-        evaluatingCalls(vv,11)
+        evaluatingCalls(vv,RowSize)
         
     case 'Quit'
         close all;
@@ -964,11 +965,11 @@ set([evalLog{1} evalLog{2} evalLog{3} evalLog{4} evalLog{5} submith evalLog{6}..
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function CallOnLogger(vv,ll)
-% finding the offset of each sound extract in that logger or on Mic (ll>10); plot the
-% spectrograms of the microphone and logger ll (ll<=10) in the evaluation area;
+% finding the offset of each sound extract in that logger or on Mic (ll>length(AudioLogs)); plot the
+% spectrograms of the microphone and logger ll (ll<=length(AudioLogs)) in the evaluation area;
 % plot the sound extracts in the evaluation area 
 
-global DiffAmp Fns_AL IndVocStart IndVocStop FHigh_spec_Logger  Hline;
+global DiffAmp Fns_AL IndVocStart IndVocStop FHigh_spec_Logger  FHigh_spec Hline AudioLogs;
 global RatioAmp RMSRatio RMSDiff Amp_env_Mic sliderRighth logdone;
 global Vocp Factor_AmpDiff DiffRMS Fs_env NoiseCall01_ComputerPredict plotlogevalh ;
 % global FHigh_spec plotmicevalh ;
@@ -982,7 +983,7 @@ if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger 
     NV = length(IndVocStart{ll});
     IndVocStop{ll} = nan(1,NV);
     NoiseCall01_ComputerPredict = zeros(NV,1);
-    if ll<=10 % this is a logger
+    if ll<=length(AudioLogs) % this is a logger
         RMSRatio{ll} = nan(NV,1);
         RMSDiff{ll} = nan(NV,1);
     end
@@ -990,7 +991,7 @@ if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger 
     % Plot the spectrogram of the microphone in the upper evaluation area
     plotMic(vv,3)
     % Plot the spectrogram of the logger or Microphone in the lower evaluation area
-    if ll<=10
+    if ll<=length(AudioLogs)
         plotLogger(vv,ll,3)
     else
         plotMic(vv,2)
@@ -1007,7 +1008,7 @@ if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger 
         
         % Calculate the Average RMS Ratio for each sound extract
         % and decide about the vocalization ownership
-        if ll<=10
+        if ll<=length(AudioLogs)
             RMSRatio{ll}(ii) = mean(RatioAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
             RMSDiff{ll}(ii) = mean(DiffAmp(ll,IndVocStart{ll}(ii):IndVocStop{ll}(ii)));
             NoiseCall01_ComputerPredict(ii) = RMSDiff{ll}(ii) > Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1);
@@ -1017,7 +1018,7 @@ if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger 
         % the sound extracts in black
         hold on
         yyaxis left
-        if ll<=10
+        if ll<=length(AudioLogs)
             % Computer prediction of calling behavior
             if NoiseCall01_ComputerPredict(ii)
                 %computer guess is calling
@@ -1032,16 +1033,21 @@ if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger 
                 line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
                 [FHigh_spec_Logger FHigh_spec_Logger]+1e3,'linewidth',20,'color',[0 0 0]);
             end
+        else
+            Hline{ii} = line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+            [FHigh_spec FHigh_spec]-2e3,'linewidth',20,'color',[0 0 0]);
+            line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
+            [FHigh_spec FHigh_spec]+1e3,'linewidth',20,'color',[0 0 0]);
         end
         hold off
         set(sliderRighth,'SliderStep', [1/(length(Amp_env_Mic)-1), 10/(length(Amp_env_Mic)-1)], ...
             'Min', 1, 'Max', length(Amp_env_Mic), 'Value', 1)
         
     end
-elseif isempty(IndVocStart{ll}) && ll<=10
+elseif isempty(IndVocStart{ll}) && ll<=length(AudioLogs)
     newmessage('Evaluation done for this logger: no vocalizations')
     logdone=1;
-elseif isempty(IndVocStart{ll}) && ll==11
+elseif isempty(IndVocStart{ll}) && ll==length(AudioLogs)+1
     newmessage('Evaluation done for the microphone: no vocalizations')
     logdone=1;
     
@@ -1049,10 +1055,10 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function evaluatingCalls(vv,ll)
 global IndVocStart Fs_env IndVocStop Hline FHigh_spec checkboxh playll;
-global submith noCallh redoh stopclick logdone;
+global submith noCallh redoh stopclick logdone AudioLogs;
 global  Fns_AL NoiseCall01_ComputerPredict;
 global playMicEvalh playLogEvalh plotmicevalh plotlogevalh;
-global evalLog evalMich evalbon string_handle;
+global evalLog evalMich evalbon evalmicbon string_handle;
 % global FHigh_spec_Logger NoiseCall01_ComputerPredict PiezoError PiezoErrorType
 
 playll=ll;
@@ -1068,8 +1074,11 @@ CallOnLogger(vv,ll)
 if logdone==0
     NV = length(IndVocStart{ll});
     NoiseCallListen012_man = NoiseCall01_ComputerPredict; % Initialize all sound elements as noise
-    set(playLogEvalh,'enable','on',string_handle,['Play' Fns_AL{ll}([1:3 7:end])])
-    set([playMicEvalh playLogEvalh],'enable','on')
+    if ll<=length(AudioLogs)
+        set(playLogEvalh,'enable','on',string_handle,['Play' Fns_AL{ll}([1:3 7:end])])
+        set(playLogEvalh,'enable','on')
+    end
+    set(playMicEvalh,'enable','on')
     set([submith noCallh redoh],'enable','off');
     set(checkboxh,string_handle,'V')
     set(checkboxh,'BackgroundColor',[0 255 0]./255)
@@ -1146,7 +1155,12 @@ if logdone==0
     updateLoggerEval(vv,ll,NoiseCallListen012_man)
     
     % Indicate evaluation as done
-    evalbon(ll)=0;
+    if ll<= length(AudioLogs)
+        evalbon(ll)=0;
+    else
+        evalmicbon = 0;
+    end
+        
     
     % Enable evaluation buttons of each logger that still need to be evaluated
     % according to variable evalbon and reset evaluation panel plots
@@ -1194,7 +1208,7 @@ global IndHearStart IndHearStop IndHearStart_all IndHearStop_all
 axes(plotmich)
 XLIM = get(gca, 'XLim');
 axes(plotevalh)
-set(gca, 'YTick', 1:length(AudioLogs))
+set(gca, 'YTick', 1:(length(AudioLogs)+1))
 set(gca, 'YTickLabel', [Fns_AL; 'Mic'])
 set(gca, 'YLim', [0 length(AudioLogs)+1])
 set(gca, 'XLim', XLIM);
@@ -1261,7 +1275,7 @@ end
 AxcopyLast=subplot(length(AudioLogs)+2,1,length(AudioLogs)+2);
 copyobj(plotb{end}.Children,AxcopyLast)
 AxcopyLast.XLim = Axcopy.XLim;
-AxcopyLast.YTick = 1:length(AudioLogs);
+AxcopyLast.YTick = 1:(length(AudioLogs)+1);
 AxcopyLast.YTickLabel = [Fns_AL; 'Mic'];
 AxcopyLast.YLim = [0 length(AudioLogs)+1];
 AxcopyLast.YColor = 'k';
@@ -1281,7 +1295,7 @@ global IndHearStartRaw IndHearStartPiezo IndHearStopRaw IndHearStopPiezo ;
 global IndHearStart IndHearStop
 global Fns_AL ColorCode FS Piezo_FS Logger_Spec;
 global Fs_env MergeThresh;
-global plotb;
+global plotb AudioLogs;
 
 % Keep vocalizations that were heared by the bat
 IndHearStart{ll} = IndVocStart{ll}(logical(NoiseCallListen012_man==2));
@@ -1323,12 +1337,17 @@ if NV
     
     % Now plot the onset/offset of each extract on the
     % spectrograms of the loggers
+    if ll<=length(AudioLogs)
+        Plotll = ll+1;
+    elseif ll==length(AudioLogs)+1 %detection on microphone of bat not wearing logger
+        Plotll = 1;
+    end
     for ii=1:NV
-        axes(plotb{ll+1})
+        axes(plotb{Plotll})
         hold on
         yyaxis right
         YLim = get(gca, 'YLim');
-        plot(plotb{ll+1},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
+        plot(plotb{Plotll},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
             [YLim(2)*4/5 YLim(2)*4/5], 'k-', 'LineWidth',2)
         hold off
         axes(plotb{end})
