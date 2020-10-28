@@ -795,7 +795,7 @@ global DiffAmp RatioAmp;
 global Amp_env_LowPassLogVoc_MAT Amp_env_HighPassLogVoc_MAT;
 global RMSFig FhGUI;
 
-global CheckMicChannel RowSize;
+global CheckMicChannel RowSize Nvocs df Factor_RMS_Mic MeanStdAmpRawExtract;
 global IndVocStartRaw IndVocStartPiezo IndVocStopRaw IndVocStopPiezo ;
 global IndVocStart IndVocStop IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
 global IndVocStartPiezo_merge_local IndVocStopPiezo_merge_local;
