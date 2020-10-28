@@ -804,7 +804,7 @@ global IndHearStart IndHearStop
 global RMSRatio RMSDiff PlotRMSFig;
 global Vocp;
 
-global Consecutive_binsPiezo  evalLog evalMich playb string_handle;
+global Consecutive_binsPiezo Consecutive_binsMic  evalLog evalMich playb string_handle;
 global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich submith plotmicevalh plotlogevalh evalbon evalmicbon ;
 
