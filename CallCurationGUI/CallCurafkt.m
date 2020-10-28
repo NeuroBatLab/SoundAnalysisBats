@@ -1035,9 +1035,9 @@ if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger 
             end
         else
             Hline{ii} = line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-            [FHigh_spec FHigh_spec]-2e3,'linewidth',20,'color',[0 0 0]);
+            [FHigh_spec FHigh_spec]-15e3,'linewidth',20,'color',[0 0 0]);
             line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-            [FHigh_spec FHigh_spec]+1e3,'linewidth',20,'color',[0 0 0]);
+            [FHigh_spec FHigh_spec]-10e3,'linewidth',20,'color',[0 0 0]);
         end
         hold off
         set(sliderRighth,'SliderStep', [1/(length(Amp_env_Mic)-1), 10/(length(Amp_env_Mic)-1)], ...
@@ -1301,18 +1301,22 @@ global plotb AudioLogs;
 IndHearStart{ll} = IndVocStart{ll}(logical(NoiseCallListen012_man==2));
 IndHearStop{ll} = IndVocStop{ll}(logical(NoiseCallListen012_man==2));
 IndHearStartRaw{vv}{ll} = round(IndHearStart{ll}/Fs_env*FS);
-IndHearStartPiezo{vv}{ll} = round(IndHearStart{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
 IndHearStopRaw{vv}{ll} = round(IndHearStop{ll}/Fs_env*FS);
-IndHearStopPiezo{vv}{ll} = round(IndHearStop{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+if ll<=length(AudioLogs) % This is a vocalization detected on the logger
+    IndHearStartPiezo{vv}{ll} = round(IndHearStart{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+    IndHearStopPiezo{vv}{ll} = round(IndHearStop{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+end
 
 % Stash noise and Only keep vocalizations that were produced by the bat
 % according to the high RMSRatio value
 IndVocStart{ll} = IndVocStart{ll}(logical(NoiseCallListen012_man==1));
 IndVocStop{ll} = IndVocStop{ll}(logical(NoiseCallListen012_man==1));
 IndVocStartRaw{vv}{ll} = round(IndVocStart{ll}/Fs_env*FS);
-IndVocStartPiezo{vv}{ll} = round(IndVocStart{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
 IndVocStopRaw{vv}{ll} = round(IndVocStop{ll}/Fs_env*FS);
-IndVocStopPiezo{vv}{ll} = round(IndVocStop{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+if ll<=length(AudioLogs) % This is a vocalization detected on the logger
+    IndVocStartPiezo{vv}{ll} = round(IndVocStart{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+    IndVocStopPiezo{vv}{ll} = round(IndVocStop{ll}/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+end
 NV = sum(NoiseCallListen012_man==1);
 
 if NV
@@ -1321,18 +1325,24 @@ if NV
     NV = NV-sum(Merge01);
     IndVocStartRaw_merge_local{ll} = nan(1,NV);
     IndVocStopRaw_merge_local{ll} = nan(1,NV);
-    IndVocStartPiezo_merge_local{ll} = nan(1,NV);
-    IndVocStopPiezo_merge_local{ll} = nan(1,NV);
+    if ll<=length(AudioLogs) % This is a vocalization detected on the logger
+        IndVocStartPiezo_merge_local{ll} = nan(1,NV);
+        IndVocStopPiezo_merge_local{ll} = nan(1,NV);
+    end
     CutInd = find(~Merge01);
     IndVocStartRaw_merge_local{ll}(1) = round(IndVocStart{ll}(1)/Fs_env*FS);
-    IndVocStartPiezo_merge_local{ll}(1) = round(IndVocStart{ll}(1)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
     IndVocStopRaw_merge_local{ll}(end) = round(IndVocStop{ll}(end)/Fs_env*FS);
-    IndVocStopPiezo_merge_local{ll}(end) = round(IndVocStop{ll}(end)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+    if ll<=length(AudioLogs) % This is a vocalization detected on the logger
+        IndVocStartPiezo_merge_local{ll}(1) = round(IndVocStart{ll}(1)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+        IndVocStopPiezo_merge_local{ll}(end) = round(IndVocStop{ll}(end)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+    end
     for cc=1:length(CutInd)
         IndVocStopRaw_merge_local{ll}(cc) = round(IndVocStop{ll}( CutInd(cc))/Fs_env*FS);
-        IndVocStopPiezo_merge_local{ll}(cc) = round(IndVocStop{ll}(CutInd(cc))/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
         IndVocStartRaw_merge_local{ll}(cc+1) = round(IndVocStart{ll}(CutInd(cc)+1)/Fs_env*FS);
-        IndVocStartPiezo_merge_local{ll}(cc+1) = round(IndVocStart{ll}(CutInd(cc)+1)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+        if ll<=length(AudioLogs) % This is a vocalization detected on the logger
+            IndVocStopPiezo_merge_local{ll}(cc) = round(IndVocStop{ll}(CutInd(cc))/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+            IndVocStartPiezo_merge_local{ll}(cc+1) = round(IndVocStart{ll}(CutInd(cc)+1)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv));
+        end
     end
     
     % Now plot the onset/offset of each extract on the
