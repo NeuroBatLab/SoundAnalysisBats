@@ -1159,7 +1159,7 @@ function enableEvals_again
 % Enable evaluation buttons of each logger that still need to be evaluated
 % according to variable evalbon and reset evaluation panel plots
 global noCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
-global playMich submith plotmicevalh plotlogevalh evalLog evalbon evalmicbon;
+global playMich submith plotmicevalh plotlogevalh evalLog evalMich evalbon evalmicbon;
 
 for ll=1:length(evalbon)
     if ll<=10
