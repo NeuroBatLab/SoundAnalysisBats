@@ -25,9 +25,9 @@ global plotlog6h plotlog7h plotlog8h plotlog9h plotlog10h plotevalh plotlogevalh
 BaseDataDir = 'Z:\users\tobias\vocOperant';
 BaseCodeDir = 'C:\Users\tobias\Documents\GitHub\operant_bats';
 WorkingDir = 'C:\Users\tobias\Documents\VocShiftWhoWorkDir'; %**not sure if right. old path - 'C:\Users\BatLab\Documents\DeafWhoWorkDir\';
-ExpLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCalls.txt'); % in results (process one done/no)
-WhoLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCallsDone.txt'); % points to files in which manual curation has been done
-AlliLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogCheckAllignement.txt'); % process 2
+ExpLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCallsNew.txt'); % in results (process one done/no)
+WhoLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCallsDoneNew.txt'); % points to files in which manual curation has been done
+AlliLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogCheckAllignementNew.txt'); % process 2
 
 %% Paths to code
 % you should have pulled from github the last versions of
@@ -75,12 +75,12 @@ end
 
 if ~exist(AlliLog, 'file')
     FidAlli = fopen(AlliLog, 'a');
-    fprintf(FidAlli, 'Subject\tDate\tTime\tType\tDuration(s)\n'); %'Subject\tDate\tTime\tAllignement\n'
+    fprintf(FidAlli, 'Subject\tDate\tTime\tAlignement\n'); %'Subject\tDate\tTime\tAllignement\n'
     ListAlliOk = [];
 else
     FidAlli = fopen(AlliLog, 'r');
-    Header = textscan(FidAlli,'%s\t%s\t%s\t%s\t%s\n',1); %'%s\t%s\t%s\t%s\n'
-    ListAlliOk = textscan(FidAlli,'%s\t%s\t%s\t%s\t%.1f'); %'%s\t%s\t%s\t%d'
+    Header = textscan(FidAlli,'%s\t%s\t%s\t%s\n',1); %'%s\t%s\t%s\t%s\n'
+    ListAlliOk = textscan(FidAlli,'%s\t%s\t%s\t%s\n'); %'%s\t%s\t%s\t%d'
     fclose(FidAlli);
     FidAlli = fopen(AlliLog, 'a');
 end
@@ -91,7 +91,7 @@ NExpe = length(DoneListDetect{1});
 checkSession=1;
 AlliOk=[];
 boxes = [3 4 6 8];
-while checkSession && ee<=NExpe && (isempty(AlliOk) || (AlliOk==0))
+while checkSession && ee<=NExpe && (isempty(AlliOk) || (AlliOk=='0'))
     ee=ee+1;
     BatsID = DoneListDetect{1}{ee};
     Date = DoneListDetect{2}{ee};
