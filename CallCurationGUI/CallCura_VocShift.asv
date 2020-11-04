@@ -15,9 +15,7 @@ CheckAllignmentLog = fullfile(OutputDataPath, 'VocOperantLogCheckAllignementNew.
 % initialized at beginning
 % **** Delete old Alignment log and delete other 'new' files, make sure
 % names are uniform across processes
-% ***** Modify CheckAllignementLog so it stores 1's and 0's, checks old
-% misaligned log, and ensure logic using CheckAllignementLog is correct
-% bottom line: make sure param file is one to be manually curated
+% ***** Make sure
 
 FidExp = fopen(ExpLog, 'r');
 Header = textscan(FidExp,'%s\t%s\t%s\t%s\t%s\t%s\n');
