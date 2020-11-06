@@ -212,7 +212,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function who_calls_playless_init
-global WorkingDir Filepath Date ExpStartTime DataFiles AudioDataPath Logger_dir;
+global WorkingDir Filepath BatID Date ExpStartTime DataFiles AudioDataPath Logger_dir;
 global MeanStdAmpRawExtract Voc_filename Nvocs;
 global Working_dir_read Working_dir_write;
 global sos_raw_band_listen FS;
@@ -244,6 +244,7 @@ Working_dir_read = fullfile(WorkingDir, 'read');
 Working_dir_write = fullfile(WorkingDir, 'write');
 
 [AudioDataPath,ParamFile,~]=fileparts(Filepath);
+BatID = ParamFile(1:4);
 Date = ParamFile(6:11);
 ExpStartTime = ParamFile(13:16);
 
@@ -576,8 +577,8 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function transferresults
-global Working_dir_write Loggers_dir
-%%% TRANSFER DATA BACK ON SERVER%%%%
+global Working_dir_write Loggers_dir FidWho IndVocStartRaw_merged BatID Date ExpStartTime
+%%% TRANSFER DATA BACK ON SERVER AND KEEP TRACK THAT THIS EXPERIMENT DAY IS DONE%%%%
 if ~strcmp(Working_dir_write,Loggers_dir)
     newmessage(1,'Transferring data back on the server\n')
     [s1,m,e]=copyfile(fullfile(Working_dir_write,'*'), Loggers_dir, 'f');
@@ -591,6 +592,8 @@ if ~strcmp(Working_dir_write,Loggers_dir)
     end
     
 end
+NCalls = sum(cellfun('length',IndVocStartRaw_merged));
+fprintf(FidWho, '%s\t%s\t%s\t%d\n',BatID,Date,ExpStartTime,NCalls);
                 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function checkforerror(vv)

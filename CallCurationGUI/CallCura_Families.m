@@ -6,7 +6,7 @@
 
 close all;
 
-global WorkingDir Filepath Logger_dir
+global WorkingDir Filepath Logger_dir FidWho
 global VolDenominatorLogger VolFactorMic Manual MergeThresh;
 global Force_Save_onoffsets_mic SaveFileType;
 global CheckMicChannel UseOld  PlotRMSFig FhGUI;

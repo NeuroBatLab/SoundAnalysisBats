@@ -3,6 +3,7 @@ function [IndVocStartRaw_merged, IndVocStopRaw_merged, IndVocStartPiezo_merge_lo
 % optional parameter: Factor_RMS_Mic, Factor by which the RMS of the
 % band-pass filtered baseline signal is multiplied to obtained the
 % threshold of vocalization detection on Microphone
+RMS_Fig=0;
 VolDenominatorLogger=5;
 VolFactorMic=0.5;
 pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic','SaveFileType'};
@@ -278,6 +279,9 @@ else
             FileNum_u = unique(TTL.File_number);
             OnOffTranscTime_ms = Voc_transc_time_refined(vv,:);
             FileNumIdx = find(TTL.Pulse_TimeStamp_Transc<OnOffTranscTime_ms(1,1),1,'Last');
+            if isempty(FileNumIdx)
+                FileNumIdx = find(TTL.Pulse_TimeStamp_Transc>OnOffTranscTime_ms(1,1),1,'First');
+            end
             MicVoc_File = TTL.File_number(FileNumIdx);
             IndFileNum = find(FileNum_u == MicVoc_File);
             TranscTime_zs = (OnOffTranscTime_ms - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
@@ -318,6 +322,8 @@ else
                     SaveRawWaveName = 1;
                 end
                 audiowrite(VocFilename{vv} , Raw_wave{vv}, FS2);
+            else
+                SaveRawWaveName = 0;
             end
             
             % bandpass filter the ambient mic recording
@@ -485,18 +491,18 @@ else
                     fprintf(1,'CANNOT DETERMINE OWNERSHIP NO DETECTION OF ONSET/OFFSET\nSet Force_Save_onoffsets_mic to 1 to force saving data\n')
                 else
                     fprintf(1,'CANNOT DETERMINE OWNERSHIP JUST SAVING ONSET/OFFSET OFF THE MICROPHONE\n')
-                
-                    F2=figure(2);
-                    clf(F2)
-                    subplot(3,1,1)
-                    if CheckMicChannel
-                        plot(Amp_env_Mic.*10^3,'LineWidth',2, 'Color', ColorCode(ll+1,:))
-                        hold on
-                        plot([0 length(Amp_env_Mic)], (Factor_RMS_Mic * MeanStdAmpRawExtract(Nvocs(df)+vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
-                        hold on
+                    if RMS_Fig
+                        F2=figure(2);
+                        clf(F2)
+                        subplot(3,1,1)
+                        if CheckMicChannel
+                            plot(Amp_env_Mic.*10^3,'LineWidth',2, 'Color', ColorCode(ll+1,:))
+                            hold on
+                            plot([0 length(Amp_env_Mic)], (Factor_RMS_Mic * MeanStdAmpRawExtract(Nvocs(df)+vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
+                            hold on
+                        end
+                        legend({'Microphone' 'voc detection threshold' 'voc detection threshold'})
                     end
-                    legend({'Microphone' 'voc detection threshold' 'voc detection threshold'})
-                
                     RowSize = length(AudioLogs) +2;
                 
                     IndVocStartRaw{vv} = cell(RowSize,1);
@@ -678,12 +684,12 @@ else
                     fprintf(1,'saving figures...\n')
                     if strcmp(SaveFileType,'pdf')
                         print(F1,fullfile(Working_dir_write,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
-                        if ManCall % Only save the RMS figure if there was a vocalization
+                        if ManCall && RMS_Fig % Only save the RMS figure if there was a vocalization
                             saveas(F2,fullfile(Working_dir_write,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
                         end
                     elseif strcmp(SaveFileType,'fig')
                         saveas(F1,fullfile(Working_dir_write,sprintf('%s_whocalls_spec_%d.fig', FileVoc, MergeThresh)))
-                        if ManCall % Only save the RMS figure if there was a vocalization
+                        if ManCall && RMS_Fig % Only save the RMS figure if there was a vocalization
                             saveas(F2,fullfile(Working_dir_write,sprintf('%s_whocalls_RMS_%d.fig', FileVoc, MergeThresh)))
                         end
                     end
@@ -691,7 +697,9 @@ else
                         pause(1)
                     end
                     clf(F1)
-                    clf(F2)
+                    if RMS_Fig
+                        clf(F2)
+                    end
                 
                 end
             else
@@ -714,55 +722,56 @@ else
                 % Plot the ratio of time varying RMS, the difference in time varying
                 % RMS between the high and low frequency bands and the absolute time
                 % varying RMS of the low frequency band
-                F2=figure(2);
-                clf(F2)
-                subplot(3,1,3)
-                for ll=1:length(AudioLogs)
-                    plot(RatioAmp(ll,:), 'LineWidth',2, 'Color', ColorCode(ll,:))
+                if RMS_Fig
+                    F2=figure(2);
+                    clf(F2)
+                    subplot(3,1,3)
+                    for ll=1:length(AudioLogs)
+                        plot(RatioAmp(ll,:), 'LineWidth',2, 'Color', ColorCode(ll,:))
+                        hold on
+                    end
+                    ylabel('Frequency bands Ratio')
+                    %         hold on
+                    %         for ll=1:length(AudioLogs)
+                    %             plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_AmpRatio * RatioRMS.(Fns_AL{ll})(1)*ones(2,1), 'Color',ColorCode(ll,:),'LineStyle','--');
+                    %             hold on
+                    %         end
+                    %         legend({Fns_AL{:} 'calling detection threshold' 'calling detection threshold'})
+                    legend(Fns_AL{:})
+                    subplot(3,1,2)
+                    for ll=1:length(AudioLogs)
+                        plot(DiffAmp(ll,:), 'LineWidth',2, 'Color', ColorCode(ll,:))
+                        hold on
+                    end
+                    title('Calling vs Hearing')
+                    ylabel('Frequency bands Diff')
                     hold on
-                end
-                ylabel('Frequency bands Ratio')
-                %         hold on
-                %         for ll=1:length(AudioLogs)
-                %             plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_AmpRatio * RatioRMS.(Fns_AL{ll})(1)*ones(2,1), 'Color',ColorCode(ll,:),'LineStyle','--');
-                %             hold on
-                %         end
-                %         legend({Fns_AL{:} 'calling detection threshold' 'calling detection threshold'})
-                legend(Fns_AL{:})
-                subplot(3,1,2)
-                for ll=1:length(AudioLogs)
-                    plot(DiffAmp(ll,:), 'LineWidth',2, 'Color', ColorCode(ll,:))
+                    for ll=1:length(AudioLogs)
+                        plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1)*ones(2,1), 'Color',ColorCode(ll,:),'LineStyle','--');
+                        hold on
+                    end
+                    legend({Fns_AL{:} 'calling detection threshold' 'calling detection threshold'})
+                    subplot(3,1,1)
+                    for ll=1:length(AudioLogs)
+                        plot(Amp_env_LowPassLogVoc_MAT(ll,:), 'LineWidth',2, 'Color', ColorCode(ll,:))
+                        hold on
+                    end
                     hold on
-                end
-                title('Calling vs Hearing')
-                ylabel('Frequency bands Diff')
-                hold on
-                for ll=1:length(AudioLogs)
-                    plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_AmpDiff * DiffRMS.(Fns_AL{ll})(1)*ones(2,1), 'Color',ColorCode(ll,:),'LineStyle','--');
-                    hold on
-                end
-                legend({Fns_AL{:} 'calling detection threshold' 'calling detection threshold'})
-                subplot(3,1,1)
-                for ll=1:length(AudioLogs)
-                    plot(Amp_env_LowPassLogVoc_MAT(ll,:), 'LineWidth',2, 'Color', ColorCode(ll,:))
-                    hold on
-                end
-                hold on
-                ylabel(sprintf('Running RMS %dHz-%dHz', BandPassFilter(1:2)))
-                title('Detection of vocalizations on each logger')
-                for ll=1:length(AudioLogs)
-                    plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_RMS_low(ll) * RMSLow.(Fns_AL{ll})(1)*ones(2,1), 'Color',ColorCode(ll,:),'LineStyle','--');
-                    hold on
-                end
+                    ylabel(sprintf('Running RMS %dHz-%dHz', BandPassFilter(1:2)))
+                    title('Detection of vocalizations on each logger')
+                    for ll=1:length(AudioLogs)
+                        plot([0 size(Amp_env_LowPassLogVoc_MAT,2)], Factor_RMS_low(ll) * RMSLow.(Fns_AL{ll})(1)*ones(2,1), 'Color',ColorCode(ll,:),'LineStyle','--');
+                        hold on
+                    end
 
-                if CheckMicChannel
-                    plot(Amp_env_Mic.*10^3,'LineWidth',2, 'Color', ColorCode(ll+1,:))
-                    hold on
-                    plot([0 length(Amp_env_Mic)], (Factor_RMS_Mic * MeanStdAmpRawExtract(Nvocs(df)+vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
-                    hold on
+                    if CheckMicChannel
+                        plot(Amp_env_Mic.*10^3,'LineWidth',2, 'Color', ColorCode(ll+1,:))
+                        hold on
+                        plot([0 length(Amp_env_Mic)], (Factor_RMS_Mic * MeanStdAmpRawExtract(Nvocs(df)+vv,1))*ones(2,1).*10^3, 'Color',ColorCode(ll+1,:),'LineStyle','--');
+                        hold on
+                    end
+                    legend({Fns_AL{:} 'Microphone' 'voc detection threshold' 'voc detection threshold'})
                 end
-                legend({Fns_AL{:} 'Microphone' 'voc detection threshold' 'voc detection threshold'})
-            
                 %% Find out which calls are emitted by each individual, if checking the microphone is requested it means that a single animal did not have a collar and all microphone calls not detected on any piezo will be attributed to it
                 Vocp = nan(size(DiffAmp) + [1 0]); % This is the output of the decision criterion to determine at each time point if a bat is vocalizing or not. each row=a logger, each column = a time point
                 if CheckMicChannel
@@ -1294,21 +1303,27 @@ else
                     if ManCall % Only save the RMS and spectro figures if there was a vocalization
                         fprintf(1,'saving figures...\n')
                         print(F1,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
-                        saveas(F2,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',FileVoc,vv, df,MergeThresh)),'pdf')
+                        if RMS_Fig
+                            saveas(F2,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',FileVoc,vv, df,MergeThresh)),'pdf')
+                        end
                     end
                 elseif strcmp(SaveFileType,'fig')
                     if ManCall % Only save the RMS and spectro figures if there was a vocalization
                         fprintf(1,'saving figures...\n')
                         saveas(F1,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig', FileVoc,vv, df,MergeThresh)))
-                        saveas(F2,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig', FileVoc,vv, df,MergeThresh)))
+                        if RMS_Fig
+                            saveas(F2,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig', FileVoc,vv, df,MergeThresh)))
+                        end
                     end
                 end
                 if ManCall
                     pause(1)
                 end
                 clf(F1)
-                clf(F2)
-
+                if RMS_Fig
+                    clf(F2)
+                end
+                
                 % Gather Vocalization production data:
                 IndVocStart_all{vv} = IndVocStart;
                 IndVocStop_all{vv} = IndVocStop;
