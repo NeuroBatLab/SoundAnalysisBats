@@ -142,7 +142,8 @@ switch action
         drawnow;
         set(submith,string_handle,'Submitted')
         set(submith,'BackgroundColor',[204 88 88]./255)
-        % save figures and gather manual curation results
+        % save figures and gather manual curation results only if
+        % vocalizations were detected
         evaluationDone(vv)
         % saving data to file
         savingData(vv)
@@ -1221,42 +1222,48 @@ set(gca, 'YColor', 'w');
 set(gca, 'XColor', 'w');
 [~,FileVoc]=fileparts(VocFilename{vv});
 
-% Save the RMS and spectro figures
-Figcopy = copyFigure(plotb,vv); % copy left pannel in a figure
-if strcmp(SaveFileType,'pdf')
-    fprintf(1,'saving figures...\n')
-    print(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
-        FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
-    if PlotRMSFig
-        saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',...
-        FileVoc,vv, df,MergeThresh)),'pdf')
-        clf(RMSFig)
+% check if evaluation produced some call detection, if not no need to save
+% figures and data
+if sum(cellfun(@isempty,IndVocStartRaw_merge_local)) == length(IndVocStartRaw_merge_local)
+    % No vocalization heard or produced
+else
+    % Save the RMS and spectro figures
+    Figcopy = copyFigure(plotb,vv); % copy left pannel in a figure
+    if strcmp(SaveFileType,'pdf')
+        fprintf(1,'saving figures...\n')
+        print(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
+            FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
+        if PlotRMSFig
+            saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',...
+            FileVoc,vv, df,MergeThresh)),'pdf')
+            clf(RMSFig)
+        end
+    elseif strcmp(SaveFileType,'fig')
+        fprintf(1,'saving figures...\n')
+        saveas(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig',...
+            FileVoc,vv, df,MergeThresh)))
+        if PlotRMSFig
+            saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig',...
+            FileVoc,vv, df,MergeThresh)))
+            clf(RMSFig)
+        end
     end
-elseif strcmp(SaveFileType,'fig')
-    fprintf(1,'saving figures...\n')
-    saveas(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig',...
-        FileVoc,vv, df,MergeThresh)))
-    if PlotRMSFig
-        saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig',...
-        FileVoc,vv, df,MergeThresh)))
-        clf(RMSFig)
-    end
+
+    clf(Figcopy)
+
+    % Gather Vocalization production data:
+    IndVocStart_all{vv} = IndVocStart;
+    IndVocStop_all{vv} = IndVocStop;
+    IndVocStartRaw_merged{vv} = IndVocStartRaw_merge_local;
+    IndVocStopRaw_merged{vv} = IndVocStopRaw_merge_local;
+    IndVocStartPiezo_merged{vv} = IndVocStartPiezo_merge_local;
+    IndVocStopPiezo_merged{vv} = IndVocStopPiezo_merge_local;
+    RMSRatio_all{vv} = RMSRatio;
+    RMSDiff_all{vv} = RMSDiff;
+    % Gather vocalization hearing data
+    IndHearStart_all{vv} = IndHearStart;
+    IndHearStop_all{vv} = IndHearStop;
 end
-
-clf(Figcopy)
-
-% Gather Vocalization production data:
-IndVocStart_all{vv} = IndVocStart;
-IndVocStop_all{vv} = IndVocStop;
-IndVocStartRaw_merged{vv} = IndVocStartRaw_merge_local;
-IndVocStopRaw_merged{vv} = IndVocStopRaw_merge_local;
-IndVocStartPiezo_merged{vv} = IndVocStartPiezo_merge_local;
-IndVocStopPiezo_merged{vv} = IndVocStopPiezo_merge_local;
-RMSRatio_all{vv} = RMSRatio;
-RMSDiff_all{vv} = RMSDiff;
-% Gather vocalization hearing data
-IndHearStart_all{vv} = IndHearStart;
-IndHearStop_all{vv} = IndHearStop;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
 function Figcopy = copyFigure(plotb, vv)
