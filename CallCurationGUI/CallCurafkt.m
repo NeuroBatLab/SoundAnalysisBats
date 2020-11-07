@@ -106,6 +106,8 @@ switch action
             redo=1;
             newmessage('Redoing evaluation');
             newmessage(['Grabbing Voc#' num2str(vv_requested) ' and Set#' num2str(df_requested) '...']);
+            fprintf(1,'Redoing evaluation');
+            fprintf(1,['Grabbing Voc#' num2str(vv_requested) ' and Set#' num2str(df_requested) '...']);
             % keep in memory the previous sound extract reference to make sure
             % we get back to where we are after redoing the requested extract
             if vv_requested~=1
@@ -339,6 +341,7 @@ global MicError PiezoError MicErrorType PiezoErrorType SaveRawWave Raw_wave;
 global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename redo
 
 newmessage(sprintf('Saving data Voc %d...', vv))
+fprintf('Saving data Voc %d...', vv)
 if ~isempty(dir(PreviousFile))
     save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
         'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', ...
@@ -393,6 +396,7 @@ global MicError PiezoError MicErrorType PiezoErrorType;
 global Chunking_RawWav;
 
 newmessage(sprintf('Grabbing new set #%d...', df_local));
+fprintf('Grabbing new set #%d...', df_local);
 Nvoc = Nvocs(df_local+1) - Nvocs(df_local);
 DataFile = fullfile(DataFiles(df_local).folder, DataFiles(df_local).name);
 
@@ -458,7 +462,7 @@ if vv~=Nvoc || redo % This is the file that we need to complete
     
     Fns_AL = fieldnames(Piezo_wave);
     % Initialize variables
-    if vv==1 % We need to initialize variables!
+    if vv==1 && ~redo % We need to initialize variables!
         IndVocStart_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers+microphone and for each logger the index onset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
         IndVocStop_all = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal start vocalizing in the piezo recording before merge in envelope unit (FS_env)
         IndVocStartRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc)
