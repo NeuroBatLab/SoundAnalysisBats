@@ -661,7 +661,8 @@ if Nvoc>100
     warning('Probably wrong audio file name, the code is not updated for older version of previous extraction\n')
 end
 
-
+fprintf(1, 'Checking correct mic file was selected\n')
+TimerMicCheck = tic;
 load(DataFile,'Voc_transc_time_refined');
 TTL_dir = dir(fullfile(AudioDataPath,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
 TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
@@ -709,7 +710,8 @@ if all(Corr<0.99)
     end
     audiowrite(VocFilename{vv} , Raw_wave{vv}, FS2);
 end
-
+fprintf(1, '-> DONE in %.1f s\n', toc(TimerMicCheck))
+clear TimerMicCheck Raw_10minwav2 Raw_wave_ex
 
 %% First calculate the time varying RMS of the ambient microphone
 % bandpass filter the ambient mic recording
