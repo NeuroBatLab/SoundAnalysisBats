@@ -35,7 +35,7 @@ switch action
         who_calls_playless_init
         % Loading the next vocalization identified by
         % Who_calls_playless_init
-        loadnextfile(vv)
+        loadnextfile
         
     case 'MaybeCall'
         loadnextfile2(vv)
@@ -62,7 +62,7 @@ switch action
         Nvoc = Nvocs(df+1) - Nvocs(df);
         if vv<=Nvoc % sound extract is in the same set
             % loading the next sound extract
-            loadnextfile(vv)
+            loadnextfile
         else % sound extract is in the next set
             % if rawwave was updated in the original data, transfer and erase the data we imported 
             transferEraseSetData
@@ -73,7 +73,7 @@ switch action
                 % grab the new dataset
                 [vv,~] = grabNewDatafile(df);
                 % loading the sound extract
-                loadnextfile(vv)
+                loadnextfile
             else % we did all sets of that recording session
                 transferresults
                 newmessage('Annotation done!');
@@ -129,7 +129,7 @@ switch action
             else
                 vv=vv_requested;
             end
-            loadnextfile(vv)
+            loadnextfile
         end
         
     case 'Checkbox' %(Selection Done)
@@ -164,7 +164,7 @@ switch action
         vv=vv+1;
         Nvoc = Nvocs(df+1) - Nvocs(df);
         if vv<=Nvoc % next sound extract is in the same set
-            loadnextfile(vv)
+            loadnextfile
         else % next sound extract is in the next set
             % if rawwave was updated in the original data, transfer and erase the data we imported 
             transferEraseSetData
@@ -175,7 +175,7 @@ switch action
                 % Grabng this new set
                 [vv,~]=grabNewDatafile(df);
                 % Loading the next file
-                loadnextfile(vv)
+                loadnextfile
             else % we did all sets of that recording session
                 newmessage('Annotation done!');
                 transferresults
@@ -507,8 +507,8 @@ elseif vv==Nvoc && ~redo
 end
     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function loadnextfile(vv)
-global Nvoc df DataFiles filenameh;
+function loadnextfile
+global Nvoc df vv DataFiles filenameh;
 global Filepath redoEditVoch redoEditSeth string_handle string_handle2;
 global noCallh maybeCallh plotb AudioLogs playMich redoh;
 % Loading sound extract vv calculating microphone
@@ -528,15 +528,20 @@ set(redoEditVoch,string_handle2,num2str(vv))
 set(redoEditSeth,string_handle2,num2str(df))
 
 % Load, Check and plot the microphone file on the left pannel
-grabAmbientMic(vv)
-for ll=1:(length(AudioLogs))
-    axes(plotb{ll+1});
-    cla(plotb{ll+1} ,'reset')
+Success = grabAmbientMic(vv);
+if Success
+    for ll=1:(length(AudioLogs))
+        axes(plotb{ll+1});
+        cla(plotb{ll+1} ,'reset')
+    end
+    axes(plotb{end});
+    cla(plotb{end} ,'reset')
+    set([noCallh maybeCallh playMich redoh redoEditVoch...
+        redoEditSeth],'enable','on')
+else
+    vv=vv+1;
+    loadnextfile
 end
-axes(plotb{end});
-cla(plotb{end} ,'reset')
-set([noCallh maybeCallh playMich redoh redoEditVoch...
-    redoEditSeth],'enable','on')
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -636,8 +641,10 @@ else
     SaveRawWave = 0;
 end
 
+    
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function grabAmbientMic(vv)
+function Success = grabAmbientMic(vv)
 % Load, Check and plot the microphone file for sound event vv
 % global DataFile AudioDataPath Date ExpStartTime
 global Raw_wave_nn Nvoc Nvocs df sos_raw_band Amp_env_Mic;
@@ -716,15 +723,21 @@ end
 
 %% First calculate the time varying RMS of the ambient microphone
 % bandpass filter the ambient mic recording
-Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
-Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
-
-%% Plot the spectrogram of the ambient microphone on the left pannel
-ColorCode = [get(groot,'DefaultAxesColorOrder');1 1 1; 0 1 1; 1 1 0];
-[Raw_Spec.to, Raw_Spec.fo, Raw_Spec.logB] = ...
-    spec_only_bats_gui(Filt_RawVoc, FS, DB_noise, FHigh_spec);
-plotMic(vv,1)
-PlayCallfkt('PlayMic')
+if length(Raw_wave_nn)/FS>=0.1
+    Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
+    Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
+    
+    %% Plot the spectrogram of the ambient microphone on the left pannel
+    ColorCode = [get(groot,'DefaultAxesColorOrder');1 1 1; 0 1 1; 1 1 0];
+    [Raw_Spec.to, Raw_Spec.fo, Raw_Spec.logB] = ...
+        spec_only_bats_gui(Filt_RawVoc, FS, DB_noise, FHigh_spec);
+    plotMic(vv,1)
+    PlayCallfkt('PlayMic')
+    Success=1;
+else
+    warning('That sound is too short to be processed correctly.\n')
+    Success=0;
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function grabLoggers(vv)
