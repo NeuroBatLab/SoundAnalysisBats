@@ -587,12 +587,12 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function transferresults
-global Working_dir_write Loggers_dir FidWho IndVocStartRaw_merged BatID Date ExpStartTime
+global Working_dir_write Logger_dir FidWho IndVocStartRaw_merged BatID Date ExpStartTime
 %%% TRANSFER DATA BACK ON SERVER AND KEEP TRACK THAT THIS EXPERIMENT DAY IS DONE%%%%
-if ~strcmp(Working_dir_write,Loggers_dir)
+if ~strcmp(Working_dir_write,Logger_dir)
     newmessage('Transferring data back on the server\n')
     fprintf(1,'Transferring data back on the server\n')
-    [s1,m,e]=copyfile(fullfile(Working_dir_write,'*'), Loggers_dir, 'f');
+    [s1,m,e]=copyfile(fullfile(Working_dir_write,'*'), Logger_dir, 'f');
     if ~s1
         newmessage('!!!! File transfer did not occur correctly!!!!\n')
         newmessage('!!!! Contact JULIE Asap via Slack, Stop here!!!!\n')
