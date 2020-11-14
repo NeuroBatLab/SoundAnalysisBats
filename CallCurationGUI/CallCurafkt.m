@@ -75,10 +75,9 @@ switch action
                 % loading the sound extract
                 loadnextfile
             else % we did all sets of that recording session
-                transferresults
                 newmessage('Annotation done!');
-                % restart the Gui for the next recording session
-                CallCura
+                transferresults
+                newmessage('Transfer done!\nRestart the GUI to start the next session\n')
             end
         end
         
@@ -179,8 +178,7 @@ switch action
             else % we did all sets of that recording session
                 newmessage('Annotation done!');
                 transferresults
-                % restart the Gui for the next recording session
-                CallCura
+                newmessage('Transfer done!\nRestart the GUI to access the new session\n');
             end
         end
         set(submith,string_handle,'Submit')
@@ -263,8 +261,7 @@ end
 %% Grabbing the Data coresponding to the particular date and find the correct file at which the curation was stopped
 DataFiles = dir(fullfile(Logger_dir, sprintf('%s_%s_VocExtractData*.mat', Date, ExpStartTime)));
 if isempty(DataFiles)
-    warning('Vocalization data were not extracted by get_logger_data_voc.m\nData cannot be found\n')
-    CallCura
+    error('Vocalization data were not extracted by get_logger_data_voc.m\nData cannot be found\n')
 else
     % select the correct files
     Gdf = zeros(length(DataFiles),1);
@@ -313,7 +310,7 @@ else
     end
     if (df==length(DataFiles)) && ~Success
         newmessage('All Sets Done!');
-        CallCura
+        transferresults
     else
         %% % design filters of raw ambient recording
         % bandpass filter for detection 
