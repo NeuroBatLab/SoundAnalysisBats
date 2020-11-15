@@ -90,7 +90,7 @@ fprintf(1,'Grabbing the session...');
 NExpe = length(DoneListDetect{1});
 checkSession=1;
 AlliOk=[];
-while checkSession && ee<=NExpe && (isempty(AlliOk) || (AlliOk==0))
+while checkSession && ee<=NExpe
     ee=ee+1;
     BatsID = DoneListDetect{1}{ee};
     Date = DoneListDetect{2}{ee};
