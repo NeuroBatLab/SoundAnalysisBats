@@ -413,7 +413,7 @@ if MicData
     % the recording
     % calculate the amplitude threshold for that file
     fprintf(1, 'Calculating average RMS values on a %.1f min sample of silence for each mic file\n',Dur_RMS);
-    parfor vv=1:NRawWave %parfor
+    for vv=1:NRawWave %parfor
         % load the raw file
         Raw_filename = fullfile(WavFileStruc_local(vv).folder, WavFileStruc_local(vv).name);
         [Raw_10minwav, FS] = audioread(Raw_filename);
@@ -441,7 +441,7 @@ if MicData
             Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_10minwav(StartSamp + (1:round(SampleDur))));
             Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
             if any(Amp_env_Mic>MicThreshNoise) % there is most likely a vocalization in this sequence look somewhere else!
-                StartSamp = StartSamp + SampleDur/IncrementFactor +1;
+                StartSamp = StartSamp + round(SampleDur/IncrementFactor) +1;
             else
                 BadSection = 0;
             end
