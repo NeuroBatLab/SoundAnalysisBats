@@ -404,6 +404,7 @@ if MicData
     
     NRawWave = length(WavFileStruc_local);
     MeanStdAmpRawFile = cell(1,NRawWave);
+    TimerSamp = cell(1,NRawWave);
     FileIdx = cell(1,NRawWave);
     
     % Calculate the amplitude threshold as the average amplitude on the
@@ -421,39 +422,58 @@ if MicData
         
         SampleDur = round(Dur_RMS*60*FS);
         StartSamp = round(length(Raw_10minwav)/10); % start earlier to make sure we have more potential sections
-        fprintf(1,'Calculating the amplitude threshold for file %d/%d  ',vv,NRawWave)
+        fprintf(1,'Calculating the amplitude threshold for file %d/%d\n',vv,NRawWave)
         BadSection = 1;
         IncrementFactor=1;
-        while BadSection
+        if (1+round(SampleDur))> length(Raw_10minwav)
+            % this recording is too short to calculate the
+            % background noise with such a long Sampling Duration
+            warning('short file, bringing down the duration of the sample\n')
+            while (StartSamp+round(SampleDur))> length(Raw_10minwav)
+                SampleDur = SampleDur/2;
+            end
+        end
+        TimerSamp{vv} = tic();
+        while BadSection && toc(TimerSamp{vv})<(5*60)
+            fprintf('StartSamp = %d Increment = %d\n', StartSamp, IncrementFactor)
             if (StartSamp+round(SampleDur))> length(Raw_10minwav)
+                fprintf(1,'StartStamp too far\n')
                 IncrementFactor=IncrementFactor+1;
-                StartSamp = 1;
-                if (StartSamp+round(SampleDur))> length(Raw_10minwav)
-                    % this recording is too short to calculate the
-                    % background noise with such a long Sampling Duration
-                    warning('short file, bringing down the duration of the sample\n')
-                    while (StartSamp+round(SampleDur))> length(Raw_10minwav)
-                        SampleDur = SampleDur/2;
-                    end
-                end
-                    
+                StartSamp = round(length(Raw_10minwav)/(10+IncrementFactor));
+                fprintf('StartSamp = %d Increment = %d\n', StartSamp, IncrementFactor)
             end
             Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_10minwav(StartSamp + (1:round(SampleDur))));
             Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
             if any(Amp_env_Mic>MicThreshNoise) % there is most likely a vocalization in this sequence look somewhere else!
-                StartSamp = StartSamp + SampleDur/IncrementFactor +1;
+                fprintf('There is a Voc\n')
+                StartSamp = StartSamp + round(SampleDur/IncrementFactor) +1;
             else
                 BadSection = 0;
             end
         end
-        Ind_ = strfind(WavFileStruc_local(vv).name, '_');
-        Ind_ = Ind_(end);
-        Indwav = strfind(WavFileStruc_local(vv).name, '.wav');
-        FileIdx{vv} = str2double(WavFileStruc_local(vv).name((Ind_+1):(Indwav)));
-        MeanStdAmpRawFile{vv} = [mean(Amp_env_Mic); std(Amp_env_Mic)];
+        if BadSection % The algorithm did not find a good section within 10 min keep it as nan and then take the average of other recording files
+            fprintf(1,'Algorithm did not find a good section within 5min for file %d/%d  ',vv,NRawWave)
+            MeanStdAmpRawFile{vv} = nan(2,1);
+            Ind_ = strfind(WavFileStruc_local(vv).name, '_');
+            Ind_ = Ind_(end);
+            Indwav = strfind(WavFileStruc_local(vv).name, '.wav');
+            FileIdx{vv} = str2double(WavFileStruc_local(vv).name((Ind_+1):(Indwav)));
+        else
+            fprintf(1,'Algorithm found a good section within %.1f min for file %d/%d  ',toc(TimerSamp{vv})/60,vv,NRawWave)
+            Ind_ = strfind(WavFileStruc_local(vv).name, '_');
+            Ind_ = Ind_(end);
+            Indwav = strfind(WavFileStruc_local(vv).name, '.wav');
+            FileIdx{vv} = str2double(WavFileStruc_local(vv).name((Ind_+1):(Indwav)));
+            MeanStdAmpRawFile{vv} = [mean(Amp_env_Mic); std(Amp_env_Mic)];
+        end
         fprintf('-> Done\n')
     end
+    clear TimerSamp
     MeanStdAmpRawFile = [MeanStdAmpRawFile{[FileIdx{:}]}]';
+    if any(isnan(MeanStdAmpRawFile))
+        MeanStdAmpRawFile(find(isnan(MeanStdAmpRawFile(:,1))),1) = nanmean(MeanStdAmpRawFile(:,1));
+        MeanStdAmpRawFile(find(isnan(MeanStdAmpRawFile(:,2))),2) = nanmean(MeanStdAmpRawFile(:,2));
+    end
     
 %     MeanStdAmpRawExtract = cell(1,TotEvents_merged);
     Voc_filename = cell(TotEvents_merged,1);
