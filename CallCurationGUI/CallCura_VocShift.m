@@ -112,141 +112,106 @@ while checkSession && ee < NExpe
     %fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
     
     ParamFilesDir = dir(fullfile(BaseDataDir, boxID, 'bataudio', f_name));
-    filepath = fullfile(BaseDataDir, boxID, 'bataudio', f_name);
-    fprintf(1,'file %d/%d:\n%s\n', ee, NExpe,filepath)
-    % Check if that file is on the
-    % priority list! then on the ToDo list (list of data that has
-    % already been extracted by wrapper_result_operant2), if it's been
-    % already done or labbeled as crappy.
+    fprintf(1,'file %d/%d:\n%s\n', ee, NExpe, fullfile(BaseDataDir, boxID, 'bataudio', f_name))
     
-    %ToDo = find(contains(DoneListDetect{1},BatsID) .* contains(DoneListDetect{2},Date) .* contains(DoneListDetect{3},Time).*logical(DoneListDetect{6}));
-    Done = find(contains(DoneListWho{1},BatsID) .* contains(DoneListWho{2},Date) .* contains(DoneListWho{3},Time).*logical(DoneListWho{6}));
-    Crap = find(contains(ListAlliOk{1},BatsID) .* contains(ListAlliOk{2},Date) .* contains(ListAlliOk{3},Time));
-        
-    if isempty(Crap)
-        if ~isempty(Done)
-            fprintf(1, '   -> Data already processed\n')
-            continue
+    % Check that the file was not already set aside or done
+    if ~isempty(DoneListWho)
+        Done = sum(contains(DoneListWho{1},BatsID) .* contains(DoneListWho{2},Date) .* contains(DoneListWho{3},Time));
+    else
+        Done=0;
+    end
+    if ~isempty(DoneListDetect)
+        hasLoggerDataInd = find(contains(DoneListDetect{1},BatsID) .* contains(DoneListDetect{2},Date) .* contains(DoneListDetect{3},Time));
+        hasLoggerData = DoneListDetect{6}{hasLoggerDataInd};
+    else
+        Done=0;
+    end
+    if ~isempty(ListAlliOk)
+        AlliOkInd = find(contains(ListAlliOk{1},BatsID) .* contains(ListAlliOk{2},Date) .* contains(ListAlliOk{3},Time));
+        if isempty(AlliOkInd)
+            AlliOk = [];
         else
-            % Temp = ToDoList{5}(ToDo);
-            fprintf(1,'*** Check the clock drift correction of the logger ***%d\n', boxID)
-            LoggerPath = fullfile(BaseDataDir,boxID,'piezo',Date,'audiologgers');
-            LoggersDir = dir(fullfile(LoggerPath, 'logger*'));
-            Check = zeros(length(LoggersDir)+1,1);
-            if ~isempty(LoggersDir)
-                for ll=length(LoggersDir)
-                    FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
-                    %                 fprintf(1, 'Go in %s\n',fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'piezo',Date,'audiologgers','loggerxx','extracted_data'))
-                    %                 fprintf(1,'Open CD_correction0\n')
-                    Check(ll) = input('Is everything ok? (yes ->1, No -> 0): ');
-                    fprintf('\n')
-                    close(FigCD)
-                end
-                
-                fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
-                AllignmentPath = fullfile(BaseDataDir,boxID,'bataudio',sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, Time));
-                FigAP = open(AllignmentPath);
-                %                 fprintf(1, 'Go in %s\n',fullfile(BaseDir,sprintf('box%d',BoxOfInterest(bb)),'bataudio'))
-                %                 fprintf(1,'Search for %s_%s_CD_correction_audio_piezo\n', Date, Time)
-                Check(length(LoggersDir)+1) = input('Is everything ok? (yes ->1, No -> 0): ');
-                fprintf('\n')
-                close(FigAP)
-                
-                if sum(Check)~=length(Check)
-                    Ind_ = strfind(f_name, '_param');
-                    fprintf(FidAlli, '%s\t%s\t%s\t%d\n',f_name(1:4),f_name(6:11),f_name(13:16),0);
-                else
-                    fprintf(FidAlli, '%s\t%s\t%s\t%d\n',f_name(1:4),f_name(6:11),f_name(13:16),1);
-                end
-                
-                % Check that the file was not already set aside or done
-                if ~isempty(DoneListWho)
-                    Done = sum(contains(DoneListWho{1},BatsID) .* contains(DoneListWho{2},Date) .* contains(DoneListWho{3},Time));
-                else
-                    Done=0;
-                end
-                if ~isempty(ListAlliOk)
-                    AlliOkInd = find(contains(ListAlliOk{1},BatsID) .* contains(ListAlliOk{2},Date) .* contains(ListAlliOk{3},Time));
-                    AlliOk = ListAlliOk{4}(AlliOkInd);
-                else
-                    AlliOk=[];
-                end
-                
-                if Done
-                    fprintf(1, '   -> Data already processed\n')
-                    checkSession=1;
-                elseif ~Done && ~isempty(AlliOk)
-                    if AlliOk
-                        fprintf(1, '   -> Starting from where we left on this session\n')
-                        checkSession=0;
-                        % This is the name to the experiment that needs to be analyzed
-                        Filepath = fullfile(ParamFile.folder, ParamFile.name);
-                        fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
-                    else
-                        fprintf(1, '   -> Session flagged as not alligned correctly\n')
-                        checkSession=1;
-                    end
-                elseif ~Done && isempty(AlliOk) && DoneListDetect{6}{ee} == "1"
-                    fprintf(1, '   -> Starting new session\n')
-                    % Check that the clocks drifts were correctly corrected
-                    fprintf(1,'*** Check the clock drift correction of the logger ***\n')
-                    Logger_dir = fullfile(BaseDataDir, boxID,'piezo', Date, 'audiologgers');
-                    LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
-                    Check = zeros(length(LoggersDir)+1,1);
-                    for ll=1:length(LoggersDir)
-                        % **may need to modify below?
-                        FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
-                        failsafe=1;
-                        while failsafe
-                            Check(ll) = input('Is everything ok? (yes ->1, No -> 0): ');
-                            failsafe=0;
-                            if isempty(Check(ll))
-                                failsafe=1;
-                                disp('Entry is empty, please repeat!')
-                            end
-                        end
-                        fprintf('\n')
-                        close(FigCD)
-                    end
-                    fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
-                    % ***** file_nums = {1};
-                    % for dd=1:length(file_nums)
-                    AllignmentPath = fullfile(BaseDataDir,boxID,'bataudio',sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, Time)); %fullfile(ParamFile.folder,sprintf('%s_%s_CD...'
-                    FigAP = open(AllignmentPath);
+            AlliOk = ListAlliOk{4}{AlliOkInd};
+        end
+    else
+        AlliOk=[];
+    end
+    
+    if ~hasLoggerData
+        fprintf(1, '   -> Data has no logger, skip\n')
+        continue
+    end
+    if Done
+        fprintf(1, '   -> Data already processed\n')
+        checkSession=1;
+    elseif ~Done && ~isempty(AlliOk)
+        if AlliOk
+            fprintf(1, '   -> Starting from where we left on this session\n')
+            checkSession=0;
+            % This is the name to the experiment that needs to be analyzed
+            Filepath = fullfile(ParamFilesDir(ee).folder, ParamFilesDir(ee).name); % possibly sprintf('%s_%s_%s_VocTrigger*', BatsID, Date, Time)?
+            fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFilesDir(ee).name)
+        else
+            fprintf(1, '   -> Session flagged as not alligned correctly\n')
+            checkSession=1;
+        end
+    elseif ~Done && isempty(AlliOk) && DoneListDetect{6}{ee} == "1"
+        fprintf(1, '   -> Starting new session\n')
+        % Check that the clocks drifts were correctly corrected
+        fprintf(1,'*** Check the clock drift correction of the logger ***\n')
+        Logger_dir = fullfile(BaseDataDir, boxID,'piezo', Date, 'audiologgers');
+        LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
+        Check = zeros(length(LoggersDir)+1,1);
+        for ll=1:length(LoggersDir)
+            % **may need to modify below?
+            FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
+            failsafe=1;
+            while failsafe
+                Check(ll) = input('Is everything ok? (yes ->1, No -> 0): ');
+                failsafe=0;
+                if isempty(Check(ll))
                     failsafe=1;
-                    while failsafe
-                        Check(length(LoggersDir)+1) = input('Is everything ok? (yes ->1, No -> 0): ');
-                        failsafe=0;
-                        if isempty(Check(ll))
-                            failsafe=1;
-                            disp('Entry is empty, please repeat!')
-                        end
-                    end
-                    fprintf('\n')
-                    close(FigAP)
-                    if any(~Check)
-                        AlliOk=0;
-                        fprintf(FidAlli, '%s\t%s\t%s\t%d\n',BatsID,Date,Time,AlliOk);
-                        fprintf(1,'\n****** Error in allignement reported ******\n')
-                        checkSession=1;
-                    else
-                        AlliOk=1;
-                        fprintf(FidAlli, '%s\t%s\t%s\t%d\n',BatsID,Date,Time,AlliOk);
-                        fprintf(1,'\n****** Allignement reported as good! ******\n')
-                        checkSession=0;
-                        % This is the name to the experiment that needs to be analyzed
-                        Filepath = fullfile(BaseDataDir,boxID,'bataudio', sprintf('%s_%s_%s_VocTrigger*', BatsID, Date, Time)); %fullfile(ParamFile.folder, ParamFile.name);
-                        fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,sprintf('%s_%s_%s_VocTrigger*', BatsID, Date, Time))
-                    end
+                    disp('Entry is empty, please repeat!')
                 end
             end
+            fprintf('\n')
+            close(FigCD)
         end
-    elseif isempty(Crap)
-        fprintf(1, '   -> No piezo Data for that file\n')
-    elseif ~isempty(Crap)
-        fprintf(1, '   -> That file was already identified as crappy\n')
+        fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
+        % ***** file_nums = {1};
+        % for dd=1:length(file_nums)
+        AllignmentPath = fullfile(BaseDataDir,boxID,'bataudio',sprintf('%s_%s_CD_correction_audio_piezo.fig', Date, Time));
+        FigAP = open(AllignmentPath);
+        failsafe=1;
+        while failsafe
+            Check(length(LoggersDir)+1) = input('Is everything ok? (yes ->1, No -> 0): ');
+            failsafe=0;
+            if isempty(Check(ll))
+                failsafe=1;
+                disp('Entry is empty, please repeat!')
+            end
+        end
+        fprintf('\n')
+        close(FigAP)
+        if any(~Check)
+            AlliOk=0;
+            fprintf(FidAlli, '%s\t%s\t%s\t%d\n',BatsID,Date,Time,AlliOk);
+            fprintf(1,'\n****** Error in allignement reported ******\n')
+            checkSession=1;
+        else
+            AlliOk=1;
+            fprintf(FidAlli, '%s\t%s\t%s\t%d\n',BatsID,Date,Time,AlliOk);
+            fprintf(1,'\n****** Allignement reported as good! ******\n')
+            checkSession=0;
+            % This is the name to the experiment that needs to be analyzed
+            Filepath = fullfile(BaseDataDir,boxID,'bataudio', sprintf('%s_%s_%s_VocTrigger*', BatsID, Date, Time)); %fullfile(ParamFile.folder, ParamFile.name);
+            fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,sprintf('%s_%s_%s_VocTrigger*', BatsID, Date, Time))
+        end
+    else
+        fprintf(1, '    -> Experiment has no logger data\n')
     end
 end
+
 %fclose(FidWho);
 
 
