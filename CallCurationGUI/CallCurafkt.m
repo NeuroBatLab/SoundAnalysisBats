@@ -847,6 +847,21 @@ Amp_env_HighPassLogVoc_MAT = cell2mat(Amp_env_HighPassLogVoc);
 RatioAmp = (Amp_env_LowPassLogVoc_MAT +1)./(Amp_env_HighPassLogVoc_MAT+1);
 DiffAmp = Amp_env_LowPassLogVoc_MAT-Amp_env_HighPassLogVoc_MAT;
 
+if CheckMicChannel
+    Short = min([cellfun('length',Amp_env_LowPassLogVoc) length(Amp_env_Mic)]);
+    Long = max([cellfun('length',Amp_env_LowPassLogVoc) length(Amp_env_Mic)]);
+    if (Long-Short)>1
+        error('The length of vectors of running RMS are too different than expected, please check!\n')
+    elseif Long~=Short
+        Amp_env_LowPassLogVoc = cellfun(@(X) X(1:Short), Amp_env_LowPassLogVoc, 'UniformOutput',false);
+        Amp_env_HighPassLogVoc = cellfun(@(X) X(1:Short), Amp_env_HighPassLogVoc, 'UniformOutput',false);
+        Amp_env_Mic = Amp_env_Mic(1:Short);
+    end
+    Amp_env_LowPassLogVoc_MAT = cell2mat(Amp_env_LowPassLogVoc);
+    Amp_env_HighPassLogVoc_MAT = cell2mat(Amp_env_HighPassLogVoc);
+    RatioAmp = (Amp_env_LowPassLogVoc_MAT +1)./(Amp_env_HighPassLogVoc_MAT+1);
+    DiffAmp = Amp_env_LowPassLogVoc_MAT-Amp_env_HighPassLogVoc_MAT;
+end
 
 %% plot the RMS values if requested
 if PlotRMSFig
