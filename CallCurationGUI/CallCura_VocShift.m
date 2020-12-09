@@ -107,7 +107,7 @@ while checkSession && ee < NExpe
     Date = DoneListDetect{2}{ee};
     Time = DoneListDetect{3}{ee};
     boxID = DoneListDetect{7}{ee};
-    f_name = sprintf('%s_%s_%s_VocTrigger*', BatsID, Date, Time);
+    f_name = sprintf('%s_%s_%s_VocTrigger_param.txt', BatsID, Date, Time);
     %ParamFile = dir(fullfile(BaseDataDir,['20' Date],'audio',sprintf('%s_%s_%s*RecOnly_param.txt', BatsID, Date, Time)));
     %fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
     
@@ -146,11 +146,12 @@ while checkSession && ee < NExpe
         checkSession=1;
     elseif ~Done && ~isempty(AlliOk)
         if AlliOk
+            Logger_dir = fullfile(BaseDataDir, boxID, 'piezo', Date, 'audiologgers');
             fprintf(1, '   -> Starting from where we left on this session\n')
             checkSession=0;
             % This is the name to the experiment that needs to be analyzed
-            Filepath = fullfile(ParamFilesDir(ee).folder, ParamFilesDir(ee).name); % possibly sprintf('%s_%s_%s_VocTrigger*', BatsID, Date, Time)?
-            fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFilesDir(ee).name)
+            Filepath = fullfile(ParamFilesDir.folder, ParamFilesDir.name);
+            fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFilesDir.name)
         else
             fprintf(1, '   -> Session flagged as not alligned correctly\n')
             checkSession=1;
@@ -159,7 +160,7 @@ while checkSession && ee < NExpe
         fprintf(1, '   -> Starting new session\n')
         % Check that the clocks drifts were correctly corrected
         fprintf(1,'*** Check the clock drift correction of the logger ***\n')
-        Logger_dir = fullfile(BaseDataDir, boxID,'piezo', Date, 'audiologgers');
+        Logger_dir = fullfile(BaseDataDir, boxID, 'piezo', Date, 'audiologgers');
         LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
         Check = zeros(length(LoggersDir)+1,1);
         for ll=1:length(LoggersDir)
