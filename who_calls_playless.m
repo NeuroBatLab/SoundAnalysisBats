@@ -6,9 +6,11 @@ function [IndVocStartRaw_merged, IndVocStopRaw_merged, IndVocStartPiezo_merge_lo
 RMS_Fig=0;
 VolDenominatorLogger=5;
 VolFactorMic=0.5;
-pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic','SaveFileType'};
-dflts  = {3,Loggers_dir,0,'pdf'};
-[Factor_RMS_Mic,Working_dir,Force_Save_onoffsets_mic,SaveFileType] = internal.stats.parseArgs(pnames,dflts,varargin{:});
+pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic','SaveFileType','CheckAfterMergePatch'};
+dflts  = {3,Loggers_dir,0,'pdf',0};
+[Factor_RMS_Mic,Working_dir,Force_Save_onoffsets_mic,SaveFileType, CheckAfterMergePatch] = internal.stats.parseArgs(pnames,dflts,varargin{:});
+% UsePrevious is a boolean to indicate if you sould only check the
+% vocalizations that are new after the MergePatch
 
 if nargin<8
     CheckMicChannel = 0;
@@ -108,7 +110,7 @@ else
         end
         
         % Check if that set of vocalizations was alread fully completed
-        if vv==Nvoc
+        if vv==Nvoc && ~CheckAfterMergePatch
             % All done
             continue
         else
@@ -132,6 +134,9 @@ else
                 minvv = 1;
                 maxvv = Nvoc;
                 load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename','Voc_transc_time_refined');
+                 if CheckAfterMergePatch
+                     load(DataFile,'Old_vv_out_list')
+                 end
             else % often problem of memory, we're going to chunck file loading
                 Chunking_RawWav = 1;
                 if ~mod(vv,100)
@@ -146,6 +151,9 @@ else
                 end
                 Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
                 load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename','Voc_transc_time_refined');
+                if CheckAfterMergePatch
+                     load(DataFile,'Old_vv_out_list')
+                 end
             end
         end
         
@@ -187,7 +195,7 @@ else
         % Initialize variables
         
         
-        if vv==1 % We need to initialize variables!
+        if vv==1 && ~CheckAfterMergePatch % We need to initialize variables!
             %         Amp_env_LowPassLogVoc = cell(1,Nvoc);
             %         Amp_env_HighPassLogVoc = cell(1,Nvoc);
             %         Amp_env_Mic = cell(1,Nvoc);
@@ -221,10 +229,35 @@ else
             PiezoErrorType = [0 0]; % first element false negative (detected as noise or hearing when it is a new call), second element false positive (vice versa)
             
         end
-        
+        if CheckAfterMergePatch
+%             Old_vv_out_list(vv)
+            IndVocStartRaw_merged(~isnan(Old_vv_out_list)) = IndVocStartRaw_merged(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            IndVocStopRaw_merged(~isnan(Old_vv_out_list)) = IndVocStopRaw_merged(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            IndVocStartPiezo_merged(~isnan(Old_vv_out_list)) = IndVocStartPiezo_merged(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            IndVocStopPiezo_merged(~isnan(Old_vv_out_list)) = IndVocStopPiezo_merged(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            IndVocStartRaw(~isnan(Old_vv_out_list)) = IndVocStartRaw(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            IndVocStopRaw(~isnan(Old_vv_out_list)) = IndVocStopRaw(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            IndVocStartPiezo(~isnan(Old_vv_out_list)) = IndVocStartPiezo(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            IndVocStopPiezo(~isnan(Old_vv_out_list)) = IndVocStopPiezo(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            IndVocStart_all(~isnan(Old_vv_out_list))  = IndVocStart_all(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            IndVocStop_all(~isnan(Old_vv_out_list))  = IndVocStop_all(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            RMSRatio_all(~isnan(Old_vv_out_list)) = RMSRatio_all(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            RMSDiff_all(~isnan(Old_vv_out_list)) = RMSDiff_all(Old_vv_out_list(~isnan(Old_vv_out_list)));
+            
+            List2WorkOn = find(isnan(Old_vv_out_list));
+            save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','-append');
+        else
+            List2WorkOn = vv:Nvoc;
+        end
+        if isempty(List2WorkOn)
+            fprintf(1,'Nothing to change for set %d\n',df)
+            continue
+        end
         %% Loop through vocalizations sequences and calculate amplitude envelopes
-        for vv=vv:Nvoc
+        for vvi=1:length(List2WorkOn)
+            vv=List2WorkOn(vvi);
             fprintf(1,'\n\n\n\nVoc sequence %d/%d Set %d/%d\n',vv,Nvoc, df, length(DataFiles));
+            
             %% First calculate the time varying RMS of the ambient microphone
             Amp_env_LowPassLogVoc = cell(length(AudioLogs),1);
             Amp_env_HighPassLogVoc = cell(length(AudioLogs),1);
@@ -249,6 +282,12 @@ else
                 Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
                 load(DataFile,'Piezo_wave')
                 Raw_wave_nn = Raw_wave{vv - (minvv -1)};
+            end
+            
+            if length(Raw_wave_nn)<(128*FS/1000)
+                warning('This extract is unexpectedly short..../n')
+                keyboard
+                continue
             end
               
             % retrieving file name index of the microphone
@@ -325,7 +364,7 @@ else
             else
                 SaveRawWaveName = 0;
             end
-            
+                
             % bandpass filter the ambient mic recording
             Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
             Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);

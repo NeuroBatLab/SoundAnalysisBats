@@ -358,27 +358,26 @@ FS_logger_voc_unmerged = FS_logger_voc_unmerged(OrdInd,:);
 
 %% Merge vocalizations into sequences if they are less than Merge_thresh appart to avoid repetition in Who Calls and add Merge_Thresh before/after
 fprintf(1, '***** . Merge sound events within %d ms  *****\n', Merge_thresh)
-Events2Merge = [0; (Voc_transc_time_unmerged(2:end,1)-Voc_transc_time_unmerged(1:end-1,2))<= Merge_thresh];
-FirstEvents2Merge = find(diff([Events2Merge; 0])==1); % onset of each sequence of events that should be merged
-LastEvents2Merge = find(diff([Events2Merge; 0])==-1);% offset of each sequence of events that should be merged
-Events2keep = strfind([Events2Merge' 0],[0 0]); % events that should be kept as they are
-if length(FirstEvents2Merge)~=length(LastEvents2Merge)
-    warning('Problem in the detection of sequences of sound events to merge')
-    keyboard
+Voc_transc_time = Voc_transc_time_unmerged;
+Voc_loggerSamp_Idx = Voc_loggerSamp_Idx_unmerged;
+LoggerID = LoggerID_unmerged;
+FS_logger_voc = FS_logger_voc_unmerged;
+ii=1;
+while ii<size(Voc_transc_time,1)
+    if (Voc_transc_time(ii+1,1)-Voc_transc_time(ii,2))<=Merge_thresh % The next event start before the end+merge_thresh of the current event and needs to be merged
+        % take as end of the merge the longer of the 2 events
+        [Voc_transc_time(ii,2), IndMaxTime] = max(Voc_transc_time(ii:(ii+1),2));
+        Voc_loggerSamp_Idx(ii,2) = Voc_loggerSamp_Idx(ii+IndMaxTime-1,2);% After merging, most of these numbers do not make sense anymore because they refer to different loggers, only the onset does
+        
+        % supress the next event that has been merged with ii
+        Voc_transc_time(ii+1,:)=[];
+        Voc_loggerSamp_Idx(ii+1,:) = [];% After merging, most of these numbers do not make sense anymore because they refer to different loggers, only the onset does
+        LoggerID(ii+1) = [];% After merging, the ID of the logger is only true for the onset
+        FS_logger_voc(ii+1) = [];
+    else % The next event is merge_threshold further, let's keep them separate.
+        ii=ii+1;
+    end
 end
-Voc_transc_time = [Voc_transc_time_unmerged(Events2keep,:) ; [Voc_transc_time_unmerged(FirstEvents2Merge,1) Voc_transc_time_unmerged(LastEvents2Merge,2)]];
-Voc_loggerSamp_Idx = [Voc_loggerSamp_Idx_unmerged(Events2keep,:) ; [Voc_loggerSamp_Idx_unmerged(FirstEvents2Merge,1) Voc_loggerSamp_Idx_unmerged(LastEvents2Merge,2)]]; % After merging, most of these numbers do not make sense anymoire because they refer to different loggers, only the onset does
-LoggerID = [LoggerID_unmerged(Events2keep) ; LoggerID_unmerged(FirstEvents2Merge)];% After merging, the ID of the logger is only true for the onset
-FS_logger_voc = [FS_logger_voc_unmerged(Events2keep) ; FS_logger_voc_unmerged(FirstEvents2Merge)];
-
-
-% reorder in time
-[~, OrdInd] = sort(Voc_transc_time(:,1));
-Voc_transc_time = Voc_transc_time(OrdInd,:);
-LoggerID = LoggerID(OrdInd);
-Voc_loggerSamp_Idx = Voc_loggerSamp_Idx(OrdInd,:);
-FS_logger_voc =FS_logger_voc(OrdInd);
-
 
 % Add MergeThresh before and after each
 Voc_transc_time(:,1) = Voc_transc_time(:,1) - Merge_thresh;
