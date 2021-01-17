@@ -14,7 +14,7 @@ end
 if nargin<7
     TransferLocal = 1;
 end
-
+PrevData = 0; %set to NaN to let computer ask each time 0 to overwrite any existing data, 1 to use previous data
 % Hard coded parameters for the filtering of the signal and calculations in biosound
 F_high_Raw = 50000;
 F_low_Raw = 100;
@@ -48,7 +48,7 @@ else
         keyboard
     end
     % Loop through the datafiles
-    for df=1:sum(Gdf)
+    for df=1:sum(Gdf) %1
         % bringing the file back on the local computer (we're going to write
         % pretty often to it)
         Data1 = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData%d.mat', Date, ExpStartTime, df)));
@@ -82,8 +82,33 @@ else
             WorkDir = Loggers_dir;
         end
         load(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
-        load(fullfile(WorkDir, Data1.name), 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename');
-    
+        if ~exist('BatID', 'var')
+            Ind_ = strfind(DataFile.name, '_');
+             load(fullfile(WorkDir, sprintf('%s_%s_VocExtractData%d%s', Date, ExpStartTime,1, DataFile.name(Ind_(end):end))), 'BatID','LoggerName');
+        end
+        load(fullfile(WorkDir, Data1.name), 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename', 'Old_vv_out_list');
+        
+        if length(IndVocStartRaw_merged)>length(VocFilename) && exist('Old_vv_out_list', 'var') % This is a correction of the correction of merge patch in Who_Calls_Play_Less :-P
+           
+            load(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged','IndVocStartRaw','IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo','IndVocStart_all', 'IndVocStop_all', 'RMSRatio_all', 'RMSDiff_all');
+            IndVocStartRaw_merged = IndVocStartRaw_merged(1:length(VocFilename));
+            IndVocStopRaw_merged = IndVocStopRaw_merged(1:length(VocFilename));
+            IndVocStartPiezo_merged = IndVocStartPiezo_merged(1:length(VocFilename));
+            IndVocStopPiezo_merged = IndVocStopPiezo_merged(1:length(VocFilename));
+            IndVocStartRaw = IndVocStartRaw(1:length(VocFilename));
+            IndVocStopRaw = IndVocStopRaw(1:length(VocFilename));
+            IndVocStartPiezo = IndVocStartPiezo(1:length(VocFilename));
+            IndVocStopPiezo = IndVocStopPiezo(1:length(VocFilename));
+            IndVocStart_all  = IndVocStart_all(1:length(VocFilename));
+            IndVocStop_all  = IndVocStop_all(1:length(VocFilename));
+            RMSRatio_all = RMSRatio_all(1:length(VocFilename));
+            RMSDiff_all= RMSDiff_all(1:length(VocFilename));
+            save(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged','IndVocStartRaw','IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo','IndVocStart_all', 'IndVocStop_all', 'RMSRatio_all', 'RMSDiff_all', '-append');
+
+            clear IndVocStartRaw IndVocStopRaw IndVocStartPiezo IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all
+        end
+            
+            
     
     
         % Number of call sequences with identified vocalizations
@@ -118,11 +143,13 @@ else
             else
                 load(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv_what');
             end
-            if exist('BioSoundCalls','var')
+            if exist('BioSoundCalls','var') && isnan(PrevData)
                 PrevData = input('Do you want to use previous data?');
-            else
+            elseif isnan(PrevData)
                 fprintf(1, 'No previous data, starting from scratch');
                 PrevData = 0;
+            else
+                fprintf(1,'Enforce PrevData usage to %d\n', PrevData);
             end
         catch
             fprintf(1, 'No previous data, starting from scratch\n');
