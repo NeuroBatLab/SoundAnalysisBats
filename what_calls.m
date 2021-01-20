@@ -139,9 +139,9 @@ else
     
         try
             if SaveBiosoundperFile
-                load(fullfile(WorkDir, DataFile.name),'BioSoundFilenames','NVocFile','vv_what');
+                load(fullfile(WorkDir, DataFile.name),'BioSoundFilenames','NVocFile','vv_what', 'Ncall');
             else
-                load(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv_what');
+                load(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv_what', 'Ncall');
             end
             if exist('BioSoundCalls','var') && isnan(PrevData)
                 PrevData = input('Do you want to use previous data?');
@@ -164,7 +164,7 @@ else
             NVocFile = 0;
         else
             Firstcall=vv_what;
-            NVocFile = NVocFile-1;
+            NVocFile = sum(Ncall(1:(vv_what-1)));
         end
     
         %% Loop through calls, save them as wav files and run biosound
@@ -192,6 +192,10 @@ else
                 if Ncall(vv_what)
                     for nn=1:Ncall(vv_what)
                         NVocFile = NVocFile +1;
+                        if NVocFile~=(sum(Ncall(1:(vv_what-1)))+1)
+                            warning('Issue with the call counting')
+                            keyboard
+                        end
                         fprintf(1,'%d/%d Vocalization\n',NVocFile,VocCall)
                         % Extract the sound of the microphone that
                         % correspond to the data
@@ -316,9 +320,9 @@ else
         
             % save the values!
             if ~SaveBiosoundperFile
-                save(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv_what','-append');
+                save(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv_what','Ncall','-append');
             else
-                save(fullfile(WorkDir, DataFile.name), 'BioSoundFilenames','NVocFile','vv_what','-append');
+                save(fullfile(WorkDir, DataFile.name), 'BioSoundFilenames','NVocFile','vv_what','Ncall','-append');
             end
             
         end
