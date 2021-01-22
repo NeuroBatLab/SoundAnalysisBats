@@ -6,9 +6,9 @@ function [IndVocStartRaw_merged, IndVocStopRaw_merged, IndVocStartPiezo_merge_lo
 RMS_Fig=0;
 VolDenominatorLogger=5;
 VolFactorMic=0.5;
-pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic','SaveFileType','CheckAfterMergePatch'};
-dflts  = {3,Loggers_dir,0,'pdf',0};
-[Factor_RMS_Mic,Working_dir,Force_Save_onoffsets_mic,SaveFileType, CheckAfterMergePatch] = internal.stats.parseArgs(pnames,dflts,varargin{:});
+pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic','SaveFileType','CheckAfterMergePatch','FixingDeletionError'};
+dflts  = {3,Loggers_dir,0,'pdf',0,0};
+[Factor_RMS_Mic,Working_dir,Force_Save_onoffsets_mic,SaveFileType, CheckAfterMergePatch, FixingDeletionError] = internal.stats.parseArgs(pnames,dflts,varargin{:});
 % UsePrevious is a boolean to indicate if you sould only check the
 % vocalizations that are new after the MergePatch
 
@@ -110,7 +110,7 @@ else
         end
         
         % Check if that set of vocalizations was alread fully completed
-        if vv==Nvoc && ~CheckAfterMergePatch
+        if vv==Nvoc && ~CheckAfterMergePatch &&~FixingDeletionError
             % All done
             continue
         else
@@ -134,7 +134,7 @@ else
                 minvv = 1;
                 maxvv = Nvoc;
                 load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename','Voc_transc_time_refined');
-                 if CheckAfterMergePatch
+                 if CheckAfterMergePatch || FixingDeletionError
                      load(DataFile,'Old_vv_out_list')
                  end
             else % often problem of memory, we're going to chunck file loading
@@ -151,7 +151,7 @@ else
                 end
                 Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
                 load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename','Voc_transc_time_refined');
-                if CheckAfterMergePatch
+                if CheckAfterMergePatch || FixingDeletionError
                      load(DataFile,'Old_vv_out_list')
                  end
             end
@@ -195,7 +195,7 @@ else
         % Initialize variables
         
         
-        if vv==1 && ~CheckAfterMergePatch % We need to initialize variables!
+        if vv==1 && (~CheckAfterMergePatch) && (~FixingDeletionError) % We need to initialize variables!
             %         Amp_env_LowPassLogVoc = cell(1,Nvoc);
             %         Amp_env_HighPassLogVoc = cell(1,Nvoc);
             %         Amp_env_Mic = cell(1,Nvoc);
@@ -246,6 +246,8 @@ else
             
             List2WorkOn = find(isnan(Old_vv_out_list));
             save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','-append');
+        elseif FixingDeletionError
+            List2WorkOn = find(isnan(Old_vv_out_list));
         else
             List2WorkOn = vv:Nvoc;
         end
@@ -461,7 +463,7 @@ else
                 end
             end
             
-            %% Now find onset/offset on microphone recording if there is no logger data
+            %% Listen to microphone and decide if we should go anyfurther in analysis
             ManCall=2;
             while (ManCall~=1) && (ManCall~=0)
                 commandwindow
@@ -498,9 +500,20 @@ else
             
             if ManCall==0
                 fprintf(1,'Manual input enforced: Noise (0)\n');
+                % Gather Vocalization production data:
+                IndVocStart_all{vv} = [];
+                IndVocStop_all{vv} = [];
+%                 IndNoiseStart_all{vv} = [];
+%                 IndNoiseStop_all{vv} = [];
+                IndVocStartRaw_merged{vv} = [];
+                IndVocStopRaw_merged{vv} = [];
+                IndVocStartPiezo_merged{vv} = [];
+                IndVocStopPiezo_merged{vv} = [];
+                RMSRatio_all{vv} = [];
+                RMSDiff_all{vv} = [];
                 fprintf(1,'saving data...\n')
                 if ~isempty(dir(PreviousFile))
-                    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'vv','-append');
+                    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv', '-append');
                 else
 %                     save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
                     save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
@@ -522,9 +535,13 @@ else
                     save(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_filename','-append')
                 end
                 continue
+            elseif FixingDeletionError
+                % we don't need to redo this sequence it was correctly
+                % analyzed previously
+                continue
             end
                 
-                    
+             %% Now find onset/offset on microphone recording if there is no logger data      
             if sum(cellfun('isempty',(Amp_env_LowPassLogVoc))) == length(AudioLogs) % No logger data, just isolate onset/offset of vocalizations on the microphone
                 if ~Force_Save_onoffsets_mic
                     fprintf(1,'CANNOT DETERMINE OWNERSHIP NO DETECTION OF ONSET/OFFSET\nSet Force_Save_onoffsets_mic to 1 to force saving data\n')
@@ -1322,6 +1339,8 @@ else
                                     %             end
                                     %             hold off
                                 end
+                            else
+                                
                             end
                         end
                     end

@@ -23,7 +23,7 @@ F_low_Piezo = 100;
 
 % Set to 1 if you want to manually pause after each vocalization and listen
 % to them
-ManualPause=1;
+ManualPause=0;
 
 % Import biosound library
 py.importlib.import_module('soundsig')
@@ -162,14 +162,13 @@ else
             end
             Firstcall = 1;
             NVocFile = 0;
+            Ncall = nan(NV,length(IndVocStartRaw_merged{VocInd(1)}));
         else
             Firstcall=vv_what;
-            NVocFile = sum(Ncall(1:(vv_what-1)));
+            NVocFile = sum(Ncall(1:(vv_what-1),:));
         end
     
         %% Loop through calls, save them as wav files and run biosound
-        Ncall = nan(NV,1);
-    
         % Turn off warning notifications for python 2 struct conversion
         warning('off', 'MATLAB:structOnObject')
     
@@ -188,11 +187,11 @@ else
                 % ID of the bat
                 ALIndex = contains(LoggerName, 'AL') .* contains(LoggerName, ALNum);
                 BatID_local =BatID{find(ALIndex)}; %#ok<FNDSB>
-                Ncall(vv_what) = length(IndVocStartRaw_merged{VocInd(vv_what)}{ll});
-                if Ncall(vv_what)
-                    for nn=1:Ncall(vv_what)
+                Ncall(vv_what,ll) = length(IndVocStartRaw_merged{VocInd(vv_what)}{ll});
+                if Ncall(vv_what,ll)
+                    for nn=1:Ncall(vv_what,ll)
                         NVocFile = NVocFile +1;
-                        if NVocFile~=(sum(Ncall(1:(vv_what-1)))+1)
+                        if (ll>1 && NVocFile~=(sum(sum(Ncall(1:(vv_what-1),:)))+ sum(Ncall(vv_what,1:(ll-1))) + nn)) || ll==1 && NVocFile~=(sum(sum(Ncall(1:(vv_what-1),:))) + nn)
                             warning('Issue with the call counting')
                             keyboard
                         end
@@ -314,6 +313,7 @@ else
                             end
                             %                 end
                         end
+                        pause(0.001)
                     end
                 end
             end
