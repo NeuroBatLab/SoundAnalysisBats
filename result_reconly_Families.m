@@ -17,11 +17,11 @@ addpath(genpath(fullfile(BaseCodeDir,'SoundAnalysisBats')))
 DatesDir = dir(fullfile(BaseDataDir,'20*'));
 % We only extract data of recordings that were done in 151 so after
 % 20200714 and 20190731 did not have TTL pulses recorded so no
-% synchronization
+% synchronization and 20190830 that has a big allignment mess!
 NDates = length(DatesDir);
 Dates2Keep = nan(1,NDates);
 for dd=1:NDates
-    if str2double(DatesDir(dd).name)<20190715 || str2double(DatesDir(dd).name)==20190731
+    if str2double(DatesDir(dd).name)<20190715 || str2double(DatesDir(dd).name)==20190731 || str2double(DatesDir(dd).name)==20190830
         Dates2Keep(dd) = 0;
     else
         Dates2Keep(dd) = 1;
@@ -102,10 +102,13 @@ for dd=1:NDates
         
             % find the data into that line
             Temp = str2double(data{1}{IndexLine}((IndexChar + 6):(IndexChar2-2)));
-            if Temp<600
-                fprintf(1, '   -> Data too short\n')
-                continue
-            end
+        else %No stop line, estimate the duration of the experiment by looking at the number of microphone files
+            MicFiles = dir(fullfile(ParamFile(nn).folder, [ParamFile(nn).name(1:25) 'mic1*']));
+            Temp = (length(MicFiles)-1)*600;
+        end
+        if Temp<600
+            fprintf(1, '   -> Data too short\n')
+            continue
         end
         ProcessedOK = result_reconly_Dbats(Filepath,Path2RecordingTable,TTLFolder);
         Ind_ = strfind(ParamFile(nn).name, '_param');
@@ -123,7 +126,7 @@ function [Processed] = result_reconly_Dbats(Path2ParamFile, Path2RecordingTable,
 TranscExtract = 1; % set to 1 to extract logger data and transceiver time
 ForceExtract = 0; % set to 1 to redo the extraction of loggers otherwise the calculations will use the previous extraction data
 ForceAllign = 0; % In case the TTL pulses allignment was already done but you want to do it again, set to 1
-ForceVocExt1 = 0; % In case the localization on raw files of vocalizations that were manually extracted was already done but you want to do it again set to 1
+ForceVocExt1 = 1; % In case the localization on raw files of vocalizations that were manually extracted was already done but you want to do it again set to 1
 ForceVocExt2 = 1; % In case the localization on Loggers of vocalizations that were manually extracted was already done but you want to do it again set to 1
 ReAllignment = 0; % Incase we don't have a logger on all animals, it's better not to reallign the vocal data by cross correlation between the Microphone and the loggers
 close all
@@ -315,7 +318,7 @@ if isempty(TTL_dir) || ForceAllign
         %         align_soundmexAudio_2_logger(AudioDataPath, Logger_dir, ExpStartTime,'TTL_pulse_generator','Avisoft','Method','risefall', 'Session_strings', {'all voc reward stop', 'rec only stop'}, 'Logger_list', [SerialNumberAL; SerialNumberNL]);
         align_soundmexAudio_2_logger(AudioDataPath, Logger_dir, ExpStartTime,'TTL_pulse_generator','Avisoft','Method','risefall', 'Session_strings', {'rec only start', 'rec only stop'}, 'Logger_list', [SerialNumberAL; SerialNumberNL]);
     elseif contains(Path2RecordingTable, 'JuvenileRecordings')
-        align_soundmexAudio_2_logger(AudioDataPath, Logger_dir, ExpStartTime,'TTL_pulse_generator','Avisoft','Method','risefall', 'Session_strings', {'rec only start', 'rec only stop'}, 'TTLFolder',TTLFolder);
+         align_soundmexAudio_2_logger(AudioDataPath, Logger_dir, ExpStartTime,'TTL_pulse_generator','Avisoft','Method','risefall', 'Session_strings', {'rec only start', 'rec only stop'}, 'TTLFolder',TTLFolder);
     end
     close all
 else
