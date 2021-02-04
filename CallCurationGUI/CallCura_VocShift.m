@@ -1,10 +1,3 @@
-% ** Combine two loops (they do the same thing) and Loop through ExpLog and compare to WhoLog (if in WhoLog, it is done).
-% If not in WhoLog, start manual curation
-% ***** Modify CheckAllignementLog so it stores 1's and 0's, checks old
-% misaligned log, and ensure logic using CheckAllignementLog is correct
-
-% bottom line: make sure param file is one to be manually curated
-
 %% Script calling the Gui CallCuraGui (code in CallCurafkt) for manual
 % curation of vocalizations extracted from microphone and loggers. It is
 % the faithful Gui version of Who_calls_playless
@@ -12,8 +5,9 @@
 % This code gets ready the Gui input
 
 close all;
+clear all;
 
-global WorkingDir Filepath Logger_dir
+global WorkingDir Filepath Logger_dir FidWho
 global VolDenominatorLogger VolFactorMic Manual MergeThresh;
 global Force_Save_onoffsets_mic SaveFileType;
 global CheckMicChannel UseOld  PlotRMSFig FhGUI;
@@ -30,8 +24,9 @@ global plotlog6h plotlog7h plotlog8h plotlog9h plotlog10h plotevalh plotlogevalh
 %% These are specific to the dataset and computer
 BaseDataDir = 'Z:\users\tobias\vocOperant';
 BaseCodeDir = 'C:\Users\tobias\Documents\GitHub\operant_bats';
-WorkingDir = 'C:\Users\tobias\Documents\VocShiftWhoWorkDir'; %**not sure if right. old path - 'C:\Users\BatLab\Documents\DeafWhoWorkDir\';
+WorkingDir = 'C:\Users\tobias\Documents\VocShiftWhoWorkDir';
 ExpLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCalls.txt'); % in results (process one done/no)
+WhoLogOld = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCallsDoneOld.txt'); % points to files in which manual curation has been done with older wrapper_WhoCalls.m (note that wrapper_WhoCalls has been changed by NW Fall 2020 after it's been used and never used after NW changes...)
 WhoLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCallsDone.txt'); % points to files in which manual curation has been done
 AlliLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogCheckAllignement.txt'); % process 2
 
@@ -67,17 +62,26 @@ else
     fclose(FidExp);
 end
 
+% Extract list of files that have been manually cured using older
+% wrapper_WhoCalls
+FidWhoOld = fopen(WhoLogOld, 'r');
+HeaderOld = textscan(FidWhoOld,'%s\t%s\t%s\t%s\t%s\t%s\n',1);
+DoneListWhoOld = textscan(FidWhoOld,'%s\t%s\t%s\t%s\t%.1f\t%d');
+fclose(FidWhoOld);
+
+% Extract list of files that have been manually cured using CallCura
 if ~exist(WhoLog, 'file')
     FidWho = fopen(WhoLog, 'a');
-    fprintf(FidWho, 'Subject\tDate\tTimte\tType\tDuration(s)\tLoggerID\n'); %'Subject\tDate\tTime\tNCalls\n'
-    DoneListWho = [];
+    fprintf(FidWho, 'Subject\tDate\tTime\tNCalls\n');
+    DoneListWho = {[] [] [] []};
 else
     FidWho = fopen(WhoLog, 'r');
-    Header = textscan(FidWho,'%s\t%s\t%s\t%s\t%s\t%s\n',1);
-    DoneListWho = textscan(FidWho,'%s\t%s\t%s\t%s\t%.1f\t%d');
+    Header = textscan(FidWho,'%s\t%s\t%s\t%s\n',1);
+    DoneListWho = textscan(FidWho,'%s\t%s\t%s\t%d');
     fclose(FidWho);
     FidWho = fopen(WhoLog, 'a');
 end
+
 
 if ~exist(AlliLog, 'file')
     FidAlli = fopen(AlliLog, 'a');
@@ -93,39 +97,36 @@ end
 
 %Grabbing a new Session
 fprintf(1,'Grabbing the session...');
-%
-% Retrieve names of files with good quality data. Alter to iterate through
-% files of ExpLog instead*****
-fprintf(1,'Grabbing the session...');
 NExpe = length(DoneListDetect{1});
-checkSession = 1;
+CheckSession = 1;
 AlliOk = [];
 ee = 0;
-while checkSession && ee < NExpe
+while CheckSession && ee < NExpe
     ee = ee+1;
     BatsID = DoneListDetect{1}{ee};
     Date = DoneListDetect{2}{ee};
     Time = DoneListDetect{3}{ee};
     boxID = DoneListDetect{7}{ee};
-    f_name = sprintf('%s_%s_%s_VocTrigger_param.txt', BatsID, Date, Time);
-    %ParamFile = dir(fullfile(BaseDataDir,['20' Date],'audio',sprintf('%s_%s_%s*RecOnly_param.txt', BatsID, Date, Time)));
-    %fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFile.name)
-    
-    ParamFilesDir = dir(fullfile(BaseDataDir, boxID, 'bataudio', f_name));
-    fprintf(1,'file %d/%d:\n%s\n', ee, NExpe, fullfile(BaseDataDir, boxID, 'bataudio', f_name))
+    HasLoggerData = str2double(DoneListDetect{6}{ee});
+    F_name = sprintf('%s_%s_%s_VocTrigger_param.txt', BatsID, Date, Time);
+    fprintf(1, '\n\n\n Date: %s, Box:%s, experiment %d/%d\n%s\n', Date,boxID, ee,NExpe,F_name)
+    if ~HasLoggerData
+        fprintf(1, '   -> Data has no logger, skip\n')
+        continue
+    end
     
     % Check that the file was not already set aside or done
-    if ~isempty(DoneListWho)
-        Done = sum(contains(DoneListWho{1},BatsID) .* contains(DoneListWho{2},Date) .* contains(DoneListWho{3},Time));
+    if ~isempty(DoneListWho) || ~isempty(DoneListWhoOld)
+        Done = any([sum(contains(DoneListWho{1},BatsID) .* contains(DoneListWho{2},Date) .* contains(DoneListWho{3},Time)) sum(contains(DoneListWhoOld{1},BatsID) .* contains(DoneListWhoOld{2},Date) .* contains(DoneListWhoOld{3},Time))]);
     else
         Done=0;
     end
-    if ~isempty(DoneListDetect)
-        hasLoggerDataInd = find(contains(DoneListDetect{1},BatsID) .* contains(DoneListDetect{2},Date) .* contains(DoneListDetect{3},Time));
-        hasLoggerData = DoneListDetect{6}{hasLoggerDataInd};
-    else
-        Done=0;
+    if Done
+        fprintf(1, '   -> Data already processed\n')
+        continue
     end
+    
+    % Check if the allignment has been verified
     if ~isempty(ListAlliOk)
         AlliOkInd = find(contains(ListAlliOk{1},BatsID) .* contains(ListAlliOk{2},Date) .* contains(ListAlliOk{3},Time));
         if isempty(AlliOkInd)
@@ -137,26 +138,20 @@ while checkSession && ee < NExpe
         AlliOk=[];
     end
     
-    if ~hasLoggerData
-        fprintf(1, '   -> Data has no logger, skip\n')
-        continue
-    end
-    if Done
-        fprintf(1, '   -> Data already processed\n')
-        checkSession=1;
-    elseif ~Done && ~isempty(AlliOk)
-        if AlliOk
+    if ~isempty(AlliOk) % Not manually cured throughout but allignement verified
+        if AlliOk % Allignment ok
             Logger_dir = fullfile(BaseDataDir, boxID, 'piezo', Date, 'audiologgers');
             fprintf(1, '   -> Starting from where we left on this session\n')
-            checkSession=0;
+            CheckSession=0;
             % This is the name to the experiment that needs to be analyzed
+            ParamFilesDir = dir(fullfile(BaseDataDir, boxID, 'bataudio', F_name));
             Filepath = fullfile(ParamFilesDir.folder, ParamFilesDir.name);
             fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFilesDir.name)
-        else
+        else % Flagged as wrong allignement
             fprintf(1, '   -> Session flagged as not alligned correctly\n')
-            checkSession=1;
+            CheckSession=1;
         end
-    elseif ~Done && isempty(AlliOk) && DoneListDetect{6}{ee} == "1"
+    elseif isempty(AlliOk) % Not manually cured throughout and allignment not verified
         fprintf(1, '   -> Starting new session\n')
         % Check that the clocks drifts were correctly corrected
         fprintf(1,'*** Check the clock drift correction of the logger ***\n')
@@ -164,7 +159,6 @@ while checkSession && ee < NExpe
         LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
         Check = zeros(length(LoggersDir)+1,1);
         for ll=1:length(LoggersDir)
-            % **may need to modify below?
             FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
             failsafe=1;
             while failsafe
@@ -198,21 +192,64 @@ while checkSession && ee < NExpe
             AlliOk=0;
             fprintf(FidAlli, '%s\t%s\t%s\t%d\n',BatsID,Date,Time,AlliOk);
             fprintf(1,'\n****** Error in allignement reported ******\n')
-            checkSession=1;
+            CheckSession=1;
         else
             AlliOk=1;
             fprintf(FidAlli, '%s\t%s\t%s\t%d\n',BatsID,Date,Time,AlliOk);
             fprintf(1,'\n****** Allignement reported as good! ******\n')
-            checkSession=0;
+            CheckSession=0;
             % This is the name to the experiment that needs to be analyzed
-            Filepath = fullfile(BaseDataDir,boxID,'bataudio', sprintf('%s_%s_%s_VocTrigger*', BatsID, Date, Time)); %fullfile(ParamFile.folder, ParamFile.name);
-            fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,sprintf('%s_%s_%s_VocTrigger*', BatsID, Date, Time))
+            ParamFilesDir = dir(fullfile(BaseDataDir, boxID, 'bataudio', F_name));
+            Filepath = fullfile(ParamFilesDir.folder, ParamFilesDir.name);
+            fprintf(1, '\n\n\n Date: %s, experiment %d/%d\n%s\n', Date,ee,NExpe,ParamFilesDir.name)
         end
     else
-        fprintf(1, '    -> Experiment has no logger data\n')
+        fprintf(1,'Check, we should not end up here!!\n')
+        keyboard
     end
 end
 
+%% Before starting the Gui
+fprintf(1,'Checking the variable Raw_wave and appending if necessary\n')
+% Check that Raw_wave was correctly saved
+DataFiles = dir(fullfile(Logger_dir, sprintf('%s_%s_VocExtractData*.mat', Date, Time)));
+% select the correct files
+Gdf = zeros(length(DataFiles),1);
+for dfi=1:length(DataFiles)
+    if length(strfind(DataFiles(dfi).name, '_'))==2
+        Gdf(dfi)=1;
+    end
+end
+DataFiles = DataFiles(logical(Gdf));
+
+% gather File indices to reorder them
+IndDataFiles = nan(length(DataFiles),1);
+for nfile = 1:length(DataFiles)
+    IndData = strfind(DataFiles(nfile).name, 'Data') + length('Data');
+    IndDot = strfind(DataFiles(nfile).name, '.') - 1;
+    IndDataFiles(nfile) = str2double(DataFiles(nfile).name(IndData:IndDot));
+end
+[~,AscendOrd] = sort(IndDataFiles);
+DataFiles = DataFiles(AscendOrd);
+DataTimes=load(fullfile(ParamFilesDir.folder, sprintf('%s_%s_VocExtractTimes.mat', Date, Time)), 'Voc_filename');
+NVocAll = length(DataTimes.Voc_filename);
+for nfile = 1:length(DataFiles)
+    LocalData = load(fullfile(DataFiles(nfile).folder,DataFiles(nfile).name));
+    NVocLocal = length(LocalData.VocFilename);
+    if any(cellfun('isempty', LocalData.Raw_wave))
+        Raw_wave = LocalData.Raw_wave;
+        if NVocLocal ~= length(LocalData.Raw_wave)
+            error('Issue with Raw_wave variable, reach out to Julie to fix!!\n')
+        end
+        for vv=1:NVocLocal
+            if isempty(Raw_wave{vv})
+                [Raw_wave{vv}, FS] = audioread(LocalData.VocFilename{vv});
+            end
+        end
+        save(fullfile(DataFiles(nfile).folder,DataFiles(nfile).name), 'Raw_wave', '-append')
+    end
+end
+fprintf(1,'Check done, starting the GUI\n')
 %fclose(FidWho);
 
 

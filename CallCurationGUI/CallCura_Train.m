@@ -5,6 +5,7 @@
 % This code gets ready the Gui input
 
 close all;
+clear all;
 
 global WorkingDir Filepath df Logger_dir
 global VolDenominatorLogger VolFactorMic Manual MergeThresh;
