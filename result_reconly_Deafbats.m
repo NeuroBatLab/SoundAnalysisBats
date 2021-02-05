@@ -331,6 +331,11 @@ for df=1:length(LogVoc_dir)
 end
 if sum(Gdf)==0 || ForceVocExt1 || ForceVocExt2
     fprintf('\n*** Localizing vocalizations on piezo recordings ***\n')
+    if sum(Gdf)~=0
+        for df=1:length(LogVoc_dir)
+            delete(fullfile(LogVoc_dir(df).folder, LogVoc_dir(df).name))
+        end
+    end
     get_logger_data_voc(AudioDataPath, Logger_dir,Date, ExpStartTime, 'ReAllignment',ReAllignment);
 else
     fprintf('\n*** ALREADY DONE: Localizing vocalizations on piezo recordings ***\n')
