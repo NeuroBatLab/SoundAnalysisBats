@@ -848,8 +848,16 @@ RatioAmp = (Amp_env_LowPassLogVoc_MAT +1)./(Amp_env_HighPassLogVoc_MAT+1);
 DiffAmp = Amp_env_LowPassLogVoc_MAT-Amp_env_HighPassLogVoc_MAT;
 
 if CheckMicChannel
-    Short = min([cellfun('length',Amp_env_LowPassLogVoc) length(Amp_env_Mic)]);
-    Long = max([cellfun('length',Amp_env_LowPassLogVoc) length(Amp_env_Mic)]);
+    try
+        Short = min([cellfun('length',Amp_env_LowPassLogVoc)' length(Amp_env_Mic)]);
+    catch
+        Short = min([cellfun('length',Amp_env_LowPassLogVoc) length(Amp_env_Mic)]);
+    end
+    try
+        Long = max([cellfun('length',Amp_env_LowPassLogVoc)' length(Amp_env_Mic)]);
+    catch
+        Long = max([cellfun('length',Amp_env_LowPassLogVoc) length(Amp_env_Mic)]);
+    end
     if (Long-Short)>1
         error('The length of vectors of running RMS are too different than expected, please check!\n')
     elseif Long~=Short
