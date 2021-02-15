@@ -1,8 +1,14 @@
 BaseDataDir = 'Z:\users\JulieE\JuvenileRecordings151\';
-BaseCodeDir = 'C:\Users\tobias\Documents\Code\';
-Path2RecordingTable = 'C:\Users\tobias\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings\JuvenileRecordingsNWAF155_Log.xlsx';
-TTLFolder = 'C:\Users\tobias\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings';
-WorkingDir = 'C:\Users\tobias\Documents\FamiliesMicCheckWorkDir\';
+BaseCodeDir = 'C:\Users\Dell Workstation\Documents\GitHub\';
+Path2RecordingTable = 'C:\Users\Dell Workstation\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings\JuvenileRecordingsNWAF155_Log.xlsx';
+TTLFolder = 'C:\Users\Dell Workstation\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings';
+WorkingDir = 'C:\Users\Dell Workstation\Documents\FamiliesMicCheckWorkDir\';
+
+% BaseDataDir = 'Z:\users\JulieE\JuvenileRecordings151\';
+% BaseCodeDir = 'C:\Users\tobias\Documents\Code\';
+% Path2RecordingTable = 'C:\Users\tobias\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings\JuvenileRecordingsNWAF155_Log.xlsx';
+% TTLFolder = 'C:\Users\tobias\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordings';
+% WorkingDir = 'C:\Users\tobias\Documents\FamiliesMicCheckWorkDir\';
 
 % BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';
 % BaseCodeDir = '/Users/elie/Documents/CODE';
