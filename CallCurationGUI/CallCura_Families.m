@@ -16,7 +16,7 @@ global evalLog6h evalLog7h evalLog8h starth evalLog plotb string_handle;
 global filenameh noCallh maybeCallh redoh redoEditVoch redoEditSeth sliderLefth sliderRighth;
 global playMich playLog1h playLog2h playLog3h playLog4h playLog5h playLog6h;
 global playLog7h playLog8h playMicEvalh playLogEvalh redo checkboxh playLog9h;
-global playLog10h evalLog9h evalLog10h playb message mh;
+global playLog10h evalLog9h evalLog10h playb message mh traineeNameh;
 global plotmich plotmicevalh plotlog1h plotlog2h plotlog3h plotlog4h plotlog5h;
 global plotlog6h plotlog7h plotlog8h plotlog9h plotlog10h plotevalh plotlogevalh;
 
@@ -264,6 +264,7 @@ message={'';'';'';'';'';''};
     redoh=findobj(FhGUI,'tag','redo');
     redoEditVoch=findobj(FhGUI,'tag','redoEditVoc');
     redoEditSeth=findobj(FhGUI,'tag','redoEditSet');
+    traineeNameh=findobj(FhGUI,'tag','trainee_name');
     submith=findobj(FhGUI,'tag','submit');
     checkboxh=findobj(FhGUI,'tag','checkbox');
     evalLog = cell(10,1);

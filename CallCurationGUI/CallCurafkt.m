@@ -335,7 +335,7 @@ global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
 global IndHearStartRaw IndHearStopRaw IndHearStartPiezo;
 global IndHearStopPiezo IndHearStart_all IndHearStop_all;
 global MicError PiezoError MicErrorType PiezoErrorType SaveRawWave Raw_wave;
-global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename redo
+global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename redo SorterName
 
 newmessage(sprintf('Saving data Voc %d...', vv))
 fprintf('Saving data Voc %d...', vv)
@@ -345,7 +345,7 @@ if ~isempty(dir(PreviousFile))
         'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo',...
         'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
         'IndHearStartRaw', 'IndHearStopRaw', 'IndHearStartPiezo', 'IndHearStopPiezo',...
-        'IndHearStart_all', 'IndHearStop_all',...
+        'IndHearStart_all', 'IndHearStop_all', 'SorterName',...
         'MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
 else
     save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
@@ -353,7 +353,7 @@ else
         'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo',...
         'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
         'IndHearStartRaw', 'IndHearStopRaw', 'IndHearStartPiezo', 'IndHearStopPiezo',...
-        'IndHearStart_all', 'IndHearStop_all',...
+        'IndHearStart_all', 'IndHearStop_all', 'SorterName',...
         'MicError','PiezoError','MicErrorType','PiezoErrorType');
 end
 if ~redo
@@ -389,13 +389,16 @@ global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
 global IndVocStopPiezo_merged IndVocStartRaw IndVocStopRaw IndVocStartPiezo;
 global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
 global IndHearStart_all IndHearStop_all IndHearStartRaw IndHearStartPiezo IndHearStopRaw IndHearStopPiezo;
-global MicError PiezoError MicErrorType PiezoErrorType;
-global Chunking_RawWav;
+global MicError PiezoError MicErrorType PiezoErrorType SorterName;
+global Chunking_RawWav TraineeName traineeNameh;
 
 newmessage(sprintf('Grabbing new set #%d...', df_local));
 fprintf('Grabbing new set #%d...', df_local);
 Nvoc = Nvocs(df_local+1) - Nvocs(df_local);
 DataFile = fullfile(DataFiles(df_local).folder, DataFiles(df_local).name);
+
+% Get the name of the trainee
+TraineeName = get(traineeNameh, 'string');
 
 PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat',...
     Date, ExpStartTime, df_local,MergeThresh));
@@ -410,11 +413,16 @@ if ~isempty(dir(PreviousFile)) && UseOld
         'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', ...
         'IndVocStartRaw','IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo',...
         'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all',...
-        'vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+        'vv','MicError','PiezoError','MicErrorType','PiezoErrorType', 'SorterName');
     
     if ~exist('vv','var')
         % There is no previous data but just data regarding piezo numbers and bats_ID
         vv=1;
+    end
+    if ~exist('SorterName', 'var')
+        % For the first instances we are using this variable
+        % (implementation 02/16/2021)
+        SorterName = cell(1,Nvoc); % Contains for each sequence of vocalizations (Nvoc) the name of the sorter
     end
 else
     vv=1;
@@ -483,7 +491,7 @@ if vv~=Nvoc || redo % This is the file that we need to complete
         IndHearStartPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index onset of when the animal start HEARING in the piezo recording before merge
         IndHearStopRaw = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop HEARING the raw recording before merge
         IndHearStopPiezo = cell(1,Nvoc);% Contains for each sequence of vocalizations (Nvoc) a cell array of the size the number of loggers and for each logger the index offset of when the animal stop HEARING in the piezo recording before merge
-        
+        SorterName = cell(1,Nvoc); % Contains for each sequence of vocalizations (Nvoc) the name of the sorter
         
         RMSRatio_all = cell(1,Nvoc);
         RMSDiff_all = cell(1,Nvoc);
@@ -1246,7 +1254,7 @@ global RMSRatio RMSDiff Working_dir_write df MergeThresh FileVoc;
 global SaveFileType VocFilename plotmich plotevalh plotb RMSFig PlotRMSFig;
 global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
 global IndVocStopPiezo_merged IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
-global IndHearStart IndHearStop IndHearStart_all IndHearStop_all
+global IndHearStart IndHearStop IndHearStart_all IndHearStop_all SorterName TraineeName;
 
 % Update the figure on the left panel, in particular scale the bottom
 % summary plot
@@ -1304,6 +1312,8 @@ else
     % Gather vocalization hearing data
     IndHearStart_all{vv} = IndHearStart;
     IndHearStop_all{vv} = IndHearStop;
+    % save name of the sorter
+    SorterName{vv} = TraineeName;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
