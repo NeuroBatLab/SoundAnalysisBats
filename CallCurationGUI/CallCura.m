@@ -24,8 +24,8 @@ global plotlog6h plotlog7h plotlog8h plotlog9h plotlog10h plotevalh plotlogevalh
 
 %% These are specific to the dataset and computer
 BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
-BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\';
-WorkingDir = 'C:\Users\BatLab\Documents\DeafWhoWorkDir\';
+BaseCodeDir = 'C:\Users\tobias\Documents\GitHub\';
+WorkingDir = 'C:\Users\tobias\Documents\DeafWhoWorkDir\';
 ExpLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSal.txt');
 WhoLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalWho.txt');
 AlliLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalAllignement.txt');
