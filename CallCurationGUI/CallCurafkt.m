@@ -400,6 +400,11 @@ DataFile = fullfile(DataFiles(df_local).folder, DataFiles(df_local).name);
 % Get the name of the trainee
 TraineeName = get(traineeNameh, 'string');
 
+% Check if there is a previous file on the server
+PreviousFileServer = fullfile(Logger_dir, sprintf('%s_%s_VocExtractData%d_%d.mat',...
+    Date, ExpStartTime, df_local,MergeThresh));
+
+        
 PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat',...
     Date, ExpStartTime, df_local,MergeThresh));
 if ~isfile(PreviousFile)
@@ -407,6 +412,18 @@ if ~isfile(PreviousFile)
     PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData_%d.mat',...
         Date, ExpStartTime,MergeThresh));
 end
+
+if ~isfile(PreviousFile)&& ~isempty(dir(PreviousFileServer))
+    fprintf(1,'Bringing data of curation locally from the server\n')
+    [s,m,e]=copyfile(PreviousFileServer, Working_dir_write, 'f'); %#ok<ASGLU>
+    if ~s
+        fprintf(1,'File transfer did not occur correctly\n')
+        keyboard
+    end
+    PreviousFile = fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat',...
+    Date, ExpStartTime, df_local,MergeThresh));
+end
+    
 
 if ~isempty(dir(PreviousFile)) && UseOld
     load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged',...

@@ -67,7 +67,7 @@ fprintf(1, 'total number of clean experiments to process: %d\n', TotCleanExp)
 
 %% Stats of number fo experiments that went through vocalization detection
 BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
-BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\';
+WorkingDir = 'C:\Users\tobias\Documents\DeafWhoWorkDir\';
 ExpLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSal.txt'); % List of experiments for which vocalizations where detected on piezo
 WhoLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalWho.txt');% List of experiments on which manual curation was performed
 AlliLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalAllignement.txt');
@@ -116,7 +116,8 @@ for ee=1:length(CuratedExp.Date)
 end
 CuratedExp.Date(logical(Dup)) = [];
 CuratedExp.Time(logical(Dup)) = [];
-fprintf(1, 'Experiments with manually curated vocalizations: %d/%d, %d%%\n', length(CuratedExp.Date), TotCleanExp, round(length(CuratedExp.Date)/TotCleanExp*100))
+NCurated = length(CuratedExp.Date);
+fprintf(1, 'Experiments fully manually curated: %d/%d, %d%%\n', NCurated, TotCleanExp, round(NCurated/TotCleanExp*100))
 
 % Add the current set being manually curated
 
