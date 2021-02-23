@@ -23,8 +23,8 @@ global plotlog6h plotlog7h plotlog8h plotlog9h plotlog10h plotevalh plotlogevalh
 
 %% These are specific to the dataset and computer
 BaseDataDir = 'Z:\users\tobias\vocOperant';
-BaseCodeDir = 'C:\Users\tobias\Documents\GitHub\operant_bats';
-WorkingDir = 'C:\Users\tobias\Documents\VocShiftWhoWorkDir';
+BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\operant_bats';
+WorkingDir = 'C:\Users\BatLab\Documents\VocShiftWhoWorkDir';
 ExpLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCalls.txt'); % in results (process one done/no)
 WhoLogOld = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCallsDoneOld.txt'); % points to files in which manual curation has been done with older wrapper_WhoCalls.m (note that wrapper_WhoCalls has been changed by NW Fall 2020 after it's been used and never used after NW changes...)
 WhoLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCallsDone.txt'); % points to files in which manual curation has been done
