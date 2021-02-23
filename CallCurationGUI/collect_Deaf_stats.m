@@ -118,6 +118,10 @@ CuratedExp.Date(logical(Dup)) = [];
 CuratedExp.Time(logical(Dup)) = [];
 fprintf(1, 'Experiments with manually curated vocalizations: %d/%d, %d%%\n', length(CuratedExp.Date), TotCleanExp, round(length(CuratedExp.Date)/TotCleanExp*100))
 
+% Add the current set being manually curated
+
+
+
 % Gather the number of vocalizations manually curated for each experiment
 CuratedExp.NumVoc = zeros(length(CuratedExp.Date),1);
 CuratedExp.NumSeq = zeros(length(CuratedExp.Date),1);
@@ -207,16 +211,45 @@ fprintf(1, 'Total number of sequences with vocalizations %d/%d, %d%%\n', sum(Cur
 fprintf(1, 'Total number of vocalizations %d\n', sum(CuratedExp.NumVoc))
 diary OFF
 %% Some figures
+BatStatus.name = [11648 14461 14463 14464 65696 71043 71047 71351 71353 71354];
+BatStatus.sex = {'F' 'M' 'F' 'M' 'F' 'M' 'F' 'M' 'F' 'F'};
+BatStatus.deaf = [0 0 1 0 0 1 1 1 0 1];
+
+% Plot num Voc per batID
+figure()
+subplot(1,2,1)
+BAR = bar(CuratedExp.BatVocNum);
+ylabel('# Vocalizations')
+xlabel('Bat Name')
+BAR.Parent.XTickLabel = CuratedExp.UniqueBatNames;
+BAR.FaceColor = 'flat';
+for bb=1:length(CuratedExp.UniqueBatNames)
+    if strcmp(BatStatus.sex(BatStatus.name==CuratedExp.UniqueBatNames(bb)), 'F')
+        BAR.CData(bb,1) = 1;
+    end
+end
+
+subplot(1,2,2)
+BAR = bar(CuratedExp.BatVocNum);
+ylabel('# Vocalizations')
+xlabel('Bat Name')
+BAR.Parent.XTickLabel = CuratedExp.UniqueBatNames;
+BAR.FaceColor = 'flat';
+for bb=1:length(CuratedExp.UniqueBatNames)
+    if BatStatus.deaf(BatStatus.name==CuratedExp.UniqueBatNames(bb))
+        BAR.CData(bb,:) = [1 1 1];
+    else
+        BAR.CData(bb,:) = [0 0 0];
+    end
+end
+
+
+% Plot number of sequences per curator
 figure()
 BAR = bar(CuratedExp.SorterSeqNum);
 ylabel('# sequences')
 xlabel('Curator')
 BAR.Parent.XTickLabel = CuratedExp.UniqueSorterNames;
-
-% Plot num Voc per batID
-
-
-% Plot Num Voc per bat Status
 
 
 
