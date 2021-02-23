@@ -20,7 +20,7 @@ for dd=1:NDates
     ParamFile = dir(fullfile(DatesDir(dd).folder, DatesDir(dd).name,'audio','*RecOnly_param.txt'));
     Nsessions = length(ParamFile);
     for nn=1:Nsessions
-        fprintf(1, '\n\n\n Date: %s, experiment %d/%d, session %d/%d\n%s\n', DatesDir(dd).name,dd,NDates,nn,Nsessions,ParamFile(nn).name)
+        fprintf(1, '\n\n\n Date: %s, experimental day %d/%d, session %d/%d\n%s\n', DatesDir(dd).name,dd,NDates,nn,Nsessions,ParamFile(nn).name)
         Filepath = fullfile(ParamFile(nn).folder, ParamFile(nn).name);
         
         % check that the experiment has data!
@@ -120,8 +120,33 @@ NCurated = length(CuratedExp.Date);
 fprintf(1, 'Experiments fully manually curated: %d/%d, %d%%\n', NCurated, TotCleanExp, round(NCurated/TotCleanExp*100))
 
 % Add the current set being manually curated
-
-
+CurrentCurationFiles = dir(fullfile(WorkingDir, 'write', '*VocExtractData*.mat'));
+if ~isempty(CurrentCurationFiles)
+    NcurrentFiles = length(CurrentCurationFiles);
+    AllCurrentDate = cell(NcurrentFiles,1);
+    AllCurrentTime = cell(NcurrentFiles,1);
+    AllCurrentIndex = nan(NcurrentFiles,1);
+    for ff=1:NcurrentFiles
+        AllCurrentDate{ff} = CurrentCurationFiles(ff).name(1:6);
+        AllCurrentTime{ff} = CurrentCurationFiles(ff).name(8:11);
+        IndData = strfind(CurrentCurationFiles(ff).name, 'Data')+4;
+        Ind200 = strfind(CurrentCurationFiles(ff).name, '200.')-2;
+        AllCurrentIndex(ff) = str2double(CurrentCurationFiles(ff).name(IndData:Ind200));
+    end
+    UniqueDate = unique(AllCurrentDate);
+    UniqueTime = unique(AllCurrentTime);
+    if length(UniqueDate)>1 || length(UniqueTime)>1
+        warning('Expecting nly one current experiment, check why we have files from several days/time here!')
+        keyboard
+    else
+        [~,OrdInd] = sort(AllCurrentIndex);
+        CurrentCurationFiles = CurrentCurationFiles(OrdInd);
+        CuratedExp.Date(NCurated+1) = UniqueDate;
+        CuratedExp.Time(NCurated+1) = UniqueTime;
+    end
+end
+    
+        
 
 % Gather the number of vocalizations manually curated for each experiment
 CuratedExp.NumVoc = zeros(length(CuratedExp.Date),1);
@@ -135,7 +160,7 @@ CuratedExp.SorterSeqNum = [];
 CuratedExp.UniqueBatNames = [];
 CuratedExp.BatVocNum = [];
 
-for ee=1:length(CuratedExp.Date)
+for ee=1:NCurated
     ManuFiles = dir(fullfile(BaseDataDir,['20' CuratedExp.Date{ee}], 'audiologgers', sprintf('%s_%s_VocExtractData*_*', CuratedExp.Date{ee}, CuratedExp.Time{ee})));
     
         
@@ -207,6 +232,66 @@ for ee=1:length(CuratedExp.Date)
     CuratedExp.BatVocNum = CallCount_local;
     clear BatID LoggerName
 end
+
+% Gather currently manually curating data
+for ff=1:length(CurrentCurationFiles)
+    load(fullfile(CurrentCurationFiles(ff).folder, CurrentCurationFiles(ff).name), 'IndVocStartRaw_merged', 'SorterName')
+    if ~exist('IndVocStartRaw_merged', 'var')
+        continue
+    end
+    if ff==1
+        load(fullfile(CurrentCurationFiles(ff).folder, CurrentCurationFiles(ff).name), 'BatID')
+        if ~exist('BatID', 'var')
+            keyboard
+        end
+        UniqueBatNames_local = unique([cell2mat(BatID); CuratedExp.UniqueBatNames]);
+        CallCount_local = zeros(length(UniqueBatNames_local),1);
+        if ~isempty(CuratedExp.UniqueBatNames) % Get previous data
+            for bb=1:length(UniqueBatNames_local)
+                if sum(CuratedExp.UniqueBatNames == UniqueBatNames_local(bb))
+                    CallCount_local(bb) = CuratedExp.BatVocNum(CuratedExp.UniqueBatNames == UniqueBatNames_local(bb));
+                end
+            end
+        end
+        CuratedExp.UniqueBatNames = UniqueBatNames_local;
+    end
+    if exist('IndVocStartRaw_merged', 'var')
+        CuratedExp.NumSeq(end) = length(IndVocStartRaw_merged)+CuratedExp.NumSeq(end);
+        NumCall = nan(length(IndVocStartRaw_merged),1);
+        for cc=1:length(IndVocStartRaw_merged)
+            if ~isempty(IndVocStartRaw_merged{cc})
+                NumCall(cc)=length([IndVocStartRaw_merged{cc}{:}]);
+                for aa=1:length(BatID)
+                    IndexBat = find(CuratedExp.UniqueBatNames == BatID{aa});
+                    CallCount_local(IndexBat) = CallCount_local(IndexBat) + length(IndVocStartRaw_merged{cc}{aa});
+                end
+            else
+                NumCall(cc) = 0;
+            end
+        end
+        CuratedExp.NumFullSeq(end) = sum(NumCall>0)+CuratedExp.NumFullSeq(end);
+        CuratedExp.NumVoc(end) = sum(NumCall)+ CuratedExp.NumVoc(end);
+        clear IndVocStartRaw_merged
+    else
+        Ind_ = strfind(CurrentCurationFiles(ff).name, '_');
+        load(fullfile(CurrentCurationFiles(ff).folder, [CurrentCurationFiles(ff).name(1:(Ind_(end)-1)) '.mat']), 'VocFilename')
+        CuratedExp.NumMissedSeq(end) = length(VocFilename);
+        clear VocFilename
+    end
+    if exist('SorterName', 'var')
+        USorterName = unique([SorterName CuratedExp.UniqueSorterNames]);
+        SorterNumSeq = nan(length(USorterName),1);
+        for sn=1:length(USorterName)
+            SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName,USorterName{sn}));
+        end
+        CuratedExp.SorterSeqNum = SorterNumSeq;
+        CuratedExp.UniqueSorterNames = USorterName;
+        clear SorterName
+    end
+end
+CuratedExp.BatVocNum = CallCount_local;
+clear BatID LoggerName
+    
 fprintf(1, 'Total number of manually curated sequences %d\n',sum(CuratedExp.NumSeq))
 fprintf(1, 'Total number of sequences with vocalizations %d/%d, %d%%\n', sum(CuratedExp.NumFullSeq),sum(CuratedExp.NumSeq),round(sum(CuratedExp.NumFullSeq)*100/sum(CuratedExp.NumSeq)))
 fprintf(1, 'Total number of vocalizations %d\n', sum(CuratedExp.NumVoc))
