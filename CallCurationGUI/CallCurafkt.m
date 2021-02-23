@@ -335,10 +335,13 @@ global IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
 global IndHearStartRaw IndHearStopRaw IndHearStartPiezo;
 global IndHearStopPiezo IndHearStart_all IndHearStop_all;
 global MicError PiezoError MicErrorType PiezoErrorType SaveRawWave Raw_wave;
-global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename redo SorterName
+global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename redo SorterName TraineeName;
 
 newmessage(sprintf('Saving data Voc %d...', vv))
 fprintf('Saving data Voc %d...', vv)
+% save name of the sorter
+SorterName{vv} = TraineeName;
+
 if ~isempty(dir(PreviousFile))
     save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)),...
         'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', ...
@@ -1271,7 +1274,7 @@ global RMSRatio RMSDiff Working_dir_write df MergeThresh FileVoc;
 global SaveFileType VocFilename plotmich plotevalh plotb RMSFig PlotRMSFig;
 global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
 global IndVocStopPiezo_merged IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
-global IndHearStart IndHearStop IndHearStart_all IndHearStop_all SorterName TraineeName;
+global IndHearStart IndHearStop IndHearStart_all IndHearStop_all;
 
 % Update the figure on the left panel, in particular scale the bottom
 % summary plot
@@ -1329,8 +1332,6 @@ else
     % Gather vocalization hearing data
     IndHearStart_all{vv} = IndHearStart;
     IndHearStop_all{vv} = IndHearStop;
-    % save name of the sorter
-    SorterName{vv} = TraineeName;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
