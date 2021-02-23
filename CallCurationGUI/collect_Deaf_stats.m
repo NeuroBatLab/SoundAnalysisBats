@@ -24,7 +24,7 @@ for dd=1:NDates
         Filepath = fullfile(ParamFile(nn).folder, ParamFile(nn).name);
         
         % check that the experiment has data!
-        MicFiles = dir(fullfile(ParamFile(nn).folder, [ParamFilesDir(nn).name(1:27) '_mic1*']));
+        MicFiles = dir(fullfile(ParamFile(nn).folder, [ParamFile(nn).name(1:25) 'mic1*']));
         fid = fopen(Filepath);
         data = textscan(fid,'%s','Delimiter', '\t');
         fclose(fid);
@@ -56,8 +56,7 @@ for dd=1:NDates
         
     end
 end
-fclose(Fid);
-fclose(FidAll);
+
 fprintf(1,'Total # of experiments: %d\n', AllExpCount)
 fprintf(1, 'Experiments with missing microphone data: %d/%d, %d%%\n', ExpMissMicDataCount,AllExpCount, round(ExpMissMicDataCount*100/AllExpCount))
 fprintf(1, 'Experiments with Mic data that are too short: %d/%d, %d%%\n', ExpTooShortCount, AllExpCount-ExpMissMicDataCount, round(ExpTooShortCount*100/(AllExpCount-ExpMissMicDataCount)))
@@ -67,7 +66,6 @@ fprintf(1, 'total number of clean experiments to process: %d\n', TotCleanExp)
 
 
 %% Stats of number fo experiments that went through vocalization detection
-TotCleanExp = 857;
 BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
 BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\';
 ExpLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSal.txt'); % List of experiments for which vocalizations where detected on piezo
@@ -127,25 +125,70 @@ CuratedExp.NumFullSeq = zeros(length(CuratedExp.Date),1); % Sequences with vocal
 CuratedExp.VocPerBat = cell(length(CuratedExp.Date),1);
 CuratedExp.BatID = cell(length(CuratedExp.Date),1);
 CuratedExp.BatStatus = cell(length(CuratedExp.Date),1);
-CuratedExp.UniqueSorterNames = cell();
+CuratedExp.UniqueSorterNames = {};
 CuratedExp.SorterSeqNum = [];
+CuratedExp.UniqueBatNames = [];
+CuratedExp.BatVocNum = [];
 
 for ee=1:length(CuratedExp.Date)
-    ManuFiles = dir(fullfile(BaseDataDir,CuratedExp.Date{ee}, 'audiologgers', sprintf('%s_%s_VocExtractData_*', CuratedExp.Date{ee}, CuratedExp.Time{ee})));
+    ManuFiles = dir(fullfile(BaseDataDir,['20' CuratedExp.Date{ee}], 'audiologgers', sprintf('%s_%s_VocExtractData*_*', CuratedExp.Date{ee}, CuratedExp.Time{ee})));
+    
+        
+    if ~strcmp(ManuFiles(1).name(27), '_')
+        % re-order files to Find the first file that should contain bat ID and loggerID
+        IndFile = nan(length(ManuFiles),1);
+        for ff=1:length(ManuFiles)
+            IndData = strfind(ManuFiles(ff).name, 'Data')+4;
+            Ind_ = strfind(ManuFiles(ff).name, '_')-1;
+            IndFile(ff) = str2double(ManuFiles(ff).name(IndData:Ind_(end)));
+        end
+        [~,OrdInd ] = sort(IndFile);
+        ManuFiles=ManuFiles(OrdInd);
+    else
+        ManuFiles = dir(fullfile(BaseDataDir,['20' CuratedExp.Date{ee}], 'audiologgers', sprintf('%s_%s_VocExtractData_*', CuratedExp.Date{ee}, CuratedExp.Time{ee})));
+    end
     for ff=1:length(ManuFiles)
         load(fullfile(ManuFiles(ff).folder, ManuFiles(ff).name), 'IndVocStartRaw_merged', 'SorterName')
-        CuratedExp.NumSeq(ee) = length(IndVocStartRaw_merged)+CuratedExp.NumSeq(ee);
-        NumCall = nan(length(IndVocStartRaw_merged),1);
-        for cc=1:length(IndVocStartRaw_merged)
-            if ~isempty(IndVocStartRaw_merged{cc})
-                NumCall(cc)=length([IndVocStartRaw_merged{cc}{:}]);
-            else
-                NumCall(cc) = 0;
+        if ff==1
+            load(fullfile(ManuFiles(ff).folder, ManuFiles(ff).name), 'BatID', 'LoggerName')
+            if ~exist('BatID', 'var')
+                keyboard
             end
+            UniqueBatNames_local = unique([cell2mat(BatID); CuratedExp.UniqueBatNames]);
+            CallCount_local = zeros(length(UniqueBatNames_local),1);
+            if ~isempty(CuratedExp.UniqueBatNames) % Get previous data
+                for bb=1:length(UniqueBatNames_local)
+                    if sum(CuratedExp.UniqueBatNames == UniqueBatNames_local(bb))
+                        CallCount_local(bb) = CuratedExp.BatVocNum(CuratedExp.UniqueBatNames == UniqueBatNames_local(bb));
+                    end
+                end
+            end
+            CuratedExp.UniqueBatNames = UniqueBatNames_local;
         end
-        CuratedExp.NumFullSeq(ee) = sum(NumCall>0)+CuratedExp.NumFullSeq(ee);
-        CuratedExp.NumVoc(ee) = sum(NumCall)+ CuratedExp.NumVoc(ee);
-        if exist(SorterName, 'var')
+        if exist('IndVocStartRaw_merged', 'var')
+            CuratedExp.NumSeq(ee) = length(IndVocStartRaw_merged)+CuratedExp.NumSeq(ee);
+            NumCall = nan(length(IndVocStartRaw_merged),1);
+            for cc=1:length(IndVocStartRaw_merged)
+                if ~isempty(IndVocStartRaw_merged{cc})
+                    NumCall(cc)=length([IndVocStartRaw_merged{cc}{:}]);
+                    for aa=1:length(BatID)
+                        IndexBat = find(CuratedExp.UniqueBatNames == BatID{aa});
+                        CallCount_local(IndexBat) = CallCount_local(IndexBat) + length(IndVocStartRaw_merged{cc}{aa});
+                    end
+                else
+                    NumCall(cc) = 0;
+                end
+            end
+            CuratedExp.NumFullSeq(ee) = sum(NumCall>0)+CuratedExp.NumFullSeq(ee);
+            CuratedExp.NumVoc(ee) = sum(NumCall)+ CuratedExp.NumVoc(ee);
+            clear IndVocStartRaw_merged
+        else
+            Ind_ = strfind(ManuFiles(ff).name, '_');
+            load(fullfile(ManuFiles(ff).folder, [ManuFiles(ff).name(1:(Ind_(end)-1)) '.mat']), 'VocFilename')
+            CuratedExp.NumMissedSeq(ee) = length(VocFilename);
+            clear VocFilename
+        end
+        if exist('SorterName', 'var')
             USorterName = unique([SorterName CuratedExp.UniqueSorterNames]);
             SorterNumSeq = nan(length(USorterName),1);
             for sn=1:length(USorterName)
@@ -153,9 +196,11 @@ for ee=1:length(CuratedExp.Date)
             end
             CuratedExp.SorterSeqNum = SorterNumSeq;
             CuratedExp.UniqueSorterNames = USorterName;
+            clear SorterName
         end
-        clear IndVocStartRaw_merged
     end
+    CuratedExp.BatVocNum = CallCount_local;
+    clear BatID LoggerName
 end
 fprintf(1, 'Total number of manually curated sequences %d\n',sum(CuratedExp.NumSeq))
 fprintf(1, 'Total number of sequences with vocalizations %d/%d, %d%%\n', sum(CuratedExp.NumFullSeq),sum(CuratedExp.NumSeq),round(sum(CuratedExp.NumFullSeq)*100/sum(CuratedExp.NumSeq)))
@@ -167,6 +212,11 @@ BAR = bar(CuratedExp.SorterSeqNum);
 ylabel('# sequences')
 xlabel('Curator')
 BAR.Parent.XTickLabel = CuratedExp.UniqueSorterNames;
+
+% Plot num Voc per batID
+
+
+% Plot Num Voc per bat Status
 
 
 
