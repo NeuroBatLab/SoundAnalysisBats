@@ -219,10 +219,16 @@ for ee=1:NCurated
             clear VocFilename
         end
         if exist('SorterName', 'var')
-            USorterName = unique([SorterName CuratedExp.UniqueSorterNames]);
+            USorterName = unique([SorterName(~cellfun('isempty', SorterName)) CuratedExp.UniqueSorterNames]);
             SorterNumSeq = nan(length(USorterName),1);
             for sn=1:length(USorterName)
-                SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName,USorterName{sn}));
+                if ~isempty(contains(CuratedExp.UniqueSorterNames, USorterName{sn}))
+                    SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+                elseif ~isempty(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}))
+                    SorterNumSeq(sn) = sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+                else
+                    SorterNumSeq(sn) = 0;
+                end
             end
             CuratedExp.SorterSeqNum = SorterNumSeq;
             CuratedExp.UniqueSorterNames = USorterName;
@@ -279,10 +285,16 @@ for ff=1:length(CurrentCurationFiles)
         clear VocFilename
     end
     if exist('SorterName', 'var')
-        USorterName = unique([SorterName CuratedExp.UniqueSorterNames]);
+        USorterName = unique([SorterName(~cellfun('isempty', SorterName)) CuratedExp.UniqueSorterNames]);
         SorterNumSeq = nan(length(USorterName),1);
         for sn=1:length(USorterName)
-            SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName,USorterName{sn}));
+            if ~isempty(contains(CuratedExp.UniqueSorterNames, USorterName{sn}))
+                SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+            elseif ~isempty(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}))
+                SorterNumSeq(sn) = sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+            else
+                SorterNumSeq(sn) = 0;
+            end
         end
         CuratedExp.SorterSeqNum = SorterNumSeq;
         CuratedExp.UniqueSorterNames = USorterName;

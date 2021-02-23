@@ -232,10 +232,16 @@ for ee=1:NCurated
             clear VocFilename
         end
         if exist('SorterName', 'var')
-            USorterName = unique([SorterName CuratedExp.UniqueSorterNames]);
+            USorterName = unique([SorterName(~cellfun('isempty', SorterName)) CuratedExp.UniqueSorterNames]);
             SorterNumSeq = nan(length(USorterName),1);
             for sn=1:length(USorterName)
-                SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName,USorterName{sn}));
+                if ~isempty(contains(CuratedExp.UniqueSorterNames, USorterName{sn}))
+                    SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+                elseif ~isempty(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}))
+                    SorterNumSeq(sn) = sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+                else
+                    SorterNumSeq(sn) = 0;
+                end
             end
             CuratedExp.SorterSeqNum = SorterNumSeq;
             CuratedExp.UniqueSorterNames = USorterName;
@@ -292,10 +298,16 @@ for ff=1:length(CurrentCurationFiles)
         clear VocFilename
     end
     if exist('SorterName', 'var')
-        USorterName = unique([SorterName CuratedExp.UniqueSorterNames]);
+        USorterName = unique([SorterName(~cellfun('isempty', SorterName)) CuratedExp.UniqueSorterNames]);
         SorterNumSeq = nan(length(USorterName),1);
         for sn=1:length(USorterName)
-            SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName,USorterName{sn}));
+            if ~isempty(contains(CuratedExp.UniqueSorterNames, USorterName{sn}))
+                SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+            elseif ~isempty(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}))
+                SorterNumSeq(sn) = sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+            else
+                SorterNumSeq(sn) = 0;
+            end
         end
         CuratedExp.SorterSeqNum = SorterNumSeq;
         CuratedExp.UniqueSorterNames = USorterName;
@@ -310,9 +322,9 @@ fprintf(1, 'Total number of sequences with vocalizations %d/%d, %d%%\n', sum(Cur
 fprintf(1, 'Total number of vocalizations %d\n', sum(CuratedExp.NumVoc))
 diary OFF
 %% Some figures
-BatStatus.name = [11648 14461 14463 14464 65696 71043 71047 71351 71353 71354];
-BatStatus.sex = {'F' 'M' 'F' 'M' 'F' 'M' 'F' 'M' 'F' 'F'};
-BatStatus.deaf = [0 0 1 0 0 1 1 1 0 1];
+BatStatus.name = [14647 14664 14644 14649 14622 71284 65908 65704 71296 65706 60084];
+BatStatus.sex = {'M' 'F' 'F' 'M' 'M' 'F' 'M' 'F' 'M' 'F' 'F'};
+BatStatus.adult = [0 0 0 0 0 1 1 1 1 1 1];
 
 % Plot num Voc per batID
 figure()
@@ -335,7 +347,7 @@ xlabel('Bat Name')
 BAR.Parent.XTickLabel = CuratedExp.UniqueBatNames;
 BAR.FaceColor = 'flat';
 for bb=1:length(CuratedExp.UniqueBatNames)
-    if BatStatus.deaf(BatStatus.name==CuratedExp.UniqueBatNames(bb))
+    if BatStatus.adult(BatStatus.name==CuratedExp.UniqueBatNames(bb))
         BAR.CData(bb,:) = [1 1 1];
     else
         BAR.CData(bb,:) = [0 0 0];
