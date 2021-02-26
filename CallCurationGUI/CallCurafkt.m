@@ -443,6 +443,11 @@ if ~isempty(dir(PreviousFile)) && UseOld
         % For the first instances we are using this variable
         % (implementation 02/16/2021)
         SorterName = cell(1,Nvoc); % Contains for each sequence of vocalizations (Nvoc) the name of the sorter
+    else
+        if (sum(~cellfun('isempty', SorterName))-1) ~= vv
+            warning('There is an issue with the sequence counting!\nReach out to Julie ASAP!\nDO NOT go any further!!!')
+            keyboard
+        end
     end
 else
     vv=1;
