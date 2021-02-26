@@ -259,7 +259,7 @@ parfor ll=1:NL % parfor
                         if mic_stop2>length(RawWav_local2)
                             % this is an unexpectedly very long extract!!
                             warning('this is an unexpectedly very long extract!!')
-                            keyborad
+                            keyboard
                         end
                         Mic_Sound = [RawWav_mic(mic_start:mic_stop1); RawWav_local2(1:mic_stop2)];
                         RawWav_mic = RawWav_local2;
