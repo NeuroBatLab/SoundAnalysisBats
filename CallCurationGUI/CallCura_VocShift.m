@@ -159,7 +159,7 @@ while CheckSession && ee < NExpe
         LoggersDir = dir(fullfile(Logger_dir, 'logger*'));
         Check = zeros(length(LoggersDir)+1,1);
         for ll=1:length(LoggersDir)
-            FigCD = open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.fig'));
+            open(fullfile(LoggersDir(ll).folder, LoggersDir(ll).name,'extracted_data','CD_correction0.pdf'));
             failsafe=1;
             while failsafe
                 Check(ll) = input('Is everything ok? (yes ->1, No -> 0): ');
@@ -170,7 +170,7 @@ while CheckSession && ee < NExpe
                 end
             end
             fprintf('\n')
-            close(FigCD)
+%             close(FigCD)
         end
         fprintf(1,'*** Check the allignement of the TTL pulses ***\n')
         % ***** file_nums = {1};
