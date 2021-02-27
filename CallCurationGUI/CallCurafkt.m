@@ -109,7 +109,7 @@ switch action
             fprintf(1,['Grabbing Voc#' num2str(vv_requested) ' and Set#' num2str(df_requested) '...']);
             % keep in memory the previous sound extract reference to make sure
             % we get back to where we are after redoing the requested extract
-            if vv_requested~=1
+            if vv~=1
                 if vv_requested~=vv
                     oldvv=vv-1;
                     olddf=df;
@@ -117,9 +117,9 @@ switch action
                     oldvv=vv;
                     olddf=df;
                 end
-            else % we switch to the next set!
+            else % vv=1, we were about to start a new set and want to make sure we get back to that
                 oldvv=Nvocs(df) - Nvocs(df-1);
-                olddf=df-1;
+                olddf=df;
             end
             if df_requested~=df
                 df = df_requested;
