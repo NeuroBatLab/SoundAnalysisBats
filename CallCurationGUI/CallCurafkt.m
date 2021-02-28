@@ -635,6 +635,9 @@ if ~strcmp(Working_dir_write,Logger_dir)
 end
 NCalls = sum(cellfun('length',IndVocStartRaw_merged));
 fprintf(FidWho, '%s\t%s\t%s\t%d\n',BatID,Date,ExpStartTime,NCalls);
+close all;
+clearvars;
+
                 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function checkforerror(vv)
