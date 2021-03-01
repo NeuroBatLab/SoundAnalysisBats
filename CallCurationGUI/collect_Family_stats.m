@@ -158,8 +158,8 @@ if ~isempty(CurrentCurationFiles)
         CuratedExp.Time(NCurated+1) = UniqueTime;
     end
 end
-    
-        
+
+
 
 % Gather the number of vocalizations manually curated for each experiment
 CuratedExp.NumVoc = zeros(length(CuratedExp.Date),1);
@@ -176,7 +176,7 @@ CuratedExp.BatVocNum = [];
 for ee=1:NCurated
     ManuFiles = dir(fullfile(BaseDataDir,['20' CuratedExp.Date{ee}], 'audiologgers', sprintf('%s_%s_VocExtractData*_*', CuratedExp.Date{ee}, CuratedExp.Time{ee})));
     
-        
+    
     if ~strcmp(ManuFiles(1).name(27), '_')
         % re-order files to Find the first file that should contain bat ID and loggerID
         IndFile = nan(length(ManuFiles),1);
@@ -233,6 +233,12 @@ for ee=1:NCurated
         end
         if exist('SorterName', 'var')
             USorterName = unique([SorterName(~cellfun('isempty', SorterName)) CuratedExp.UniqueSorterNames]);
+            % Supress spaces
+            SpacesInd = find(contains(USorterName, ' '));
+            for sn = 1:length(SpacesInd)
+                SpaI = strfind(USorterName{SpacesInd(sn)}, ' ');
+                USorterName{SpacesInd(sn)}(SpaI) = [];
+            end
             SorterNumSeq = zeros(length(USorterName),1);
             for sn=1:length(USorterName)
                 if any(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) % Sorter already listed
@@ -299,11 +305,17 @@ for ff=1:length(CurrentCurationFiles)
     end
     if exist('SorterName', 'var')
         USorterName = unique([SorterName(~cellfun('isempty', SorterName)) CuratedExp.UniqueSorterNames]);
-        SorterNumSeq = nan(length(USorterName),1);
+        % Supress spaces
+        SpacesInd = find(contains(USorterName, ' '));
+        for sn = 1:length(SpacesInd)
+            SpaI = strfind(USorterName{SpacesInd(sn)}, ' ');
+            USorterName{SpacesInd(sn)}(SpaI) = [];
+        end
+        SorterNumSeq = zeros(length(USorterName),1);
         for sn=1:length(USorterName)
-            if ~isempty(contains(CuratedExp.UniqueSorterNames, USorterName{sn}))
+            if any(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) % Sorter already listed
                 SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
-            elseif ~isempty(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}))
+            elseif any(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn})) % New sorter to list
                 SorterNumSeq(sn) = sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
             else
                 SorterNumSeq(sn) = 0;
@@ -316,7 +328,7 @@ for ff=1:length(CurrentCurationFiles)
 end
 CuratedExp.BatVocNum = CallCount_local;
 clear BatID LoggerName
-    
+
 fprintf(1, 'Total number of manually curated sequences %d\n',sum(CuratedExp.NumSeq))
 fprintf(1, 'Total number of sequences with vocalizations %d/%d, %d%%\n', sum(CuratedExp.NumFullSeq),sum(CuratedExp.NumSeq),round(sum(CuratedExp.NumFullSeq)*100/sum(CuratedExp.NumSeq)))
 fprintf(1, 'Total number of vocalizations %d\n', sum(CuratedExp.NumVoc))
