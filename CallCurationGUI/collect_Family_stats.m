@@ -233,11 +233,11 @@ for ee=1:NCurated
         end
         if exist('SorterName', 'var')
             USorterName = unique([SorterName(~cellfun('isempty', SorterName)) CuratedExp.UniqueSorterNames]);
-            SorterNumSeq = nan(length(USorterName),1);
+            SorterNumSeq = zeros(length(USorterName),1);
             for sn=1:length(USorterName)
-                if ~isempty(contains(CuratedExp.UniqueSorterNames, USorterName{sn}))
+                if any(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) % Sorter already listed
                     SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
-                elseif ~isempty(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}))
+                elseif any(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn})) % New sorter to list
                     SorterNumSeq(sn) = sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
                 else
                     SorterNumSeq(sn) = 0;
