@@ -281,7 +281,11 @@ for ff=1:length(CurrentCurationFiles)
         CuratedExp.UniqueBatNames = UniqueBatNames_local;
     end
     if exist('IndVocStartRaw_merged', 'var')
-        CuratedExp.NumSeq(end) = length(IndVocStartRaw_merged)+CuratedExp.NumSeq(end);
+        if ff==length(CurrentCurationFiles)
+            CuratedExp.NumSeq(end) = sum(~cellfun('isempty', SorterName))+CuratedExp.NumSeq(end);
+        else
+            CuratedExp.NumSeq(end) = length(IndVocStartRaw_merged)+CuratedExp.NumSeq(end);
+        end
         NumCall = nan(length(IndVocStartRaw_merged),1);
         for cc=1:length(IndVocStartRaw_merged)
             if ~isempty(IndVocStartRaw_merged{cc})
