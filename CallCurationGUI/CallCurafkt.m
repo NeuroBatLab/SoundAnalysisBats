@@ -439,7 +439,7 @@ if ~isempty(dir(PreviousFile)) && UseOld
         % There is no previous data but just data regarding piezo numbers and bats_ID
         vv=1;
     end
-    if ~iscell('SorterName')
+    if ~exist('SorterName', 'var') || (length(SorterName)~=Nvoc)
         % For the first instances we are using this variable
         % (implementation 02/16/2021)
         SorterName = cell(1,Nvoc); % Contains for each sequence of vocalizations (Nvoc) the name of the sorter
