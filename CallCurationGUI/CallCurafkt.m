@@ -531,10 +531,11 @@ if vv~=Nvoc || redo % This is the file that we need to complete
     if redo
         newmessage('Set sucessfully loaded for doing again manual annotation!');
     else
-        newmessage(sprintf('Set %d sucessfully loaded!', df_local));
+        newmessage(sprintf('Set %d sucessfully loaded!', df_local));   
     end
 elseif vv==Nvoc && ~redo
     newmessage(sprintf('Set %d already done!', df_local));
+    SorterName = [];
     Success = 0;
 end
     
