@@ -403,7 +403,10 @@ else
             %% Loop through the loggers and calculate envelopes
             Logger_Spec = cell(length(AudioLogs),1);
             for ll=1:length(AudioLogs)
-                if isnan(Piezo_FS.(Fns_AL{ll})(vv)) || isempty(Piezo_wave.(Fns_AL{ll}){vv})
+                if isnan(Piezo_FS.(Fns_AL{ll})(vv))
+                    Piezo_FS.(Fns_AL{ll})(vv) = nanmean(Piezo_FS.(Fns_AL{ll}));
+                end
+                if isempty(Piezo_wave.(Fns_AL{ll}){vv})
                     fprintf(1, 'NO DATA for Vocalization %d from %s\n', vv, Fns_AL{ll})
                 else
                     % design the filters
@@ -1048,14 +1051,14 @@ else
                                 Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-nanmean(Piezo_wave.(Fns_AL{ll}){vv}))/(VolDenominatorLogger*nanstd(Piezo_wave.(Fns_AL{ll}){vv})), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                 play(Player)
                                 pause(length(Raw_wave_nn)/FS +1)
-                                ManCall_logger=input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
+                                ManCall_logger=input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0; Yes but go auto: 100  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
                                 if isempty(ManCall_logger)
                                     ManCall_logger=2;
                                 end
-                                while ManCall_logger~=0 && ManCall_logger~=1
+                                while ManCall_logger~=0 && ManCall_logger~=1 && ManCall_logger~=100
                                     play(Player)
                                     pause(length(Raw_wave_nn)/FS +1)
-                                    ManCall_logger = input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
+                                    ManCall_logger = input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; Yes but go auto: 100 ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
                                     if isempty(ManCall_logger)
                                         ManCall_logger=2;
                                     end
@@ -1193,7 +1196,7 @@ else
                                     else
                                         fprintf('Computer guess for that sound element: %s hearing/noise\n',Fns_AL{ll});
                                     end
-                                    if ManCall &&  ManCall_logger
+                                    if ManCall &&  (ManCall_logger==1)
                                         TempIn = input('Indicate your choice: calling (1);    hearing/noise (0);    Listen again to that logger recording (any other number)\n');
                                          
                                         if isempty(TempIn)
@@ -1214,6 +1217,9 @@ else
                                                 Call1Hear0_man(ii) = TempIn;
                                             end
                                         end
+                                    elseif ManCall_logger==100
+                                        fprintf(1,'Manual input enforced: Take computer guess (100)\n');
+                                        Call1Hear0_man(ii)=Call1Hear0_temp(ii);
                                     else
                                         fprintf(1,'Manual input enforced: Noise (0)\n');
                                     end
@@ -1360,7 +1366,16 @@ else
                 if strcmp(SaveFileType,'pdf')
                     if ManCall % Only save the RMS and spectro figures if there was a vocalization
                         fprintf(1,'saving figures...\n')
-                        print(F1,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
+                        try
+                            print(F1,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
+                        catch
+                            warning('Issues with saving that figure in pdf! too big?! saving as fig')
+                            try 
+                                saveas(F1,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig',FileVoc,vv, df,MergeThresh)))
+                            catch
+                                warning('cannot even save as fig...')
+                            end
+                        end
                         if RMS_Fig
                             saveas(F2,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',FileVoc,vv, df,MergeThresh)),'pdf')
                         end

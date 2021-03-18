@@ -121,7 +121,7 @@ else
         sos_band_raw = zp2sos(z,p,k);
     
         % Filter for the Piezo signal
-        PFS = round(Piezo_FS.(Fns_AL{1})(1));
+        PFS = round(nanmean(Piezo_FS.(Fns_AL{1})(:)));
         [z,p,k] = butter(6,[F_low_Piezo F_high_Piezo]/(PFS/2),'bandpass');
         sos_band_piezo = zp2sos(z,p,k);
         
@@ -239,6 +239,9 @@ else
                         IndOn = IndVocStartPiezo_merged{VocInd(vv_what)}{ll}(nn);
                         IndOff = min(IndVocStopPiezo_merged{VocInd(vv_what)}{ll}(nn), length(Piezo_wave.(Fns_AL{ll}){VocInd(vv_what)}));
                         FSpiezo = round(Piezo_FS.(Fns_AL{ll})(VocInd(vv_what)));
+                        if isnan(FSpiezo)
+                            FSpiezo = round(nanmean(Piezo_FS.(Fns_AL{ll})(:)));
+                        end
                         if IndOn>=IndOff || ((IndOff-IndOn)/FSpiezo)<0.01 % sound too short to be a call
 %                             keyboard
                             warning('Miss-allignement between Microphone and piezo, skip this one for Piezo data\n')
