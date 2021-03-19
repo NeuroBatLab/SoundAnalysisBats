@@ -110,7 +110,10 @@ while CheckSession && ee < NExpe
     HasLoggerData = str2double(DoneListDetect{6}{ee});
     F_name = sprintf('%s_%s_%s_VocTrigger_param.txt', BatsID, Date, Time);
     fprintf(1, '\n\n\n Date: %s, Box:%s, experiment %d/%d\n%s\n', Date,boxID, ee,NExpe,F_name)
-    if ~HasLoggerData
+    if isnan(HasLoggerData)
+        fprintf(1, '   -> Issues during process 1, skip\n')
+        continue
+    elseif ~HasLoggerData
         fprintf(1, '   -> Data has no logger, skip\n')
         continue
     end
