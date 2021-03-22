@@ -548,6 +548,10 @@ if MicData
                 else
                     Voc_transc_time_zs = (Voc_transc_time(ee,:) - TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(TTL_idx,2);
                     MicVoc_samp_idx(ee,:) = round((TTL.Mean_std_Pulse_samp_audio(TTL_idx,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{TTL_idx}, Voc_transc_time_zs,[],TTL.Mean_std_x_transc2audiosamp{TTL_idx}) + TTL.Mean_std_Pulse_samp_audio(TTL_idx,1)))';
+                    if MicVoc_samp_idx(ee,:)<1
+                        fprintf('This call was in between 2 files, drop it\n')
+                        continue
+                    end
                 end
                 
                 if MicVoc_File(ee) ~= OldMicVoc_File
