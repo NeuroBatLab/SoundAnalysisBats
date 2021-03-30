@@ -834,12 +834,13 @@ for ll=1:length(AudioLogs)
             Amp_env_HighPassLogVoc{ll}=running_rms(HighPassLogVoc, ...
                 Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
             
-            % Plot the low pass filtered signal of each logger
-            if ll<=10
-                plotLogger(vv,ll,1)
-            else
-                newmessage(sprintf('Logger %d higher than 10, not plotted!',ll))
-            end
+%             % Plot the low pass filtered signal of each logger %% Moved
+%             at the next step to avoid ploting spectro we don't need
+%             if ll<=10
+%                 plotLogger(vv,ll,1)
+%             else
+%                 newmessage(sprintf('Logger %d higher than 10, not plotted!',ll))
+%             end
         else
             Amp_env_LowPassLogVoc{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})),...
                 Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
@@ -1001,6 +1002,12 @@ for ll=1:length(AudioLogs)
             set(evalLog{ll},'enable','off')
             evalbon(ll)=0;
         else
+            % Plot the low pass filtered signal of the logger
+            if ll<=10
+                plotLogger(vv,ll,1)
+            else
+                newmessage(sprintf('Logger %d higher than 10, not plotted!',ll))
+            end
             set(evalLog{ll},'enable','on')
             evalbon(ll)=1;
         end
