@@ -1461,7 +1461,7 @@ if NV
         hold on
         plot(plotb{end},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
             [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-        set(gca,'xlim',[0 Logger_Spec{1}.to(end)*1000])
+        set(gca,'xlim',[0 Logger_Spec{ll}.to(end)*1000])
         drawnow;
         hold off
     end
@@ -1542,70 +1542,73 @@ function plotLogger(vv,ll,FigN, axpl)
 global LowPassLogVoc Piezo_FS Fns_AL DB_noise FHigh_spec_Logger;
 global Amp_env_LowPassLogVoc Amp_env_HighPassLogVoc Fs_env AudioLogs;
 global plotb plotlogevalh plotevalh Logger_Spec;
-
-val=0;
-if FigN==1
-    axes(plotevalh);
-    cla(plotevalh ,'reset')
-    axpl=plotb{ll+1};
-    [Logger_Spec{ll}.to, Logger_Spec{ll}.fo, Logger_Spec{ll}.logB] = ...
-        spec_only_bats_gui(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv),...
-        DB_noise, FHigh_spec_Logger);
-elseif FigN==3
-    axpl=plotlogevalh;
-    val=3e3;
-elseif nargin<3
-    error('Provide the axis handle to wear the figure should be plotted')
-end
-
-maxB = max(max(Logger_Spec{ll}.logB));
-minB = maxB-DB_noise;
-axes(axpl);
-cla(axpl ,'reset')
-hold on;
-
-imagesc(axpl,Logger_Spec{ll}.to*1000,Logger_Spec{ll}.fo,Logger_Spec{ll}.logB);
-hold on;% to is in seconds
-axis xy;
-caxis('manual');
-caxis([minB maxB]);
-cmap = spec_cmap();
-colormap(cmap);
-
-v_axis = axis;
-v_axis(3)=0;
-v_axis(4)=FHigh_spec_Logger+val;
-axis(v_axis);
-set(gca,'xlim',[0 Logger_Spec{ll}.to(end)*1000],'ylim',[0 FHigh_spec_Logger+val],...
-    'ytick',[0 FHigh_spec_Logger/2 FHigh_spec_Logger])
-xlabel('time (ms)'), ylabel('Frequency');
-yyaxis left;
-axpl.YColor='w';
-yyaxis right;
-set(gca,'ytick','')
-if FigN==3
-    axpl.XColor='w';
+if (isempty(Logger_Spec{ll})) && (FigN~=1)
+    % nothing to plot return
 else
+    val=0;
+    if FigN==1
+        axes(plotevalh);
+        cla(plotevalh ,'reset')
+        axpl=plotb{ll+1};
+        [Logger_Spec{ll}.to, Logger_Spec{ll}.fo, Logger_Spec{ll}.logB] = ...
+            spec_only_bats_gui(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv),...
+            DB_noise, FHigh_spec_Logger);
+    elseif FigN==3
+        axpl=plotlogevalh;
+        val=3e3;
+    elseif nargin<3
+        error('Provide the axis handle to wear the figure should be plotted')
+    end
+    
+    maxB = max(max(Logger_Spec{ll}.logB));
+    minB = maxB-DB_noise;
+    axes(axpl);
+    cla(axpl ,'reset')
     hold on;
-    if ll<length(AudioLogs)
-        xlabel(' '); % supress the x label output
-        set(gca,'XTick',[],'XTickLabel',{});
+    
+    imagesc(axpl,Logger_Spec{ll}.to*1000,Logger_Spec{ll}.fo,Logger_Spec{ll}.logB);
+    hold on;% to is in seconds
+    axis xy;
+    caxis('manual');
+    caxis([minB maxB]);
+    cmap = spec_cmap();
+    colormap(cmap);
+    
+    v_axis = axis;
+    v_axis(3)=0;
+    v_axis(4)=FHigh_spec_Logger+val;
+    axis(v_axis);
+    set(gca,'xlim',[0 Logger_Spec{ll}.to(end)*1000],'ylim',[0 FHigh_spec_Logger+val],...
+        'ytick',[0 FHigh_spec_Logger/2 FHigh_spec_Logger])
+    xlabel('time (ms)'), ylabel('Frequency');
+    yyaxis left;
+    axpl.YColor='w';
+    yyaxis right;
+    set(gca,'ytick','')
+    if FigN==3
+        axpl.XColor='w';
+    else
+        hold on;
+        if ll<length(AudioLogs)
+            xlabel(' '); % supress the x label output
+            set(gca,'XTick',[],'XTickLabel',{});
+        end
+        yyaxis right
+        plot(axpl,(1:length(Amp_env_LowPassLogVoc{ll}))/Fs_env*1000,...
+            Amp_env_LowPassLogVoc{ll}, 'b-','LineWidth', 2);
+        hold on
+        plot(axpl,(1:length(Amp_env_HighPassLogVoc{ll}))/Fs_env*1000,...
+            Amp_env_HighPassLogVoc{ll}, 'r-','LineWidth',2);
+        if FigN==0
+            ylabel(sprintf('Amp\n%s',Fns_AL{ll}([1:3 7:end])))
+        end
+        hold off
     end
-    yyaxis right
-    plot(axpl,(1:length(Amp_env_LowPassLogVoc{ll}))/Fs_env*1000,...
-        Amp_env_LowPassLogVoc{ll}, 'b-','LineWidth', 2);
-    hold on
-    plot(axpl,(1:length(Amp_env_HighPassLogVoc{ll}))/Fs_env*1000,...
-        Amp_env_HighPassLogVoc{ll}, 'r-','LineWidth',2);
-    if FigN==0
-        ylabel(sprintf('Amp\n%s',Fns_AL{ll}([1:3 7:end])))
+    
+    hold off;
+    if FigN~=0
+        zoom on;
     end
-    hold off
-end
-
-hold off;
-if FigN~=0
-    zoom on;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
