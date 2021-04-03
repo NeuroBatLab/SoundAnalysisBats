@@ -9,7 +9,7 @@ clear all;
 
 global WorkingDir Filepath Logger_dir FidWho
 global VolDenominatorLogger VolFactorMic Manual MergeThresh;
-global Force_Save_onoffsets_mic SaveFileType;
+global Force_Save_onoffsets_mic SaveFileType SaveSpectroFig;
 global CheckMicChannel UseOld  PlotRMSFig FhGUI;
 global evalMich evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith string_handle2;
 global evalLog6h evalLog7h evalLog8h starth evalLog plotb string_handle;
@@ -44,6 +44,8 @@ VolFactorMic=0.5;
 
 Force_Save_onoffsets_mic = 0; % Currently useless
 SaveFileType = 'pdf';
+SaveSpectroFig = 1; % Set to zero if you don't want to save final spectrogram figure
+
 
 MergeThresh=200;
 Manual=1;

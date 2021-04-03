@@ -1289,7 +1289,7 @@ global AudioLogs;
 global IndVocStart IndVocStop IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
 global IndVocStartPiezo_merge_local IndVocStopPiezo_merge_local Fns_AL;
 global RMSRatio RMSDiff Working_dir_write df MergeThresh FileVoc;
-global SaveFileType VocFilename plotmich plotevalh plotb RMSFig PlotRMSFig;
+global SaveFileType SaveSpectroFig VocFilename plotmich plotevalh plotb RMSFig PlotRMSFig;
 global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
 global IndVocStopPiezo_merged IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
 global IndHearStart IndHearStop IndHearStart_all IndHearStop_all;
@@ -1315,29 +1315,31 @@ if sum(cellfun(@isempty,IndVocStartRaw_merge_local)) == length(IndVocStartRaw_me
     % No vocalization heard or produced
 else
     % Save the RMS and spectro figures
-    Figcopy = copyFigure(plotb,vv); % copy left pannel in a figure
-    if strcmp(SaveFileType,'pdf')
-        fprintf(1,'saving figures...\n')
-        print(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
-            FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
-        if PlotRMSFig
-            saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',...
-            FileVoc,vv, df,MergeThresh)),'pdf')
-            clf(RMSFig)
+    if SaveSpectroFig
+        Figcopy = copyFigure(plotb,vv); % copy left pannel in a figure
+        if strcmp(SaveFileType,'pdf')
+            fprintf(1,'saving figures...\n')
+            print(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
+                FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
+            if PlotRMSFig
+                saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',...
+                FileVoc,vv, df,MergeThresh)),'pdf')
+                clf(RMSFig)
+            end
+        elseif strcmp(SaveFileType,'fig')
+            fprintf(1,'saving figures...\n')
+            saveas(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig',...
+                FileVoc,vv, df,MergeThresh)))
+            if PlotRMSFig
+                saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig',...
+                FileVoc,vv, df,MergeThresh)))
+                clf(RMSFig)
+            end
         end
-    elseif strcmp(SaveFileType,'fig')
-        fprintf(1,'saving figures...\n')
-        saveas(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig',...
-            FileVoc,vv, df,MergeThresh)))
-        if PlotRMSFig
-            saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig',...
-            FileVoc,vv, df,MergeThresh)))
-            clf(RMSFig)
-        end
+
+        clf(Figcopy)
     end
-
-    clf(Figcopy)
-
+    
     % Gather Vocalization production data:
     IndVocStart_all{vv} = IndVocStart;
     IndVocStop_all{vv} = IndVocStop;
@@ -1461,7 +1463,17 @@ if NV
         hold on
         plot(plotb{end},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
             [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-        set(gca,'xlim',[0 Logger_Spec{ll}.to(end)*1000])
+        try
+            set(gca,'xlim',[0 Logger_Spec{ll}.to(end)*1000])
+        catch % sometimes there is absolutely no logger data (in case of the bat wearing the collar not the one vocalizing)
+            % setting Xlim of the last plot to the same values as the
+            % microphone spectrogram
+            axes(plotb{Plotll})
+            yyaxis left
+            XLim=get(gca, 'XLim');
+            axes(plotb{end})
+            set(gca,'xlim',[0 XLim(2)])
+        end
         drawnow;
         hold off
     end
