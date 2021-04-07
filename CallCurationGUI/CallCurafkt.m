@@ -760,7 +760,7 @@ end
 
 %% First calculate the time varying RMS of the ambient microphone
 % bandpass filter the ambient mic recording
-if length(Raw_wave_nn)/FS>=0.1
+if length(Raw_wave_nn)/FS>=0.11
     Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
     Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
     
