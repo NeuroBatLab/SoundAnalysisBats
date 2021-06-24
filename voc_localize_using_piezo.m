@@ -561,10 +561,15 @@ if MicData
                     [Raw_10minwav2, FS2] = audioread(Raw_filename);
                     OldMicVoc_File = MicVoc_File(ee);
                 end
-                Raw_wave = Raw_10minwav2(MicVoc_samp_idx(ee,1) : min(MicVoc_samp_idx(ee,2),length(Raw_10minwav2)));
-                % Save the sound as a wav file
-                Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, MicVoc_File(ee), round(MicVoc_samp_idx(ee,1))));
-                audiowrite(Voc_filename{ee} , Raw_wave, FS2)
+                if MicVoc_samp_idx(ee,1)<1
+                    fprintf('This call was in between 2 files, drop it\n')
+                    continue
+                else
+                    Raw_wave = Raw_10minwav2(MicVoc_samp_idx(ee,1) : min(MicVoc_samp_idx(ee,2),length(Raw_10minwav2)));
+                    % Save the sound as a wav file
+                    Voc_filename{ee} = fullfile(RawWav_dir, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',Subj,Date,ExpStartTime, MicVoc_File(ee), round(MicVoc_samp_idx(ee,1))));
+                    audiowrite(Voc_filename{ee} , Raw_wave, FS2)
+                end
             end
             
         end

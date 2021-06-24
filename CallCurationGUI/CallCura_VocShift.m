@@ -9,7 +9,7 @@ clear all;
 
 global WorkingDir Filepath Logger_dir FidWho
 global VolDenominatorLogger VolFactorMic Manual MergeThresh;
-global Force_Save_onoffsets_mic SaveFileType;
+global Force_Save_onoffsets_mic SaveFileType SaveSpectroFig;
 global CheckMicChannel UseOld  PlotRMSFig FhGUI;
 global evalMich evalLog1h evalLog2h evalLog3h evalLog4h evalLog5h submith string_handle2;
 global evalLog6h evalLog7h evalLog8h starth evalLog plotb string_handle;
@@ -23,8 +23,10 @@ global plotlog6h plotlog7h plotlog8h plotlog9h plotlog10h plotevalh plotlogevalh
 
 %% These are specific to the dataset and computer
 BaseDataDir = 'Z:\users\tobias\vocOperant';
-BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\operant_bats';
-WorkingDir = 'C:\Users\BatLab\Documents\VocShiftWhoWorkDir';
+% BaseCodeDir = 'C:\Users\BatLab\Documents\GitHub\operant_bats';
+BaseCodeDir = 'C:\Users\tobias\Documents\GitHub\operant_bats';
+% WorkingDir = 'C:\Users\BatLab\Documents\VocShiftWhoWorkDir';
+WorkingDir = 'C:\Users\tobias\Documents\VocShiftWhoWorkDir';
 ExpLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCalls.txt'); % in results (process one done/no)
 WhoLogOld = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCallsDoneOld.txt'); % points to files in which manual curation has been done with older wrapper_WhoCalls.m (note that wrapper_WhoCalls has been changed by NW Fall 2020 after it's been used and never used after NW changes...)
 WhoLog = fullfile(BaseDataDir, 'Results', 'VocOperantLogWhoCallsDone.txt'); % points to files in which manual curation has been done
@@ -44,6 +46,7 @@ VolFactorMic=0.5;
 
 Force_Save_onoffsets_mic = 0; % Currently useless
 SaveFileType = 'pdf';
+SaveSpectroFig = 0; % Set to zero if you don't want to save final spectrogram figure
 
 MergeThresh=10;
 Manual=1;

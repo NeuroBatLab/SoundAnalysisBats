@@ -760,7 +760,7 @@ end
 
 %% First calculate the time varying RMS of the ambient microphone
 % bandpass filter the ambient mic recording
-if length(Raw_wave_nn)/FS>=0.1
+if length(Raw_wave_nn)/FS>=0.11
     Filt_RawVoc = filtfilt(sos_raw_band,1,Raw_wave_nn);
     Amp_env_Mic = running_rms(Filt_RawVoc, FS, Fhigh_power, Fs_env);
     
@@ -834,12 +834,13 @@ for ll=1:length(AudioLogs)
             Amp_env_HighPassLogVoc{ll}=running_rms(HighPassLogVoc, ...
                 Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
             
-            % Plot the low pass filtered signal of each logger
-            if ll<=10
-                plotLogger(vv,ll,1)
-            else
-                newmessage(sprintf('Logger %d higher than 10, not plotted!',ll))
-            end
+%             % Plot the low pass filtered signal of each logger %% Moved
+%             at the next step to avoid ploting spectro we don't need
+%             if ll<=10
+%                 plotLogger(vv,ll,1)
+%             else
+%                 newmessage(sprintf('Logger %d higher than 10, not plotted!',ll))
+%             end
         else
             Amp_env_LowPassLogVoc{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})),...
                 Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
@@ -1001,6 +1002,12 @@ for ll=1:length(AudioLogs)
             set(evalLog{ll},'enable','off')
             evalbon(ll)=0;
         else
+            % Plot the low pass filtered signal of the logger
+            if ll<=10
+                plotLogger(vv,ll,1)
+            else
+                newmessage(sprintf('Logger %d higher than 10, not plotted!',ll))
+            end
             set(evalLog{ll},'enable','on')
             evalbon(ll)=1;
         end
@@ -1282,7 +1289,7 @@ global AudioLogs;
 global IndVocStart IndVocStop IndVocStartRaw_merge_local IndVocStopRaw_merge_local;
 global IndVocStartPiezo_merge_local IndVocStopPiezo_merge_local Fns_AL;
 global RMSRatio RMSDiff Working_dir_write df MergeThresh FileVoc;
-global SaveFileType VocFilename plotmich plotevalh plotb RMSFig PlotRMSFig;
+global SaveFileType SaveSpectroFig VocFilename plotmich plotevalh plotb RMSFig PlotRMSFig;
 global IndVocStartRaw_merged IndVocStopRaw_merged IndVocStartPiezo_merged;
 global IndVocStopPiezo_merged IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all;
 global IndHearStart IndHearStop IndHearStart_all IndHearStop_all;
@@ -1308,29 +1315,31 @@ if sum(cellfun(@isempty,IndVocStartRaw_merge_local)) == length(IndVocStartRaw_me
     % No vocalization heard or produced
 else
     % Save the RMS and spectro figures
-    Figcopy = copyFigure(plotb,vv); % copy left pannel in a figure
-    if strcmp(SaveFileType,'pdf')
-        fprintf(1,'saving figures...\n')
-        print(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
-            FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
-        if PlotRMSFig
-            saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',...
-            FileVoc,vv, df,MergeThresh)),'pdf')
-            clf(RMSFig)
+    if SaveSpectroFig
+        Figcopy = copyFigure(plotb,vv); % copy left pannel in a figure
+        if strcmp(SaveFileType,'pdf')
+            fprintf(1,'saving figures...\n')
+            print(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',...
+                FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
+            if PlotRMSFig
+                saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.pdf',...
+                FileVoc,vv, df,MergeThresh)),'pdf')
+                clf(RMSFig)
+            end
+        elseif strcmp(SaveFileType,'fig')
+            fprintf(1,'saving figures...\n')
+            saveas(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig',...
+                FileVoc,vv, df,MergeThresh)))
+            if PlotRMSFig
+                saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig',...
+                FileVoc,vv, df,MergeThresh)))
+                clf(RMSFig)
+            end
         end
-    elseif strcmp(SaveFileType,'fig')
-        fprintf(1,'saving figures...\n')
-        saveas(Figcopy,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig',...
-            FileVoc,vv, df,MergeThresh)))
-        if PlotRMSFig
-            saveas(RMSFig,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_RMS_%d.fig',...
-            FileVoc,vv, df,MergeThresh)))
-            clf(RMSFig)
-        end
+
+        clf(Figcopy)
     end
-
-    clf(Figcopy)
-
+    
     % Gather Vocalization production data:
     IndVocStart_all{vv} = IndVocStart;
     IndVocStop_all{vv} = IndVocStop;
@@ -1454,7 +1463,17 @@ if NV
         hold on
         plot(plotb{end},[IndVocStartRaw_merge_local{ll}(ii) IndVocStopRaw_merge_local{ll}(ii)]/FS*1000,...
             [ll ll], 'Color',ColorCode(ll,:), 'LineWidth',2, 'LineStyle','-')
-        set(gca,'xlim',[0 Logger_Spec{1}.to(end)*1000])
+        try
+            set(gca,'xlim',[0 Logger_Spec{ll}.to(end)*1000])
+        catch % sometimes there is absolutely no logger data (in case of the bat wearing the collar not the one vocalizing)
+            % setting Xlim of the last plot to the same values as the
+            % microphone spectrogram
+            axes(plotb{Plotll})
+            yyaxis left
+            XLim=get(gca, 'XLim');
+            axes(plotb{end})
+            set(gca,'xlim',[0 XLim(2)])
+        end
         drawnow;
         hold off
     end
@@ -1535,70 +1554,73 @@ function plotLogger(vv,ll,FigN, axpl)
 global LowPassLogVoc Piezo_FS Fns_AL DB_noise FHigh_spec_Logger;
 global Amp_env_LowPassLogVoc Amp_env_HighPassLogVoc Fs_env AudioLogs;
 global plotb plotlogevalh plotevalh Logger_Spec;
-
-val=0;
-if FigN==1
-    axes(plotevalh);
-    cla(plotevalh ,'reset')
-    axpl=plotb{ll+1};
-    [Logger_Spec{ll}.to, Logger_Spec{ll}.fo, Logger_Spec{ll}.logB] = ...
-        spec_only_bats_gui(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv),...
-        DB_noise, FHigh_spec_Logger);
-elseif FigN==3
-    axpl=plotlogevalh;
-    val=3e3;
-elseif nargin<3
-    error('Provide the axis handle to wear the figure should be plotted')
-end
-
-maxB = max(max(Logger_Spec{ll}.logB));
-minB = maxB-DB_noise;
-axes(axpl);
-cla(axpl ,'reset')
-hold on;
-
-imagesc(axpl,Logger_Spec{ll}.to*1000,Logger_Spec{ll}.fo,Logger_Spec{ll}.logB);
-hold on;% to is in seconds
-axis xy;
-caxis('manual');
-caxis([minB maxB]);
-cmap = spec_cmap();
-colormap(cmap);
-
-v_axis = axis;
-v_axis(3)=0;
-v_axis(4)=FHigh_spec_Logger+val;
-axis(v_axis);
-set(gca,'xlim',[0 Logger_Spec{ll}.to(end)*1000],'ylim',[0 FHigh_spec_Logger+val],...
-    'ytick',[0 FHigh_spec_Logger/2 FHigh_spec_Logger])
-xlabel('time (ms)'), ylabel('Frequency');
-yyaxis left;
-axpl.YColor='w';
-yyaxis right;
-set(gca,'ytick','')
-if FigN==3
-    axpl.XColor='w';
+if (isempty(Logger_Spec{ll})) && (FigN~=1)
+    % nothing to plot return
 else
+    val=0;
+    if FigN==1
+        axes(plotevalh);
+        cla(plotevalh ,'reset')
+        axpl=plotb{ll+1};
+        [Logger_Spec{ll}.to, Logger_Spec{ll}.fo, Logger_Spec{ll}.logB] = ...
+            spec_only_bats_gui(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv),...
+            DB_noise, FHigh_spec_Logger);
+    elseif FigN==3
+        axpl=plotlogevalh;
+        val=3e3;
+    elseif nargin<3
+        error('Provide the axis handle to wear the figure should be plotted')
+    end
+    
+    maxB = max(max(Logger_Spec{ll}.logB));
+    minB = maxB-DB_noise;
+    axes(axpl);
+    cla(axpl ,'reset')
     hold on;
-    if ll<length(AudioLogs)
-        xlabel(' '); % supress the x label output
-        set(gca,'XTick',[],'XTickLabel',{});
+    
+    imagesc(axpl,Logger_Spec{ll}.to*1000,Logger_Spec{ll}.fo,Logger_Spec{ll}.logB);
+    hold on;% to is in seconds
+    axis xy;
+    caxis('manual');
+    caxis([minB maxB]);
+    cmap = spec_cmap();
+    colormap(cmap);
+    
+    v_axis = axis;
+    v_axis(3)=0;
+    v_axis(4)=FHigh_spec_Logger+val;
+    axis(v_axis);
+    set(gca,'xlim',[0 Logger_Spec{ll}.to(end)*1000],'ylim',[0 FHigh_spec_Logger+val],...
+        'ytick',[0 FHigh_spec_Logger/2 FHigh_spec_Logger])
+    xlabel('time (ms)'), ylabel('Frequency');
+    yyaxis left;
+    axpl.YColor='w';
+    yyaxis right;
+    set(gca,'ytick','')
+    if FigN==3
+        axpl.XColor='w';
+    else
+        hold on;
+        if ll<length(AudioLogs)
+            xlabel(' '); % supress the x label output
+            set(gca,'XTick',[],'XTickLabel',{});
+        end
+        yyaxis right
+        plot(axpl,(1:length(Amp_env_LowPassLogVoc{ll}))/Fs_env*1000,...
+            Amp_env_LowPassLogVoc{ll}, 'b-','LineWidth', 2);
+        hold on
+        plot(axpl,(1:length(Amp_env_HighPassLogVoc{ll}))/Fs_env*1000,...
+            Amp_env_HighPassLogVoc{ll}, 'r-','LineWidth',2);
+        if FigN==0
+            ylabel(sprintf('Amp\n%s',Fns_AL{ll}([1:3 7:end])))
+        end
+        hold off
     end
-    yyaxis right
-    plot(axpl,(1:length(Amp_env_LowPassLogVoc{ll}))/Fs_env*1000,...
-        Amp_env_LowPassLogVoc{ll}, 'b-','LineWidth', 2);
-    hold on
-    plot(axpl,(1:length(Amp_env_HighPassLogVoc{ll}))/Fs_env*1000,...
-        Amp_env_HighPassLogVoc{ll}, 'r-','LineWidth',2);
-    if FigN==0
-        ylabel(sprintf('Amp\n%s',Fns_AL{ll}([1:3 7:end])))
+    
+    hold off;
+    if FigN~=0
+        zoom on;
     end
-    hold off
-end
-
-hold off;
-if FigN~=0
-    zoom on;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
