@@ -213,7 +213,12 @@ else
                                 BioSoundCall = runBiosound(FiltWL, FS, F_high_Raw);
                                 save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,1}(1:end-4)),'BioSoundCall')
                             else
-                                BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw);
+                                try
+                                    BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw);
+                                catch
+                                    warning('Issue cannot run biosound, skip\n')
+                                    continue
+                                end
                             end
                             % Plot figures of biosound results for Microphone data
                             Fig1=figure(1);
@@ -403,8 +408,8 @@ end
         Amp_sample_rate = 1000; % Hz
         % Fundamental parameters
         MaxFund = 4000;
-        MinFund = 600;
-        LowFc = 100; %100
+        MinFund = 50;
+        LowFc = 50; %100
         HighFc = 18000;% 15000
         MinSaliency = 0.6;
         DebugFigFundest = 0;
