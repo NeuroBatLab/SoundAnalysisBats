@@ -110,52 +110,58 @@ else
         end
         
         % Check if that set of vocalizations was alread fully completed
-        if vv==Nvoc && ~CheckAfterMergePatch &&~FixingDeletionError
+        if Nvoc==1
+            CheckDone = input('There is only one vocalization in this set, indicate if it was already processed or not as it cannot be determined programmaticaly (Redo:1 Done:0)');
+            if ~CheckDone
+                continue
+            end
+        elseif vv==Nvoc && ~CheckAfterMergePatch &&~FixingDeletionError
             % All done
             continue
-        else
-            if ~strcmp(Working_dir_write,Loggers_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df).name))
-                fprintf(1,'Bringing data locally from the server\n')
-                [s,m,e]=copyfile(DataFile, Working_dir_read, 'f');
-                if ~s
-                    fprintf(1,'File transfer did not occur correctly\n')
-                    keyboard
-                else
-                    DataFile = fullfile(Working_dir_read,DataFiles(df).name);
-                end
-            end
-            load(DataFile,'Raw_wave')
-            if Nvoc ~= length(Raw_wave)
-                warning('Looks like there might be an issue there!! Check variables!!')
+        end
+        
+        if ~strcmp(Working_dir_write,Loggers_dir) && ~isfile(fullfile(Working_dir_read,DataFiles(df).name))
+            fprintf(1,'Bringing data locally from the server\n')
+            [s,m,e]=copyfile(DataFile, Working_dir_read, 'f');
+            if ~s
+                fprintf(1,'File transfer did not occur correctly\n')
                 keyboard
-            end
-            if Nvoc<=100
-                Chunking_RawWav = 0;
-                minvv = 1;
-                maxvv = Nvoc;
-                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename','Voc_transc_time_refined');
-                 if CheckAfterMergePatch || FixingDeletionError
-                     load(DataFile,'Old_vv_out_list')
-                 end
-            else % often problem of memory, we're going to chunck file loading
-                Chunking_RawWav = 1;
-                if ~mod(vv,100)
-                    minvv=floor((vv-1)/100)*100 +1;
-                    maxvv=ceil(vv/100)*100;
-                else
-                    minvv = floor(vv/100)*100 +1;
-                    maxvv = ceil(vv/100)*100;
-                    if maxvv<minvv
-                        maxvv = ceil((vv+1)/100)*100;
-                    end
-                end
-                Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
-                load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename','Voc_transc_time_refined');
-                if CheckAfterMergePatch || FixingDeletionError
-                     load(DataFile,'Old_vv_out_list')
-                 end
+            else
+                DataFile = fullfile(Working_dir_read,DataFiles(df).name);
             end
         end
+        load(DataFile,'Raw_wave')
+        if Nvoc ~= length(Raw_wave)
+            warning('Looks like there might be an issue there!! Check variables!!')
+            keyboard
+        end
+        if Nvoc<=100
+            Chunking_RawWav = 0;
+            minvv = 1;
+            maxvv = Nvoc;
+            load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename','Voc_transc_time_refined');
+            if CheckAfterMergePatch || FixingDeletionError
+                load(DataFile,'Old_vv_out_list')
+            end
+        else % often problem of memory, we're going to chunck file loading
+            Chunking_RawWav = 1;
+            if ~mod(vv,100)
+                minvv=floor((vv-1)/100)*100 +1;
+                maxvv=ceil(vv/100)*100;
+            else
+                minvv = floor(vv/100)*100 +1;
+                maxvv = ceil(vv/100)*100;
+                if maxvv<minvv
+                    maxvv = ceil((vv+1)/100)*100;
+                end
+            end
+            Raw_wave = Raw_wave(minvv:min(maxvv, length(Raw_wave)));
+            load(DataFile,'Piezo_wave', 'AudioLogs',   'Piezo_FS',  'FS', 'DiffRMS', 'RMSLow','VocFilename','Voc_transc_time_refined');
+            if CheckAfterMergePatch || FixingDeletionError
+                load(DataFile,'Old_vv_out_list')
+            end
+        end
+        
         
         Fns_AL = fieldnames(Piezo_wave);
         
@@ -365,7 +371,7 @@ else
 %                     end
 %                     audiowrite(VocFilename{vv} , Raw_wave{vv}, FS2);
 %                 else
-%                     SaveRawWaveName = 0;
+                    SaveRawWaveName = 0;
 %                 end
 %             end    
             % bandpass filter the ambient mic recording

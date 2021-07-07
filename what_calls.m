@@ -487,12 +487,27 @@ end
         % RMS to calculate Sal
         [Sal,t] = salEstimator(Y, FS, MinFund, MaxFund,RMSThresh);
         % check that t is same as BiosoundObj.to
-        if any(~(round(t)==round(double(BiosoundObj.to))))
+        if length(double(BiosoundObj.to)) ~= length(t) % quick fix for longer results, would need some work for other configurations
+            warning('Unexpected difference in number of time points. Trying a fix')
+            IndStart = strfind(round(t),round(double(BiosoundObj.to)));
+            t1 = t(IndStart:length(double(BiosoundObj.to)));
+            Sal1 = Sal(IndStart:length(double(BiosoundObj.to)));
+            
+            if length(double(BiosoundObj.to)) ~= length(t1)
+                warning('Unexpected difference in time points')
+                keyboard
+            else
+                t=t1;
+                Sal = Sal1;
+            end
+        end
+        if any(~(round(t(1:length(double(BiosoundObj.to))))==round(double(BiosoundObj.to))))
             warning('Unexpected difference in time points')
             SalB = double(BiosoundObj.sal); %#ok<NASGU>
             TO = double(BiosoundObj.to); %#ok<NASGU>
             keyboard
         end
+        
         
         % convert biosound to a strcuture
         BiosoundObj = struct(BiosoundObj);
