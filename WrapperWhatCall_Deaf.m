@@ -20,13 +20,13 @@ addpath(genpath(fullfile(BaseCodeDir,'SoundAnalysisBats')))
 %% Get the name of the next experiment that needs to be manually curated
 ee=0;
 % these are the list of files to run (replace with WhoLog)
-if ~exist(ExpLog, 'file')
-    error('Cannot find the list of file to run in: %s \n',ExpLog);
+if ~exist(WhoLog, 'file')
+    error('Cannot find the list of file to run in: %s \n',WhoLog);
 else
-    FidExp = fopen(ExpLog, 'r');
-    Header = textscan(FidExp,'%s\t%s\t%s\t%s\t%s\n',1);
-    DoneListDetect = textscan(FidExp,'%s\t%s\t%s\t%.1f\t%d');
-    fclose(FidExp);
+    FidWho = fopen(WhoLog, 'r');
+    Header = textscan(FidWho,'%s\t%s\t%s\t%s\t%s\n',1);
+    DoneListDetect = textscan(FidWho,'%s\t%s\t%s\t%.1f\t%d');
+    fclose(FidWho);
 end
 
 % This is the list of files that has been processed (to replace with the new
@@ -53,6 +53,35 @@ end
 % 3- Once you've identified an experimental date that has not been run
 % through whatcalls, apply whatcalls
 % what_calls(Logger_dir, Date, ExpStartTime)
+
+if ~exist(WhoLog, 'file')
+    error('Cannot find the list of file to run in: %s \n',ExpLog);
+else
+    FidExp = fopen(WhoLog, 'r');
+end
+    
+while checkFiles
+    if ~isempty(WhatLog)
+        Done = sum(contains(DoneListWho{1},BatsID) .* contains(DoneListWho{2},Date) .* contains(DoneListWho{3},ExpStartTime)); 
+    else 
+        Done = 0;
+    end 
+
+    if Done
+        checkFiles=1;
+    elseif ~Done && ~isempty(WhatLog)
+        if WhatLog
+            ParamFile = dir(fullfile(BaseDataDir,['20' Date],'audio',sprintf('%s_%s_%s*RecOnly_param.txt', BatsID, Date, ExpStartTime)));
+            Logger_dir = fullfile(ParamFile.folder(1:(strfind(ParamFile.folder, 'audio')-1)), 'audiologgers');
+            checkFiles=0;
+        else
+            checkFiles=1;
+         end
+    elseif ~Done && isempty(WhatLog)
+        fprintf(1, '   -> Starting new session\n')
+    end
+end
+
 fprintf(1, 'This is where I would call what_calls with Logger_dir being:\n %s\n Date: %s\n ExpStartTime:%s\n', Logger_diir, Date, ExpStartTime)
 pause()
 
