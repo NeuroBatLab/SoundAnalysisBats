@@ -401,11 +401,65 @@ else
                 PlayerMic= audioplayer(SampleMic, FS/4,24); %#ok<TNMLP>
                 play(PlayerMic)
                 pause(length(Raw_wave_nn)/FS +1)
+                ManCall=2;
+                while (ManCall~=1) && (ManCall~=0)
+                    commandwindow
+                    ManCall = input('Did you hear vocalizations? yes (1) No (0) Play microphone (100)');
+                    if isempty(ManCall)
+                        ManCall=100;
+                    end
+                    if ManCall==100
+                        play(PlayerMic)
+                        pause(length(Raw_wave_nn)/FS +1)
+                        pause(0.1)
+                    end
+                end
+                if ManCall==0
+                    fprintf(1,'Manual input enforced: Noise (0)\n');
+                    % Gather Vocalization production data:
+                    IndVocStart_all{vv} = [];
+                    IndVocStop_all{vv} = [];
+                    %                 IndNoiseStart_all{vv} = [];
+                    %                 IndNoiseStop_all{vv} = [];
+                    IndVocStartRaw_merged{vv} = [];
+                    IndVocStopRaw_merged{vv} = [];
+                    IndVocStartPiezo_merged{vv} = [];
+                    IndVocStopPiezo_merged{vv} = [];
+                    RMSRatio_all{vv} = [];
+                    RMSDiff_all{vv} = [];
+                    fprintf(1,'saving data...\n')
+                    if ~isempty(dir(PreviousFile))
+                        save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv', '-append');
+                    else
+                        %                     save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+                        save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+                    end
+                    clf(F1)
+                    if SaveRawWave
+                        if Chunking_RawWav
+                            warning('Highly not recommended!! We are chuncking the loading, you might loose the entire Raw_wave data here')
+                            keyboard
+                        end
+                        save(DataFile, 'Raw_wave','-append')
+                    end
+                    if SaveRawWaveName
+                        if Chunking_RawWav
+                            warning('Highly not recommended!! We are chuncking the loading, you might loose the entire Raw_wave data here')
+                            keyboard
+                        end
+                        save(DataFile, 'VocFilename','-append')
+                        save(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'Voc_filename','-append')
+                    end
+                    continue
+                end
+                
             end
             %% Loop through the loggers and check the extracts length
             LengthLoggersData = nan(length(AudioLogs),1);
             for ll=1:length(AudioLogs)
-                LengthLoggersData(ll) = length(Piezo_wave.(Fns_AL{ll}){vv});
+                if ~isnan(Piezo_wave.(Fns_AL{ll}){vv})
+                    LengthLoggersData(ll) = length(Piezo_wave.(Fns_AL{ll}){vv});
+                end
             end
             %% Loop through the loggers and calculate envelopes
             Logger_Spec = cell(length(AudioLogs),1);
