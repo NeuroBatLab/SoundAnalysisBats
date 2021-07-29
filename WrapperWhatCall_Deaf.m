@@ -20,37 +20,29 @@ addpath(genpath(fullfile(BaseCodeDir,'SoundAnalysisBats')))
 %% Get the name of the next experiment that needs to be manually curated
 ee=0;
 % these are the list of files to run (replace with WhoLog)
-if ~exist(WhoLog, 'file')
-    error('Cannot find the list of file to run in: %s \n',WhoLog);
+if ~exist(WhatLog, 'file')
+    error('Cannot find the list of file to run in: %s \n', WhatLog);
 else
-    FidWho = fopen(WhoLog, 'r');
-    Header = textscan(FidWho,'%s\t%s\t%s\t%s\t%s\n',1);
-    ListOfFilesToDo = textscan(FidWho,'%s\t%s\t%s\t%.1f\t%d');
-    fclose(FidWho);
+    FidWhat = fopen(WhatLog, 'r');
+    Header = textscan(FidWhat,'%s\t%s\t%s\t%s\t%s\n',1);
+    ListOfFilesToDo = textscan(FidWhat,'%s\t%s\t%s\t%.1f\t%d');
+    fclose(FidWhat);
 end
 
 % This is the list of files that has been processed (to replace with the new
 % WhatLog)
-if ~exist(WhoLog, 'file') %% Here and below (down to line 44) you want to replace by WhatLog, a file that you are going to create to keep track of which file went through the Biosound analysis
-    FidWho = fopen(WhoLog, 'a'); % Rename here and below (down to line 44) FidWho for FidWhat
-    fprintf(FidWho, 'Subject\tDate\tTime\n');
+if ~exist(WhatLog, 'file') %% Here and below (down to line 44) you want to replace by WhatLog, a file that you are going to create to keep track of which file went through the Biosound analysis
+    FidWhat = fopen(WhatLog, 'a'); % Rename h                        ere and below (down to line 44) FidWho for FidWhat
+    fprintf(FidWhat, 'Subject\tDate\tTime\n');
     DoneListWhat = [];
 else
-    FidWho = fopen(WhoLog, 'r');
-    Header = textscan(FidWho,'%s\t%s\t%s\n',1);
-    DoneListWhat = textscan(FidWho,'%s\t%s\t%s');
-    fclose(FidWho);
-    FidWho = fopen(WhoLog, 'a');
+    FidWhat = fopen(WhatLog, 'r');
+    Header = textscan(FidWhat,'%s\t%s\t%s\n',1);
+    DoneListWhat = textscan(FidWhat,'%s\t%s\t%s');
+    fclose(FidWhat);
+    FidWhat = fopen(WhatLog, 'a');
 end
 
-
-%% This has already run line 23, discard
-if ~exist(WhoLog, 'file')
-    error('Cannot find the list of file to run in: %s \n',ExpLog);
-else
-    FidExp = fopen(WhoLog, 'r');
-end
-%%
 %% Run what_calls on the selected data
 % 1- Do a loop through all the files that need to run
 % 1.1- Get the number of experiments from the content of WhoLog that was
@@ -70,7 +62,7 @@ for ff=1:NToDo
     % the data)
     
     if ~isempty(WhatLog) %% WhatLog is a file path and not the content of the file that is read line 41 you want to replace WhatLog by DoneListWhat
-        Done = sum(contains(DoneListWhat{1},BatsID) .* contains(DoneListWhat{2},Date) .* contains(DoneListWhat{3},ExpStartTime));
+        Done = sum(contains(DoneListWhat{1},BatID) .* contains(DoneListWhat{2},Date) .* contains(DoneListWhat{3},ExpStartTime));
     else
         Done = 0;
     end
@@ -79,12 +71,12 @@ for ff=1:NToDo
         continue
     else
         % Give the path to the data for that ff experiment
-        ParamFile = dir(fullfile(BaseDataDir,['20' Date],'audio',sprintf('%s_%s_%s*RecOnly_param.txt', BatsID, Date, ExpStartTime)));
+        ParamFile = dir(fullfile(BaseDataDir, ['20' Date], 'audio', sprintf('%s_%s_%s*RecOnly_param.txt', BatID, Date, ExpStartTime)));
         Logger_dir = fullfile(ParamFile.folder(1:(strfind(ParamFile.folder, 'audio')-1)), 'audiologgers');
         % Apply what_calls
         % 3- Once you've identified an experimental date that has not been run
         % through whatcalls, apply whatcalls
-        what_calls(Logger_dir, Date, ExpStartTime)
+        % what_calls(Logger_dir, Date, ExpStartTime)
         fprintf(1, 'This is where I would call what_calls with Logger_dir being:\n %s\n Date: %s\n ExpStartTime:%s\n', Logger_diir, Date, ExpStartTime)
         pause()
         
