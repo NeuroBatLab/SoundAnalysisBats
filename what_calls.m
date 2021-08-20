@@ -162,7 +162,7 @@ else
             end
             Firstcall = 1;
             NVocFile = 0;
-            Ncall = nan(NV,length(IndVocStartRaw_merged{VocInd(1)}));
+            Ncall = nan(NV,length(Fns_AL));
         else
             Firstcall=vv_what;
             NVocFile = sum(Ncall(1:(vv_what-1),:));
@@ -215,8 +215,8 @@ else
                             else
                                 try
                                     BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw);
-                                catch
-                                    warning('Issue cannot run biosound, skip\n')
+                                catch ME
+                                    warning('Issue cannot run biosound the error is:\n%s, skip\n', ME.identifier)
                                     continue
                                 end
                             end
