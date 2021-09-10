@@ -144,9 +144,11 @@ switch action
         set(checkboxh,string_handle,'X')
         set(checkboxh,'BackgroundColor',[88 117 88]./255)
         set([submith noCallh redoh],'enable','on');
+        drawnow
         
         
     case 'Submit'
+        newmessage('Evaluation submitted');
         disableEvals
         drawnow;
         set(submith,string_handle,'Submitted')
@@ -241,7 +243,7 @@ Factor_RMS_low = 1.5; % Factor by which the RMS of the low-pass filtered baselin
 Factor_RMS_Mic = 3; % Factor by which the RMS of the band-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on Microphone
 Factor_AmpDiff = 50; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
 DB_noise = 60; % Noise threshold for the spectrogram colormap
-FHigh_spec = 90000; % Max frequency (Hz) for the raw data spectrogram
+FHigh_spec = 10000; % Max frequency (Hz) for the raw data spectrogram
 FHigh_spec_Logger = 10000; % Max frequency (Hz) for the raw data spectrogram
 BandPassFilter = [1000 5000 9900]; % Frequency bands chosen for digital signal processing
 Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
@@ -346,6 +348,7 @@ global ErrorCount SaveRawWave Raw_wave;
 global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename redo;
 
 newmessage(sprintf('Saving data Voc %d...', vv))
+drawnow
 if ~isempty(dir(PreviousFile))
     save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d_%s.mat', Date, ExpStartTime,df, MergeThresh,TraineeName)),...
         'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', ...
@@ -530,7 +533,7 @@ global noCallh maybeCallh plotb AudioLogs playMich redoh;
 % spectrogram + playing microphone
 
 newmessage(sprintf('Grabbing next vocalization #%d...',vv));
-
+drawnow
 % Find the correct wavfile
 checkforerror(vv)
 
@@ -655,54 +658,54 @@ if Nvoc>100
     warning('Probably wrong audio file name, the code is not updated for older version of previous extraction\n')
 end
 
-
-load(DataFile,'Voc_transc_time_refined');
-TTL_dir = dir(fullfile(AudioDataPath,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
-TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
-FileNum_u = unique(TTL.File_number);
-OnOffTranscTime_ms = Voc_transc_time_refined(vv,:);
-FileNumIdx = find(TTL.Pulse_TimeStamp_Transc<OnOffTranscTime_ms(1,1),1,'Last');
-MicVoc_File = TTL.File_number(FileNumIdx);
-IndFileNum = find(FileNum_u == MicVoc_File);
-TranscTime_zs = (OnOffTranscTime_ms - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
-MicVoc_samp_idx =round(TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1));
-WavFileStruc_local = dir(fullfile(AudioDataPath, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File)));
-Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
-[Raw_10minwav2, FS2] = audioread(Raw_filename);
-if MicVoc_samp_idx(1)>length(Raw_10minwav2) % This vocalization occured in the next file
-    MicVoc_File = MicVoc_File+1;
-    IndFileNum = find(FileNum_u == MicVoc_File);
-    TranscTime_zs = (OnOffTranscTime_ms - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
-    MicVoc_samp_idx =round(TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1));
-    WavFileStruc_local = dir(fullfile(AudioDataPath, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File)));
-    Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
-    [Raw_10minwav2, FS2] = audioread(Raw_filename);
-end
-Raw_wave_ex = Raw_10minwav2(MicVoc_samp_idx(1) : min(MicVoc_samp_idx(2),length(Raw_10minwav2)));
-if length(Raw_wave_ex)<length(Raw_wave_nn)
-    Corr(1) = corr(Raw_wave_ex,Raw_wave_nn(1:length(Raw_wave_ex)));
-    Corr(2) = corr(Raw_wave_ex,Raw_wave_nn(end-length(Raw_wave_ex)+1:end));
-elseif length(Raw_wave_ex)>length(Raw_wave_nn)
-    Corr(1) = corr(Raw_wave_nn,Raw_wave_ex(1:length(Raw_wave_nn)));
-    Corr(2) = corr(Raw_wave_nn,Raw_wave_ex(end-length(Raw_wave_nn)+1:end));
-elseif length(Raw_wave_ex)==length(Raw_wave_nn)
-    Corr = corr(Raw_wave_ex,Raw_wave_nn);
-end
-if all(Corr<0.99)
-    warning('Error in the microphone file that was previosuly saved, fixing the issue now!\n')
-    keyboard
-    SaveRawWave = 1;
-    Raw_wave_nn = Raw_wave_ex;
-    Raw_wave{vv} = Raw_wave_ex;
-    TrueVocName = fullfile(AudioDataPath, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',WavFileStruc_local.name(1:4),Date,ExpStartTime, MicVoc_File, MicVoc_samp_idx(1)));
-    if ~strcmp(VocFilename{vv}, TrueVocName)
-        warning('Filename was also wrong correcting %s -> %s\n',VocFilename{vv},TrueVocName)
-        VocFilename{vv}= TrueVocName;
-        Voc_filename{vv_in} = TrueVocName;
-        SaveRawWaveName = 1;
-    end
-    audiowrite(VocFilename{vv} , Raw_wave{vv}, FS2);
-end
+% Section that was checking the correct extraction of microphone data
+% load(DataFile,'Voc_transc_time_refined');
+% TTL_dir = dir(fullfile(AudioDataPath,sprintf( '%s_%s_TTLPulseTimes.mat', Date, ExpStartTime)));
+% TTL = load(fullfile(TTL_dir.folder, TTL_dir.name));
+% FileNum_u = unique(TTL.File_number);
+% OnOffTranscTime_ms = Voc_transc_time_refined(vv,:);
+% FileNumIdx = find(TTL.Pulse_TimeStamp_Transc<OnOffTranscTime_ms(1,1),1,'Last');
+% MicVoc_File = TTL.File_number(FileNumIdx);
+% IndFileNum = find(FileNum_u == MicVoc_File);
+% TranscTime_zs = (OnOffTranscTime_ms - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
+% MicVoc_samp_idx =round(TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1));
+% WavFileStruc_local = dir(fullfile(AudioDataPath, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File)));
+% Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
+% [Raw_10minwav2, FS2] = audioread(Raw_filename);
+% if MicVoc_samp_idx(1)>length(Raw_10minwav2) % This vocalization occured in the next file
+%     MicVoc_File = MicVoc_File+1;
+%     IndFileNum = find(FileNum_u == MicVoc_File);
+%     TranscTime_zs = (OnOffTranscTime_ms - TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,1))/TTL.Mean_std_Pulse_TimeStamp_Transc(IndFileNum,2);
+%     MicVoc_samp_idx =round(TTL.Mean_std_Pulse_samp_audio(IndFileNum,2) .* polyval(TTL.Slope_and_intercept_transc2audiosamp{IndFileNum},TranscTime_zs,[],TTL.Mean_std_x_transc2audiosamp{IndFileNum}) + TTL.Mean_std_Pulse_samp_audio(IndFileNum,1));
+%     WavFileStruc_local = dir(fullfile(AudioDataPath, sprintf('*_%s_%s*mic*_%d.wav',Date, ExpStartTime, MicVoc_File)));
+%     Raw_filename = fullfile(WavFileStruc_local.folder, WavFileStruc_local.name);
+%     [Raw_10minwav2, FS2] = audioread(Raw_filename);
+% end
+% Raw_wave_ex = Raw_10minwav2(MicVoc_samp_idx(1) : min(MicVoc_samp_idx(2),length(Raw_10minwav2)));
+% if length(Raw_wave_ex)<length(Raw_wave_nn)
+%     Corr(1) = corr(Raw_wave_ex,Raw_wave_nn(1:length(Raw_wave_ex)));
+%     Corr(2) = corr(Raw_wave_ex,Raw_wave_nn(end-length(Raw_wave_ex)+1:end));
+% elseif length(Raw_wave_ex)>length(Raw_wave_nn)
+%     Corr(1) = corr(Raw_wave_nn,Raw_wave_ex(1:length(Raw_wave_nn)));
+%     Corr(2) = corr(Raw_wave_nn,Raw_wave_ex(end-length(Raw_wave_nn)+1:end));
+% elseif length(Raw_wave_ex)==length(Raw_wave_nn)
+%     Corr = corr(Raw_wave_ex,Raw_wave_nn);
+% end
+% if all(Corr<0.99)
+%     warning('Error in the microphone file that was previosuly saved, fixing the issue now!\n')
+%     keyboard
+%     SaveRawWave = 1;
+%     Raw_wave_nn = Raw_wave_ex;
+%     Raw_wave{vv} = Raw_wave_ex;
+%     TrueVocName = fullfile(AudioDataPath, 'Detected_calls',sprintf('%s_%s_%s_voc_%d_%d.wav',WavFileStruc_local.name(1:4),Date,ExpStartTime, MicVoc_File, MicVoc_samp_idx(1)));
+%     if ~strcmp(VocFilename{vv}, TrueVocName)
+%         warning('Filename was also wrong correcting %s -> %s\n',VocFilename{vv},TrueVocName)
+%         VocFilename{vv}= TrueVocName;
+%         Voc_filename{vv_in} = TrueVocName;
+%         SaveRawWaveName = 1;
+%     end
+%     audiowrite(VocFilename{vv} , Raw_wave{vv}, FS2);
+% end
 
 
 %% First calculate the time varying RMS of the ambient microphone

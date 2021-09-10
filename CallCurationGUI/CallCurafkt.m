@@ -136,9 +136,10 @@ switch action
         set(checkboxh,string_handle,'X')
         set(checkboxh,'BackgroundColor',[88 117 88]./255)
         set([submith noCallh redoh],'enable','on');
-        
+        drawnow
         
     case 'Submit'
+        newmessage('Evaluation submitted');
         disableEvals
         drawnow;
         set(submith,string_handle,'Submitted')
@@ -231,7 +232,7 @@ Factor_RMS_low = 1.5; % Factor by which the RMS of the low-pass filtered baselin
 Factor_RMS_Mic = 3; % Factor by which the RMS of the band-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on Microphone
 Factor_AmpDiff = 50; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
 DB_noise = 60; % Noise threshold for the spectrogram colormap
-FHigh_spec = 90000; % Max frequency (Hz) for the raw data spectrogram
+FHigh_spec = 10000; % Max frequency (Hz) for the raw data spectrogram
 FHigh_spec_Logger = 10000; % Max frequency (Hz) for the raw data spectrogram
 BandPassFilter = [1000 5000 9900]; % Frequency bands chosen for digital signal processing
 Fhigh_power =50; % Frequency upper bound for calculating the envelope (time running RMS)
@@ -339,6 +340,7 @@ global Chunking_RawWav SaveRawWaveName VocFilename Voc_filename redo SorterName 
 
 newmessage(sprintf('Saving data Voc %d...', vv))
 fprintf('Saving data Voc %d...', vv)
+drawnow
 % save name of the sorter
 SorterName{vv} = TraineeName;
 
@@ -548,7 +550,7 @@ global noCallh maybeCallh plotb AudioLogs playMich redoh;
 % spectrogram + playing microphone
 
 newmessage(sprintf('Grabbing next vocalization #%d...',vv));
-
+drawnow
 % Find the correct wavfile
 checkforerror(vv)
 
@@ -1307,6 +1309,7 @@ ylabel('AL ID')
 xlabel('Time (ms)')
 set(gca, 'YColor', 'w');
 set(gca, 'XColor', 'w');
+drawnow
 [~,FileVoc]=fileparts(VocFilename{vv});
 
 % check if evaluation produced some call detection, if not no need to save
@@ -1315,6 +1318,8 @@ if sum(cellfun(@isempty,IndVocStartRaw_merge_local)) == length(IndVocStartRaw_me
     % No vocalization heard or produced
 else
     % Save the RMS and spectro figures
+    newmessage('Saving figures...');
+    drawnow
     if SaveSpectroFig
         Figcopy = copyFigure(plotb,vv); % copy left pannel in a figure
         if strcmp(SaveFileType,'pdf')
