@@ -54,7 +54,6 @@ CheckMicChannel=1; % If set to 1 authorize evaluation of Microphone channel (cas
 PlotRMSFig = 0; % Set to 1 if you want to plot and save the figure showing the RMS
 
 %% Get the name of the next experiment that needs to be manually curated
-ee=0;
 if ~exist(ExpLog, 'file')
     error('Cannot find the list of file to run in: %s \n',ExpLog);
 else
@@ -93,6 +92,8 @@ fprintf(1,'Grabbing the session...');
 NExpe = length(DoneListDetect{1});
 checkSession=1;
 AlliOk=[];
+%ee=0;
+ee = find(contains(DoneListDetect{2},'190821')); % Start at further point to explore larger groups ;-)
 while checkSession && ee<=NExpe
     ee=ee+1;
     BatsID = DoneListDetect{1}{ee};

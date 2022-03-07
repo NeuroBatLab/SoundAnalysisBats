@@ -1128,9 +1128,9 @@ if ~isempty(IndVocStart{ll}) % Some vocalizations were detected for that logger 
             end
         else
             Hline{ii} = line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-            [FHigh_spec FHigh_spec]-15e3,'linewidth',20,'color',[0 0 0]);
+            [FHigh_spec FHigh_spec]-2e3,'linewidth',20,'color',[0 0 0]);
             line(plotlogevalh,[IndVocStart{ll}(ii)/Fs_env IndVocStop{ll}(ii)/Fs_env]*1000,...
-            [FHigh_spec FHigh_spec]-5e3,'linewidth',20,'color',[0 0 0]);
+            [FHigh_spec FHigh_spec]+1e3,'linewidth',20,'color',[0 0 0]);
         end
         hold off
         set(sliderRighth,'SliderStep', [1/(length(Amp_env_Mic)-1), 10/(length(Amp_env_Mic)-1)], ...
@@ -1170,6 +1170,8 @@ if logdone==0
     if ll<=length(AudioLogs)
         set(playLogEvalh,'enable','on',string_handle,['Play' Fns_AL{ll}([1:3 7:end])])
         set(playLogEvalh,'enable','on')
+    else
+        set(playLogEvalh,'enable','off')
     end
     set(playMicEvalh,'enable','on')
     set([submith noCallh redoh],'enable','off');
@@ -1375,10 +1377,13 @@ for ll=1:length(AudioLogs)
     Axcopy.YColor = 'k';
     yyaxis right
     Axcopy.YColor = 'k';
+    if any(Axcopy.XLim ~= [0 1])
+        XLimLogger = Axcopy.XLim;
+    end
 end
 AxcopyLast=subplot(length(AudioLogs)+2,1,length(AudioLogs)+2);
 copyobj(plotb{end}.Children,AxcopyLast)
-AxcopyLast.XLim = Axcopy.XLim;
+AxcopyLast.XLim = XLimLogger;
 AxcopyLast.YTick = 1:(length(AudioLogs)+1);
 AxcopyLast.YTickLabel = [Fns_AL; 'Mic'];
 AxcopyLast.YLim = [0 length(AudioLogs)+1];
