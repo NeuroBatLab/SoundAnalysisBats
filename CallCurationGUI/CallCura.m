@@ -50,11 +50,11 @@ SaveSpectroFig = 1; % Set to zero if you don't want to save final spectrogram fi
 MergeThresh=200;
 Manual=1;
 UseOld=1;% Set to 1 if you want to append to existing manually curated data
-CheckMicChannel=0; % If set to 1 authorize evaluation of Microphone channel (case of an individual without a collar)
+CheckMicChannel=1; % If set to 1 authorize evaluation of Microphone channel (case of an individual without a collar)
 PlotRMSFig = 0; % Set to 1 if you want to plot and save the figure showing the RMS
 
 %% Get the name of the next experiment that needs to be manually curated
-ee=0;
+
 if ~exist(ExpLog, 'file')
     error('Cannot find the list of file to run in: %s \n',ExpLog);
 else
@@ -93,8 +93,11 @@ fprintf(1,'Grabbing the session...');
 NExpe = length(DoneListDetect{1});
 checkSession=1;
 AlliOk=[];
-while checkSession && ee<=NExpe
+ee=0;
+% ee=NExpe +1;
+while checkSession && ee<=NExpe % && ee>1
     ee=ee+1;
+    %ee=ee-1;
     BatsID = DoneListDetect{1}{ee};
     Date = DoneListDetect{2}{ee};
     ExpStartTime = DoneListDetect{3}{ee};

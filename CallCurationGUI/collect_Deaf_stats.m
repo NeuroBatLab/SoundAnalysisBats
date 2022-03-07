@@ -230,7 +230,11 @@ for ee=1:NCurated
             SorterNumSeq = zeros(length(USorterName),1);
             for sn=1:length(USorterName)
                 if any(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) % Sorter already listed
-                    SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+                    if sum(contains(CuratedExp.UniqueSorterNames, USorterName{sn}))>1
+                        SorterNumSeq(sn) = CuratedExp.SorterSeqNum(strcmp(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(strcmp(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+                    else
+                        SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+                    end
                 elseif any(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn})) % New sorter to list
                     SorterNumSeq(sn) = sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
                 else
@@ -307,7 +311,11 @@ for ff=1:length(CurrentCurationFiles)
         SorterNumSeq = zeros(length(USorterName),1);
         for sn=1:length(USorterName)
             if any(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) % Sorter already listed
-                SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+                if sum(contains(CuratedExp.UniqueSorterNames, USorterName{sn}))>1
+                    SorterNumSeq(sn) = CuratedExp.SorterSeqNum(strcmp(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(strcmp(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+                else
+                    SorterNumSeq(sn) = CuratedExp.SorterSeqNum(contains(CuratedExp.UniqueSorterNames, USorterName{sn})) + sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
+                end
             elseif any(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn})) % New sorter to list
                 SorterNumSeq(sn) = sum(contains(SorterName(~cellfun('isempty', SorterName)),USorterName{sn}));
             else
@@ -365,7 +373,9 @@ figure()
 BAR = bar(CuratedExp.SorterSeqNum);
 ylabel('# sequences')
 xlabel('Curator')
+BAR.Parent.XTick = 1:length(CuratedExp.UniqueSorterNames);
 BAR.Parent.XTickLabel = CuratedExp.UniqueSorterNames;
+xtickangle(45)
 
 
 
