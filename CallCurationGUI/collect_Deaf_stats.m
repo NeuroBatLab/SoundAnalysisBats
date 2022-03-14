@@ -226,6 +226,14 @@ for ee=1:NCurated
                 SpaI = strfind(USorterName{SpacesInd(sn)}, ' ');
                 USorterName{SpacesInd(sn)}(SpaI) = [];
             end
+            SorterNameLogical = ~cellfun('isempty', SorterName);
+            SorterNameLocal = SorterName(SorterNameLogical);
+            SpacesInd = find(contains(SorterNameLocal, ' '));
+            for sn = 1:length(SpacesInd)
+                SpaI = strfind(SorterNameLocal{SpacesInd(sn)}, ' ');
+                SorterNameLocal{SpacesInd(sn)}(SpaI) = [];
+            end
+            SorterName(SorterNameLogical) = SorterNameLocal;
             USorterName = unique(USorterName);
             SorterNumSeq = zeros(length(USorterName),1);
             for sn=1:length(USorterName)
@@ -307,6 +315,14 @@ for ff=1:length(CurrentCurationFiles)
             SpaI = strfind(USorterName{SpacesInd(sn)}, ' ');
             USorterName{SpacesInd(sn)}(SpaI) = [];
         end
+        SorterNameLogical = ~cellfun('isempty', SorterName);
+        SorterNameLocal = SorterName(SorterNameLogical);
+        SpacesInd = find(contains(SorterNameLocal, ' '));
+        for sn = 1:length(SpacesInd)
+            SpaI = strfind(SorterNameLocal{SpacesInd(sn)}, ' ');
+            SorterNameLocal{SpacesInd(sn)}(SpaI) = [];
+        end
+        SorterName(SorterNameLogical) = SorterNameLocal;
         USorterName = unique(USorterName);
         SorterNumSeq = zeros(length(USorterName),1);
         for sn=1:length(USorterName)
