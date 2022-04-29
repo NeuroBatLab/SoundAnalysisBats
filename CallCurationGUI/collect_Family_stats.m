@@ -238,6 +238,7 @@ for ee=1:NCurated
             for sn = 1:length(SpacesInd)
                 SpaI = strfind(USorterName{SpacesInd(sn)}, ' ');
                 USorterName{SpacesInd(sn)}(SpaI) = [];
+                USorterName = unique(USorterName);
             end
             SorterNumSeq = zeros(length(USorterName),1);
             for sn=1:length(USorterName)
