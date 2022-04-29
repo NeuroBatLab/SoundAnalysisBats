@@ -20,10 +20,11 @@ F_high_Raw = 50000;
 F_low_Raw = 100;
 F_high_Piezo = 10000;
 F_low_Piezo = 100;
+High_Fc_Piezo = 5000;
 
 % Set to 1 if you want to manually pause after each vocalization and listen
 % to them
-ManualPause=0;
+ManualPause=1;
 
 % Import biosound library
 py.importlib.import_module('soundsig')
@@ -66,22 +67,26 @@ else
             if ~exist('WorkDir','dir')
                 mkdir(WorkDir)
             end
-            [s,m,e]=copyfile(fullfile(DataFile.folder, DataFile.name), WorkDir, 'f');
-            if ~s
-                m %#ok<NOPRT>
-                e %#ok<NOPRT>
-                error('File transfer did not occur correctly for %s\n', fullfile(DataFile.folder, DataFile.name));
+            if ~exist(fullfile(WorkDir, DataFile.name))
+                [s,m,e]=copyfile(fullfile(DataFile.folder, DataFile.name), WorkDir, 'f');
+                if ~s
+                    m %#ok<NOPRT>
+                    e %#ok<NOPRT>
+                    error('File transfer did not occur correctly for %s\n', fullfile(DataFile.folder, DataFile.name));
+                end
             end
-            [s,m,e]=copyfile(fullfile(Data1.folder, Data1.name), WorkDir, 'f');
-            if ~s
-                m %#ok<NOPRT>
-                e %#ok<NOPRT>
-                error('File transfer did not occur correctly for %s\n', fullfile(Data1.folder, Data1.name));
+            if ~exist(fullfile(WorkDir, Data1.name))
+                [s,m,e]=copyfile(fullfile(Data1.folder, Data1.name), WorkDir, 'f');
+                if ~s
+                    m %#ok<NOPRT>
+                    e %#ok<NOPRT>
+                    error('File transfer did not occur correctly for %s\n', fullfile(Data1.folder, Data1.name));
+                end
             end
         else
             WorkDir = Loggers_dir;
         end
-        load(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'BatID','LoggerName');
+        load(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged','IndVocStartPiezo','IndVocStopPiezo', 'BatID','LoggerName');
         if ~exist('BatID', 'var')
             Ind_ = strfind(DataFile.name, '_');
              load(fullfile(WorkDir, sprintf('%s_%s_VocExtractData%d%s', Date, ExpStartTime,1, DataFile.name(Ind_(end):end))), 'BatID','LoggerName');
@@ -105,7 +110,7 @@ else
             RMSDiff_all= RMSDiff_all(1:length(VocFilename));
             save(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged','IndVocStartRaw','IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo','IndVocStart_all', 'IndVocStop_all', 'RMSRatio_all', 'RMSDiff_all', '-append');
 
-            clear IndVocStartRaw IndVocStopRaw IndVocStartPiezo IndVocStopPiezo IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all
+            clear IndVocStartRaw IndVocStopRaw IndVocStart_all IndVocStop_all RMSRatio_all RMSDiff_all
         end
             
             
@@ -148,8 +153,11 @@ else
             elseif isnan(PrevData)
                 fprintf(1, 'No previous data, starting from scratch');
                 PrevData = 0;
-            else
+            elseif exist('BioSoundCalls','var')
                 fprintf(1,'Enforce PrevData usage to %d\n', PrevData);
+            else
+                fprintf(1, 'No previous data, starting from scratch');
+                PrevData = 0;
             end
         catch
             fprintf(1, 'No previous data, starting from scratch\n');
@@ -165,9 +173,13 @@ else
             Ncall = nan(NV,length(Fns_AL));
         else
             Firstcall=vv_what;
-            NVocFile = sum(Ncall(1:(vv_what-1),:));
+            NVocFile = sum(sum(Ncall(1:(vv_what-1),:)));
         end
-    
+        
+        if Firstcall==NV && ~isempty(BioSoundCalls{end,1})
+            clear BioSoundCalls
+            continue
+        end
         %% Loop through calls, save them as wav files and run biosound
         % Turn off warning notifications for python 2 struct conversion
         warning('off', 'MATLAB:structOnObject')
@@ -180,7 +192,7 @@ else
                 ParseVocFile = strsplit(VocFilename{VocInd(vv_what)}, '\');
                 FileVoc = ParseVocFile{end};
             end
-            for ll=1:length(IndVocStartRaw_merged{VocInd(vv_what)})
+            for ll=1:length(Fns_AL)
                 % Logger number
                 AL_local = Fns_AL{ll};
                 ALNum = AL_local(7:end);
@@ -198,46 +210,84 @@ else
                         fprintf(1,'%d/%d Vocalization\n',NVocFile,VocCall)
                         % Extract the sound of the microphone that
                         % correspond to the data
-                        IndOn = IndVocStartRaw_merged{VocInd(vv_what)}{ll}(nn);
-                        IndOff = min(length(Raw_wave{VocInd(vv_what)}),IndVocStopRaw_merged{VocInd(vv_what)}{ll}(nn)); % we take the min here as sometimes the rounding procedures gets numbers outisde of wave length
-                        if IndOn>=IndOff || ((IndOff-IndOn)/FS)<0.01 % sound too short to be a call
-                            warning('Miss-allignement between Microphone and piezo, skip this one for Microphone data\n')
-%                             keyboard
-                        else
-                            WL = Raw_wave{VocInd(vv_what)}(IndOn:IndOff);
-                            FiltWL = filtfilt(sos_band_raw,1,WL);
-                            FiltWL = FiltWL-mean(FiltWL);
-                            BioSoundFilenames{NVocFile,1} = fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.wav',FileVoc, BatID_local,ALNum,nn));
-                            audiowrite(BioSoundFilenames{NVocFile,1},WL,FS);
-                            if SaveBiosoundperFile
-                                BioSoundCall = runBiosound(FiltWL, FS, F_high_Raw);
-                                save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,1}(1:end-4)),'BioSoundCall')
-                            else
-                                try
-                                    BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw);
-                                catch ME
-                                    warning('Issue cannot run biosound the error is:\n%s, skip\n', ME.identifier)
-                                    continue
-                                end
-                            end
-                            % Plot figures of biosound results for Microphone data
-                            Fig1=figure(1);
-                            clf
-                            if SaveBiosoundperFile
-                                plotBiosound(BioSoundCall, F_high_Raw)
-                            else
-                                plotBiosound(BioSoundCalls{NVocFile,1}, F_high_Raw)
-                            end
-                            hold on
-                            suplabel(sprintf('%d/%d Vocalization',NVocFile,VocCall),'t');
-                            hold off
-                            % Play the sound
-                            if ManualPause
-                                AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS); %#ok<TNMLP,UNRCH>
-                                play(AP)
-                            end
-                            print(Fig1,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
-                        end
+%                         IndOn = IndVocStartRaw_merged{VocInd(vv_what)}{ll}(nn);
+%                         IndOff = min(length(Raw_wave{VocInd(vv_what)}),IndVocStopRaw_merged{VocInd(vv_what)}{ll}(nn)); % we take the min here as sometimes the rounding procedures gets numbers outisde of wave length
+%                         Dur = (IndOff-IndOn)/FS;
+%                         if IndOn>=IndOff || Dur<0.01 % sound too short to be a call
+%                             warning('Miss-allignement between Microphone and piezo, skip this one for Microphone data\n')
+% %                             keyboard
+%                         else
+%                             WL = Raw_wave{VocInd(vv_what)}(IndOn:IndOff);
+%                             FiltWL = filtfilt(sos_band_raw,1,WL);
+%                             FiltWL = FiltWL-mean(FiltWL);
+%                             BioSoundFilenames{NVocFile,1} = fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.wav',FileVoc, BatID_local,ALNum,nn));
+%                             audiowrite(BioSoundFilenames{NVocFile,1},WL,FS);
+%                             if Dur>=0.1
+%                                 if SaveBiosoundperFile
+%                                     BioSoundCall = runBiosound(FiltWL, FS, F_high_Raw);
+%                                     save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,1}(1:end-4)),'BioSoundCall')
+%                                 else
+%                                     try
+%                                         BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw);
+%                                     catch ME
+%                                         warning('Issue cannot run biosound the error is:\n%s, skip\n', ME.identifier)
+%                                         continue
+%                                     end
+%                                 end
+%                             else
+%                                 warning('Very Short vocalization, extracting the vocalization in a larger window of 100ms for mps calculations purposes\n')
+%                                 IndOn2 = IndOn - ceil((0.1- Dur)*FS/2);
+%                                 IndOff2 = IndOff + ceil((0.1 - Dur)*FS/2);
+%                                 if IndOn2<0
+%                                     IndOn2=1;
+%                                     IndOff2 = IndOff + ceil((0.1 - Dur)*FS) - IndOn;
+%                                 elseif IndOff2>length(Raw_wave{VocInd(vv_what)})
+%                                     IndOff2 = length(Raw_wave{VocInd(vv_what)});
+%                                     IndOn2 = IndOn - ceil((0.1 - Dur)*FS) + IndOff2 - IndOff;
+%                                 end
+%                                 if (IndOn2<0) || IndOff2>length(Raw_wave{VocInd(vv_what)})
+%                                     warning('we cannot get a larger window of 100ms for this one')
+%                                     keyboard
+%                                     IndOn2=1;
+%                                     IndOff2 = length(Raw_wave{VocInd(vv_what)});
+%                                 end
+%                                 WL2 = Raw_wave{VocInd(vv_what)}(IndOn2:IndOff2);
+%                                 WL2 = WL2 - mean(WL2); % center the piezo data around 0
+%                                 if any(abs(WL2)>=1)
+%                                     WL2 = WL2./max(abs(WL2)); % scale between 0 and 1 if exceeding 1
+%                                 end
+%                                 FiltWL2 = filtfilt(sos_band_raw,1,WL2);
+% 
+%                                 if SaveBiosoundperFile
+%                                     BioSoundCall = runBiosound(FiltWL, FS, F_high_Raw,[],FiltWL2);
+%                                     save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,1}(1:end-4)),'BioSoundCall')
+%                                 else
+%                                     try
+%                                         BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw,[],FiltWL2);
+%                                     catch ME
+%                                         warning('Issue cannot run biosound the error is:\n%s, skip\n', ME.identifier)
+%                                         continue
+%                                     end
+%                                 end
+%                             end
+%                             % Plot figures of biosound results for Microphone data
+%                             Fig1=figure(1);
+%                             clf
+%                             if SaveBiosoundperFile
+%                                 plotBiosound(BioSoundCall, F_high_Raw)
+%                             else
+%                                 plotBiosound(BioSoundCalls{NVocFile,1}, F_high_Raw)
+%                             end
+%                             hold on
+%                             suplabel(sprintf('%d/%d Vocalization',NVocFile,VocCall),'t');
+%                             hold off
+%                             % Play the sound
+%                             if ManualPause
+%                                 AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS); %#ok<TNMLP,UNRCH>
+%                                 play(AP)
+%                             end
+%                             print(Fig1,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
+%                         end
                     
                         % Extract the sound of the audio-logger that
                         % correspond to the data
@@ -247,7 +297,8 @@ else
                         if isnan(FSpiezo)
                             FSpiezo = round(nanmean(Piezo_FS.(Fns_AL{ll})(:)));
                         end
-                        if IndOn>=IndOff || ((IndOff-IndOn)/FSpiezo)<0.01 % sound too short to be a call
+                        Dur = (IndOff-IndOn)/FSpiezo;
+                        if IndOn>=IndOff || Dur<0.01 % sound too short to be a call
 %                             keyboard
                             warning('Miss-allignement between Microphone and piezo, skip this one for Piezo data\n')
                         else
@@ -259,13 +310,53 @@ else
                             FiltWL = filtfilt(sos_band_piezo,1,WL);
                             BioSoundFilenames{NVocFile,2} =fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Piezo.wav',FileVoc,BatID_local,ALNum,nn));
                             audiowrite(BioSoundFilenames{NVocFile,2},WL,FSpiezo);
-                            if SaveBiosoundperFile
-                                BioSoundCall = runBiosound(FiltWL, FSpiezo, F_high_Piezo);
-                                save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,2}(1:end-4)),'BioSoundCall')
+                            if Dur>=0.1
+                                OnOffInd = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStartPiezo{VocInd(vv_what)}{ll}<IndOff));
+                                OnOffSetsInd = ([IndVocStartPiezo{VocInd(vv_what)}{ll}(OnOffInd)' IndVocStopPiezo{VocInd(vv_what)}{ll}(OnOffInd)']-IndOn+1);
+                                if SaveBiosoundperFile
+                                    BioSoundCall = runBiosound(FiltWL, FSpiezo, F_high_Piezo, High_Fc_Piezo, [], OnOffSetsInd);
+                                    save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,2}(1:end-4)),'BioSoundCall')
+                                else
+                                    BioSoundCalls{NVocFile,2} = runBiosound(FiltWL, FSpiezo, F_high_Piezo, High_Fc_Piezo,[],OnOffSetsInd);
+                                end
                             else
-                                BioSoundCalls{NVocFile,2} = runBiosound(FiltWL, FSpiezo, F_high_Piezo);
+                                warning('Very Short vocalization, extracting the vocalization in a larger window of 100ms for mps calculations purposes\n')
+                                IndOn2 = IndOn- ceil((0.1 - Dur)*FSpiezo/2);
+                                IndOff2 = IndOff + ceil((0.1 - Dur)*FSpiezo/2);
+                                if IndOn2<0
+                                    IndOn2=1;
+                                    IndOff2 = IndOff + ceil((0.1 - Dur)*FSpiezo) - IndOn;
+                                elseif IndOff2>length(Piezo_wave.(Fns_AL{ll}){VocInd(vv_what)})
+                                    IndOff2 = length(Piezo_wave.(Fns_AL{ll}){VocInd(vv_what)});
+                                    IndOn2 = IndOn - ceil((0.1 - Dur)*FSpiezo) + IndOff2 - IndOff;
+                                end
+                                if (IndOn2<0) || IndOff2>length(Piezo_wave.(Fns_AL{ll}){VocInd(vv_what)})
+                                    warning('we cannot get a larger window of 100ms for this one')
+                                    keyboard
+                                    IndOn2=1;
+                                    IndOff2 = length(Piezo_wave.(Fns_AL{ll}){VocInd(vv_what)});
+                                end
+                                WL2 = Piezo_wave.(Fns_AL{ll}){VocInd(vv_what)}(IndOn2:IndOff2);
+                                WL2 = WL2 - mean(WL2); % center the piezo data around 0
+                                if any(abs(WL2)>=1)
+                                    WL2 = WL2./max(abs(WL2)); % scale between 0 and 1 if exceeding 1
+                                end
+                                FiltWL2 = filtfilt(sos_band_piezo,1,WL2);
+                                % Onset and offset of each sound element
+                                % in WL
+                                OnOffInd = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStartPiezo{VocInd(vv_what)}{ll}<IndOff));
+                                OnOffSetsInd = ([IndVocStartPiezo{VocInd(vv_what)}{ll}(OnOffInd)' IndVocStopPiezo{VocInd(vv_what)}{ll}(OnOffInd)']-IndOn+1);
+                                % Onset and offset of each sound element
+                                % in WL2
+                                OnOffInd2 = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn2) .* (IndVocStartPiezo{VocInd(vv_what)}{ll}<IndOff2));
+                                OnOffSetsInd2 = ([IndVocStartPiezo{VocInd(vv_what)}{ll}(OnOffInd2)' IndVocStopPiezo{VocInd(vv_what)}{ll}(OnOffInd2)']-IndOn2+1);
+                                if SaveBiosoundperFile
+                                    BioSoundCall = runBiosound(FiltWL, FSpiezo, F_high_Piezo, High_Fc_Piezo,FiltWL2,OnOffSetsInd,OnOffSetsInd2);
+                                    save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,2}(1:end-4)),'BioSoundCall')
+                                else
+                                    BioSoundCalls{NVocFile,2} = runBiosound(FiltWL, FSpiezo, F_high_Piezo,High_Fc_Piezo, FiltWL2,OnOffSetsInd,OnOffSetsInd2);
+                                end
                             end
-
                             % Plot figures of biosound results for piezo data
                             Fig2=figure(2);
                             clf
@@ -390,7 +481,19 @@ end
 %% Internal functions
 
 
-    function BiosoundObj = runBiosound(Y, FS, F_high)
+    function BioSoundObj = runBiosound(Y, FS, F_high,HighFc, Y2,OnOffSetsInd,OnOffSetsInd2)
+        if nargin<7
+            OnOffSetsInd2=nan;
+        end
+        if nargin<6
+            OnOffSetsInd=nan;
+        end
+        if nargin<5 || isempty(Y2)
+            Y2=nan;
+        end
+        if nargin<4 || isempty(HighFc)
+            HighFc = 18000;% 15000 High frequency cut-off for band-passing the signal prior to auto-correlation in Saliency calculation and fundamental calculation
+        end
         % Hard coded parameters for biosound
         % Spectrum parameters
         if nargin<3
@@ -410,23 +513,24 @@ end
         MaxFund = 4000;
         MinFund = 50;
         LowFc = 50; %100
-        HighFc = 18000;% 15000
-        MinSaliency = 0.6;
+        MinSaliency = 0.2; % used to be 0.6
         DebugFigFundest = 0;
         MinFormantFreq = 2000;
         MaxFormantBW = 1000; %500
         WindowFormant = 0.1;
-        Method= 'Stack';
-        
-        % Pitch saliency parameter
-        RMSThresh = 0.1;
+        Method= 'AC';%used to be 'Stack'
+        fprintf(1, 'running Biosound with Fundest method = %s\n', Method)
+       
         
         % create the biosound object
         BiosoundObj = py.soundsig.sound.BioSound(py.numpy.array(Y),pyargs('fs',FS));
+        if ~isnan(Y2)
+            BiosoundObj2 = py.soundsig.sound.BioSound(py.numpy.array(Y2),pyargs('fs',FS));
+        end
         % methods(BiosoundFi, '-full') % this command plot all the methods with the available arguments
         
         % Calculate the RMS (lhs std(varargin))
-        BiosoundObj.rms = BiosoundObj.sound.std();
+        BioSoundObj.rms = BiosoundObj.sound.std();
         
         % calculate the amplitude enveloppe
         ampenv(BiosoundObj, Cutoff_freq,Amp_sample_rate);
@@ -440,12 +544,152 @@ end
         
         % calculate the spectrum (lhs spectrum(self, f_high, pyargs))
         spectrum(BiosoundObj, F_high)
-        % calculate the spectrogram (lhs spectroCalc(self, spec_sample_rate,
+
+         % if there are several sound elements in the section, then obtain
+        % statistics of the amplitude envelope, spectral envelope and MPS for
+        % each. The sound elements have to be 50ms appart and are isolated
+        % in 100ms window if they are shorter than 100ms
+        if ~isnan(Y2) % if a longer version of the data is provided, use that!
+            OnOffSetsInd_local = OnOffSetsInd2;
+            Y_local = Y2;
+        else
+            OnOffSetsInd_local = OnOffSetsInd;
+            Y_local = Y;
+        end
+
+        if size(OnOffSetsInd_local,1)>1 && any(((OnOffSetsInd_local(2:end,1) - OnOffSetsInd_local(1:end-1,2))./FS*1000)>50)
+            ICI = ( OnOffSetsInd_local(2:end,1) - OnOffSetsInd_local(1:end-1,2))./FS*1000;
+            ICILarge = find(ICI>50);
+            BioSoundObj.meanspect = nan(length(ICILarge)+1,1);
+            BioSoundObj.stdspect = nan(length(ICILarge)+1,1);
+            BioSoundObj.kurtosisspect = nan(length(ICILarge)+1,1);
+            BioSoundObj.skewspect = nan(length(ICILarge)+1,1);
+            BioSoundObj.entropyspect = nan(length(ICILarge)+1,1);
+            BioSoundObj.meantime = nan(length(ICILarge)+1,1);
+            BioSoundObj.stdtime = nan(length(ICILarge)+1,1);
+            BioSoundObj.kurtosistime = nan(length(ICILarge)+1,1);
+            BioSoundObj.skewtime = nan(length(ICILarge)+1,1);
+            BioSoundObj.entropytime = nan(length(ICILarge)+1,1);
+            BioSoundObj.entropytime = nan(length(ICILarge)+1,1);
+            Onset_local = nan(length(ICILarge)+1,1);
+            Offset_local = nan(length(ICILarge)+1,1);
+            for bo=1:(length(ICILarge)+1)
+                if bo==1
+                    Onset_local(bo) = OnOffSetsInd_local(1,1);
+                    Offset_local(bo) = OnOffSetsInd_local(ICILarge(bo),2);
+                elseif bo<=length(ICILarge)
+                    Onset_local(bo) = OnOffSetsInd_local(ICILarge(bo-1)+1,1);
+                    Offset_local(bo) = OnOffSetsInd_local(ICILarge(bo),2);
+                elseif bo>length(ICILarge) % This is the last call
+                    Onset_local(bo) = OnOffSetsInd_local(ICILarge(bo-1)+1,1);
+                    Offset_local(bo) = OnOffSetsInd_local(end,2);
+                else
+                    warning('We should not end up there!!')
+                    keyboard
+                end
+                Ybo = Y_local(Onset_local(bo):Offset_local(bo));
+                BO = py.soundsig.sound.BioSound(py.numpy.array(Ybo),pyargs('fs',FS));
+                % Calculate the amplitude envelope and its momentums
+                ampenv(BO, Cutoff_freq,Amp_sample_rate);
+                % Calculate the spectral envelope and its momentums
+                spectrum(BO, F_high)
+                BioSoundObj.meanspect(bo) = BO.meanspect;
+                BioSoundObj.stdspect(bo) = BO.stdspect;
+                BioSoundObj.kurtosisspect(bo) = BO.kurtosisspect;
+                BioSoundObj.skewspect(bo) = BO.skewspect;
+                BioSoundObj.entropyspect(bo) = BO.entropyspect;
+                BioSoundObj.meantime(bo) = BO.meantime;
+                BioSoundObj.stdtime(bo) = BO.stdtime;
+                BioSoundObj.kurtosistime(bo) = BO.kurtosistime;
+                BioSoundObj.skewtime(bo) = BO.skewtime;
+                BioSoundObj.entropytime(bo) = BO.entropytime;
+            end
+
+            BioSoundObj.spectro_elmts = cell(length(ICILarge)+1,1); % Spectro of individual sound elements
+            BioSoundObj.to_elmts = cell(length(ICILarge)+1,1); % Spectro t0 of individual sound elements
+            BioSoundObj.fo_elmts = cell(length(ICILarge)+1,1);% Spectro f0 of individual sound elements
+            BioSoundObj.mps_elmts= cell(length(ICILarge)+1,1); % mps of individual sound elements
+            BioSoundObj.wt_elmts= cell(length(ICILarge)+1,1); % mps of individual sound elements
+            BioSoundObj.wf_elmts= cell(length(ICILarge)+1,1); % mps of individual sound elements
+            for bo = 1:(length(ICILarge)+1)
+                Ybo = Y_local(Onset_local(bo):Offset_local(bo));
+                if length(Ybo)<(0.1*FS) % the extract is shorter than 100ms and needs to be placed in a larger window for calculation of the MPS
+                    if bo==1
+                        TimeBefore = Onset_local(bo)-1;
+                        TimeAfter = (Onset_local(bo+1)-Offset_local(bo))-1;
+                    elseif bo<length(Onset_local)
+                        TimeBefore = (Onset_local(bo)-Offset_local(bo-1))-1;
+                        TimeAfter = (Onset_local(bo+1)-Offset_local(bo))-1;
+                    elseif bo==length(Onset_local) % This is the last call
+                        TimeBefore = (Onset_local(bo)-Offset_local(bo-1))-1;
+                        TimeAfter = (length(Y)-Offset_local(bo));
+                    else
+                        warning('We should not end up there!!')
+                        keyboard
+                    end
+                    Blank = 2*(ceil((0.1*FS-length(Ybo))/2)); % making sure we ask for a value that splits in 2
+                    if TimeBefore>=(Blank/2) && TimeAfter>=(Blank/2)
+                        Onset_local2 = Onset_local(bo)- Blank/2;
+                        Offset_local2 = min(Offset_local(bo) + Blank/2, length(Y));
+                    elseif TimeBefore<(Blank/2) && TimeAfter>=(Blank/2) % not enough time before
+                        Onset_local2 = Onset_local(bo)-TimeBefore;
+                        Offset_local2 = min(Offset_local(bo) + Blank - TimeBefore, length(Y));
+                    elseif TimeBefore>=(Blank/2) && TimeAfter<(Blank/2) % not enough time after
+                        Onset_local2 = Onset_local(bo)- Blank + TimeAfter;
+                        Offset_local2 = min(Offset_local(bo) + TimeAfter, length(Y));
+                    end
+                    Ybo = Y_local(Onset_local2:Offset_local2); % Overwrite Ybo
+                end
+                % Now proceed with Spectrogram and MPS calculations
+                BO = py.soundsig.sound.BioSound(py.numpy.array(Ybo),pyargs('fs',FS));
+                % calculate the spectrogram of this sound element(lhs spectroCalc(self, spec_sample_rate,
+                % freq_spacing, min_freq, max_freq, pyargs))
+                spectroCalc(BO, Spec_sample_rate, Freq_spacing, Min_freq,Max_freq)
+                % calculate the mpw of this sound element
+                Window = 0.1;% duration of the window in sec when binning the spectrogram
+                Norm = 1; % boolean to indicate if you want to normalize or not the MPS (zscore of the spectrogram before 2Dfft
+                mpsCalc(BO, Window, Norm)
+                BioSoundObj.spectro_elmts{bo} = BO.spectro; % Spectro of individual sound elements
+                BioSoundObj.to_elmts{bo} = BO.to; % Spectro t0 of individual sound elements
+                BioSoundObj.fo_elmts{bo} = BO.fo;% Spectro f0 of individual sound elements
+                BioSoundObj.mps_elmts{bo}= BO.mps; % mps of individual sound elements
+                BioSoundObj.wt_elmts{bo}= BO.wt; % mps of individual sound elements
+                BioSoundObj.wf_elmts{bo}= BO.wf; % mps of individual sound elements
+            end
+
+        else
+            BioSoundObj.meanspect = double(BiosoundObj.meanspect);
+            BioSoundObj.stdspect = double(BiosoundObj.stdspect);
+            BioSoundObj.kurtosisspect = double(BiosoundObj.kurtosisspect);
+            BioSoundObj.skewspect = double(BiosoundObj.skewspect);
+            BioSoundObj.entropyspect = double(BiosoundObj.entropyspect);
+            BioSoundObj.meantime = double(BiosoundObj.meantime);
+            BioSoundObj.stdtime = double(BiosoundObj.stdtime);
+            BioSoundObj.kurtosistime = double(BiosoundObj.kurtosistime);
+            BioSoundObj.skewtime = double(BiosoundObj.skewtime);
+            BioSoundObj.entropytime = double(BiosoundObj.entropytime);
+        end
+
+
+        % calculate the spectrogram of the whole sound event(lhs spectroCalc(self, spec_sample_rate,
         % freq_spacing, min_freq, max_freq, pyargs))
         try % For very short sound, the Freq_spacing is too small, doubling if error
             spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing, Min_freq,Max_freq)
         catch
             spectroCalc(BiosoundObj, Spec_sample_rate, Freq_spacing.*2, Min_freq,Max_freq)
+        end
+        if ~isnan(Y2)
+            spectroCalc(BiosoundObj2, Spec_sample_rate, Freq_spacing, Min_freq,Max_freq)
+        end
+
+        % Calculate the mps
+        % MPS parameters
+        Window = 0.1;% duration of the window in sec when binning the spectrogram
+        Norm = 1; % boolean to indicate if you want to normalize or not the MPS (zscore of the spectrogram before 2Dfft
+        if ~isnan(Y2)
+            mpsCalc(BiosoundObj2, Window, Norm)
+        else
+            mpsCalc(BiosoundObj, Window, Norm)
         end
         
         % Calculate time varying spectralmean and spectral quartiles
@@ -481,65 +725,253 @@ end
         
         % calculate the fundamental and related values (lhs fundest(self, maxFund,
         % minFund, lowFc, highFc, minSaliency, debugFig, pyargs)
-        fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
-        
-        % Calculate again the saliency with a lower threshold on minimum
-        % RMS to calculate Sal
-        [Sal,t] = salEstimator(Y, FS, MinFund, MaxFund,RMSThresh);
-        % check that t is same as BiosoundObj.to
-        if length(double(BiosoundObj.to)) ~= length(t) % quick fix for longer results, would need some work for other configurations
-            warning('Unexpected difference in number of time points. Trying a fix')
-            IndStart = strfind(round(t),round(double(BiosoundObj.to)));
-            t1 = t(IndStart:length(double(BiosoundObj.to)));
-            Sal1 = Sal(IndStart:length(double(BiosoundObj.to)));
-            
-            if length(double(BiosoundObj.to)) ~= length(t1)
-                warning('Unexpected difference in time points')
-                keyboard
+        try
+            fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
+        catch ME2% increase the Min Fund value such as to look for only high pitch values (smaller time lag/window)
+            if contains(ME2.message, 'Lags are too long')
+                fundest(BiosoundObj, MaxFund, MinFund*10,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
             else
-                t=t1;
-                Sal = Sal1;
+                keyboard
             end
         end
-        if any(~(round(t(1:length(double(BiosoundObj.to))))==round(double(BiosoundObj.to))))
-            warning('Unexpected difference in time points')
-            SalB = double(BiosoundObj.sal); %#ok<NASGU>
-            TO = double(BiosoundObj.to); %#ok<NASGU>
-            keyboard
+        
+        % Only keep values of fundamentals where there is power in the
+        % spectrogram
+        PowerThresh = 30;
+        Fund = double(BiosoundObj.f0);
+        Fund2 = double(BiosoundObj.f0_2);
+        MinF0 = floor(min(Fund)/100)*100;
+        MaxF0 = ceil(max(Fund)/100)*100;
+        SpectroFo = double(BiosoundObj.fo);
+        SpectroRows = logical((SpectroFo>MinF0) .* (SpectroFo<MaxF0));
+        PowerSpectroBand = mean(Spectro(SpectroRows,:));
+        VocOffFund = PowerSpectroBand<PowerThresh;
+        Fund(VocOffFund) = nan;
+        Fund2(VocOffFund) = nan;
+        % when the saliency is very low (<0.5), we do not expect to have high
+        % values of fundamental (>1kHz), these are probably wrongly calculated
+        Sal = double(BiosoundObj.sal);
+        BadSalHighFund = logical((Sal<0.5) .* (Fund>1000));
+        Fund(BadSalHighFund) = nan;
+        Fund2(BadSalHighFund) = nan;
+
+        %Use previously identified and manually curated onsets/offsets according to sound amplitude
+        VocOn = zeros(size(Sal));
+        OnOffSets = round(OnOffSetsInd./FS*1000);
+        OnOffSets(OnOffSets==0) = 1;
+        NCall = size(OnOffSets,1);
+        for oo=1:NCall
+            VocOn(OnOffSets(oo,1):OnOffSets(oo,2)) = ones(1,diff(OnOffSets(oo,:))+1);
         end
+        VocOff = ~VocOn;
+
+        % Only keep measurements where there is power in amplitude envelope
+        Sal(VocOff) = nan;
+        Fund(VocOff) = nan;
+        Fund2(VocOff) = nan;
+        SpectralMean(VocOff) = nan;
+        Quartile_freq(:,VocOff) = nan;
+        F1 = double(BiosoundObj.F1);
+        F2 = double(BiosoundObj.F2);
+        F3 = double(BiosoundObj.F3);
+        F1(VocOff) = nan;
+        F2(VocOff) = nan;
+        F3(VocOff) = nan;
+        
+        % Calculate average for each manually identified vocalizations
+        % separated by more 50ms than its neighbors
+        if exist('ICILarge', 'var') % several syllables
+            MeanFund = nan(length(ICILarge)+1,1);
+            MeanSpectralMean = nan(length(ICILarge)+1,1);
+            MeanSal = nan(length(ICILarge)+1,1);
+            MeanF1 = nan(length(ICILarge)+1,1);
+            MeanF2 = nan(length(ICILarge)+1,1);
+            MeanF3 = nan(length(ICILarge)+1,1);
+            MeanQuartile_Freq = nan(length(ICILarge)+1,3);
+
+            for bo=1:(length(ICILarge)+1)
+                if bo==1
+                    Onset = OnOffSets(1,1);
+                    Offset = OnOffSets(ICILarge(bo),2);
+                elseif bo<=length(ICILarge)
+                    Onset = OnOffSets(ICILarge(bo-1)+1,1);
+                    Offset = OnOffSets(ICILarge(bo),2);
+                elseif bo>length(ICILarge) % This is the last call
+                    Onset = OnOffSets(ICILarge(bo-1)+1,1);
+                    Offset = OnOffSets(end,2);
+                else
+                    warning('We should not end up there!!')
+                    keyboard
+                end
+                MeanFund(bo) = mean(Fund(Onset:Offset), 'omitnan');
+                MeanSpectralMean(bo) = mean(SpectralMean(Onset:Offset), 'omitnan');
+                MeanSal(bo) = mean(Sal(Onset:Offset), 'omitnan');
+                MeanF1(bo) = mean(F1(Onset:Offset), 'omitnan');
+                MeanF2(bo) = mean(F2(Onset:Offset), 'omitnan');
+                MeanF3(bo) = mean(F3(Onset:Offset), 'omitnan');
+                MeanQuartile_Freq(bo,:) = mean(Quartile_freq(:,Onset:Offset),2, 'omitnan')';
+            end
+        else % Only one syllable
+            MeanFund = mean(Fund, 'omitnan');
+            MeanSpectralMean = mean(SpectralMean, 'omitnan');
+            MeanSal = mean(Sal, 'omitnan');
+            MeanF1 = mean(F1, 'omitnan');
+            MeanF2 = mean(F2, 'omitnan');
+            MeanF3 = mean(F3, 'omitnan');
+            MeanQuartile_Freq = mean(Quartile_freq,2, 'omitnan')';
+        end
+
+        
+%         SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
+%         SpectroRows = logical((SpectroFo>500) .* (SpectroFo<5000));
+%         PowerSpectroBand = mean(Spectro(SpectroRows,:));
+%         if (length(PowerSpectroBand)-length(SoundAmp))==1
+%             VocOff = ~((PowerSpectroBand(1:end-1)>=20) .* (SoundAmp>=0.05));% minimum value of amplitude both on sound amplitude envelope and in spectrogram band between 500 and 5000 Hz
+%         elseif (length(PowerSpectroBand)==length(SoundAmp))
+%             VocOff = ~((PowerSpectroBand>=20) .* (SoundAmp>=0.05));% minimum value of amplitude both on sound amplitude envelope and in spectrogram band between 500 and 5000 Hz
+%         else
+%             keyboard
+%         end
+
+%         VocOff(strfind(VocOff, [0 1 0])+1) = 0; % don't consider very short interruption of 1ms
+%         MinDur = 10; %in ms % minimal duration of 10 ms
+%         VocOn = ~VocOff;
+%         Onsets = find(diff(VocOn)==1)+1;
+%         Offsets = find(diff(VocOn)==-1);
+%         if (length(Onsets)==length(Offsets)) && ~any(Onsets>Offsets) % easiest case scenario
+%             
+%         elseif (length(Onsets)-length(Offsets)==1) && (VocOn(end)==1) && (VocOn(1)==0) % the section end with VocOn
+%             Offsets = [Offsets length(VocOn)];
+%             if any(Onsets>Offsets)
+%                 warning('Cannot find correct onset/offsets of vocalizations')
+%                 keyboard
+%             end
+%         elseif (length(Onsets)-length(Offsets)==-1) && (VocOn(1)==1) && (VocOn(end)==0) % the section end with VocOn
+%             Onsets = [1 Onsets];
+%             if any(Onsets>Offsets)
+%                 warning('Cannot find correct onset/offsets of vocalizations')
+%                 keyboard
+%             end
+%         elseif (length(Onsets)==length(Offsets)) && any(Onsets>Offsets) && (VocOn(end)==1) && (VocOn(1)==1)% the section atsrts and ends with VocOn
+%             Offsets = [Offsets length(VocOn)];
+%             Onsets = [1 Onsets];
+%             if any(Onsets>Offsets)
+%                 warning('Cannot find correct onset/offsets of vocalizations')
+%                 keyboard
+%             end
+%         else
+%             warning('Cannot find correct onset/offsets of vocalizations')
+%             keyboard
+%         end
+%         BadDurations = find((Offsets-Onsets)<MinDur);
+%         for dd=1:length(BadDurations)
+%             VocOn(Onsets(BadDurations(dd)):Offsets(BadDurations(dd))) = 0;
+%         end
+%         VocOff = ~VocOn;
+%         % Scale values of spectrogram according to dynamic range of the
+%         % extract and not according to a fix dynamic range like above for
+%         % the calculations of spectral mean
+%         Spectro2 = double(BiosoundObj.spectro);
+%         minB = min(min(Spectro2));
+%         DBRange = maxB-minB;
+%         DBNOISE2 = min(DBNOISE, 0.5*DBRange);
+%         Spectro2(Spectro2<(maxB-DBNOISE2)) = maxB-DBNOISE2;
+%         Spectro2 = Spectro2-(maxB-DBNOISE2);
+%         VocOff = mean(Spectro2(1:find(Fo>HighFc,1),:))<DBNOISE2/3; % Range of Spectro set to DBNoise, consider 10 times lower than this range as the threshold for On vocalization
+%         if sum(SpectroRows)==0
+%             VocOff = SoundAmp<median(SoundAmp);
+%         end
         
         
-        % convert biosound to a strcuture
-        BiosoundObj = struct(BiosoundObj);
-        % Add some fields
-        BiosoundObj.AmpPeriodF = AmpPeriodF;
-        BiosoundObj.AmpPeriodP = AmpPeriodP;
-        BiosoundObj.SpectralMean = SpectralMean;
-        BiosoundObj.Q1t = Quartile_freq(1,:);
-        BiosoundObj.Q2t = Quartile_freq(2,:);
-        BiosoundObj.Q3t = Quartile_freq(3,:);
+        
+        
+
+
+        
+
+%         % Calculate again the saliency with a lower threshold on minimum
+%         NOT NECESSARY ANYMORE, BIOSOUND PACKAGE UPDATED FOR THAT! (April
+%         7th 2022)
+%         % RMS to calculate Sal
+%         [Sal,t] = salEstimator(Y, FS, MinFund, MaxFund,RMSThresh);
+%         % check that t is same as BiosoundObj.to
+%         if (length(double(BiosoundObj.to)) - length(t))>0 % quick fix for shorter results for Sal
+%             warning('Unexpected difference in number of time points. Trying a fix')
+%             t = [t nan(1,(length(double(BiosoundObj.to)) - length(t)))];
+%             Sal = [Sal nan(1,(length(double(BiosoundObj.to)) - length(Sal)))];
+%         elseif (length(double(BiosoundObj.to)) - length(t))<0 % quick fix for longer results for Sal
+%             t = t(1:length(double(BiosoundObj.to)));
+%             Sal = Sal(1:length(double(BiosoundObj.to)));
+%         end
+%         if any(~(round(t(1:length(double(BiosoundObj.to)))*10^3)==round(double(BiosoundObj.to)*10^3)))
+%             warning('Unexpected difference in time points')
+%             TimePoint2fix = find(~(round(t(1:length(double(BiosoundObj.to)))*10^3)==round(double(BiosoundObj.to)*10^3)));
+%             if isnan(t(TimePoint2fix))
+%                 TO = double(BiosoundObj.to);
+%                 t(TimePoint2fix) = TO(TimePoint2fix);
+%             else
+%                 SalB = double(BiosoundObj.sal); %#ok<NASGU>
+%                 TO = double(BiosoundObj.to); %#ok<NASGU>
+%                 keyboard
+%             end
+%         end
+        
+        
+        
+        % Add some fields to our output
+        BioSoundObj.samprate = double(BiosoundObj.samprate);
+        BioSoundObj.AmpPeriodF = AmpPeriodF;
+        BioSoundObj.AmpPeriodP = AmpPeriodP;
+        BioSoundObj.SpectralMean = SpectralMean;
+        BioSoundObj.MeanSpectralMean = MeanSpectralMean;
+        BioSoundObj.Q1t = Quartile_freq(1,:);
+        BioSoundObj.Q2t = Quartile_freq(2,:);
+        BioSoundObj.Q3t = Quartile_freq(3,:);
+        BioSoundObj.MeanQ1t = MeanQuartile_Freq(:,1);
+        BioSoundObj.MeanQ2t = MeanQuartile_Freq(:,2);
+        BioSoundObj.MeanQ3t = MeanQuartile_Freq(:,3);
         %         BiosoundObj.SpectralMax = SpectralMax;
         % convert all nmpy arrays to double to be able to save as matfiles
-        BiosoundObj.amp = SoundAmp;
-        BiosoundObj.tAmp = double(BiosoundObj.tAmp);
-        BiosoundObj.spectro = double(BiosoundObj.spectro);
-        BiosoundObj.to = double(BiosoundObj.to);
-        BiosoundObj.fo = double(BiosoundObj.fo);
-        BiosoundObj.F1 = double(BiosoundObj.F1);
-        BiosoundObj.F2 = double(BiosoundObj.F2);
-        BiosoundObj.F3 = double(BiosoundObj.F3);
-        BiosoundObj.fpsd = double(BiosoundObj.fpsd);
-        BiosoundObj.psd = double(BiosoundObj.psd);
+        BioSoundObj.amp = SoundAmp;
+        BioSoundObj.tAmp = double(BiosoundObj.tAmp);
+        BioSoundObj.maxAmp = double(BiosoundObj.maxAmp);
+        BioSoundObj.spectro = double(BiosoundObj.spectro);
+        BioSoundObj.to = double(BiosoundObj.to);
+        BioSoundObj.fo = double(BiosoundObj.fo);
+%         BiosoundObj.F1 = double(BiosoundObj.F1);
+        BioSoundObj.F1 = F1;
+        BioSoundObj.MeanF1 = MeanF1;
+%         BiosoundObj.F2 = double(BiosoundObj.F2);
+        BioSoundObj.F2 = F2;
+        BioSoundObj.MeanF2 = MeanF2;
+%         BiosoundObj.F3 = double(BiosoundObj.F3);
+        BioSoundObj.F3 = F3;
+        BioSoundObj.MeanF3 = MeanF3;
+        BioSoundObj.fpsd = double(BiosoundObj.fpsd);
+        BioSoundObj.psd = double(BiosoundObj.psd);
 %         BiosoundObj.sal = double(BiosoundObj.sal);
-        BiosoundObj.sal = Sal;
-        BiosoundObj.f0 = double(BiosoundObj.f0);
-        BiosoundObj.f0_2 = double(BiosoundObj.f0_2);
-        BiosoundObj.sound = double(BiosoundObj.sound);
-        BiosoundObj.wf = double(BiosoundObj.wf);
-        BiosoundObj.wt = double(BiosoundObj.wt);
-        BiosoundObj.mps = double(BiosoundObj.mps);
-        BiosoundObj = rmfield(BiosoundObj,'emitter');
-        BiosoundObj.hashid = double(BiosoundObj.hashid);
+        BioSoundObj.sal = Sal;
+        BioSoundObj.MeanSal = MeanSal;
+%         BiosoundObj.f0 = double(BiosoundObj.f0);
+        BioSoundObj.f0 = Fund;
+        BioSoundObj.MeanF0 = MeanFund;
+%         BiosoundObj.f0_2 = double(BiosoundObj.f0_2);
+        BioSoundObj.f0_2 = Fund2;
+        BioSoundObj.minf0 = double(BiosoundObj.minfund);
+        BioSoundObj.maxf0 = double(BiosoundObj.maxfund);
+        BioSoundObj.cvfund = double(BiosoundObj.cvfund);
+        BioSoundObj.voice2percent = double(BiosoundObj.voice2percent);
+        BioSoundObj.sound = double(BiosoundObj.sound);
+        if isnan(Y2)
+            BioSoundObj.mps = double(BiosoundObj.mps);
+            BioSoundObj.wf = double(BiosoundObj.wf);
+            BioSoundObj.wt = double(BiosoundObj.wt);
+        else
+            BioSoundObj.mps = double(BiosoundObj2.mps);
+            BioSoundObj.wf = double(BiosoundObj2.wf);
+            BioSoundObj.wt = double(BiosoundObj2.wt);
+        end
+        BioSoundObj.hashid = double(BiosoundObj.hashid);
     end
 
     function plotBiosound(BiosoundObj, F_high, FormantPlot)
@@ -547,7 +979,7 @@ end
             FormantPlot=1;
         end
         % Plot the results of biosound calculations
-        ss1 = subplot(2,1,1);
+        ss1 = subplot(3,1,1);
         ColorCode = get(groot,'DefaultAxesColorOrder');
         DBNOISE =50;
         f_low = 0;
@@ -576,7 +1008,7 @@ end
         
         % Plot the fundamental and formants if they were calculated
         %     if double(BiosoundFi.sal)>MinSaliency
-        Legend = {'SpecMean' 'SpecMed' 'F0' 'Formant1' 'Formant2' 'Formant3'};
+        Legend = {sprintf('SpecMean %.1fHz', mean(double(BiosoundObj.SpectralMean), 'omitnan')) sprintf('SpecMed %.1fHz',mean(double(BiosoundObj.Q2t), 'omitnan'))  sprintf('F0 %.1fHz', mean(double(BiosoundObj.f0),'omitnan')) 'Formant1' 'Formant2' 'Formant3'};
         IndLegend = [1 2];
         if ~isempty(double(BiosoundObj.f0))
             hold on
@@ -600,7 +1032,7 @@ end
         yyaxis right
         hold on
         plot(double(BiosoundObj.to)*1000,double(BiosoundObj.sal),'m-','LineWidth',2)
-        legend([Legend(IndLegend) 'Pitch Sal'], 'Location','southoutside','NumColumns',length(IndLegend)+1)
+        legend([Legend(IndLegend) sprintf('Pitch Sal %.2f', mean(double(BiosoundObj.sal), 'omitnan'))], 'Location','southoutside','NumColumns',length(IndLegend)+1)
 %         hold on
 %         plot(double(BiosoundObj.to)*1000,double(BiosoundObj.sal2),'m--','LineWidth',2)
         ylabel('Pitch Saliency')
@@ -608,7 +1040,7 @@ end
         ss1.YColor = 'm';
         hold off
         
-        ss2=subplot(2,1,2);
+        ss2=subplot(3,1,2);
         yyaxis left
         plot((1:length(double(BiosoundObj.sound)))/BiosoundObj.samprate*1000,double(BiosoundObj.sound), 'k-','LineWidth',2)
         hold on
@@ -628,6 +1060,42 @@ end
         title(sprintf('AmpPeriodicity = %.3f AmpPF = %.1f Hz',BiosoundObj.AmpPeriodP, BiosoundObj.AmpPeriodF))
         ss2.YColor = 'r';
         hold off
+
+        ss3=subplot(3,1,3);
+        DBNOISE=60;
+        YLim = [0 max(BiosoundObj.wf*10^3)];
+%         XLim = [min(BiosoundObj.wt) max(BiosoundObj.wt)];
+        XLim = [-300 300];
+        Wf_i = logical((BiosoundObj.wf*10^3>=YLim(1)).* (BiosoundObj.wf*10^3<=YLim(2)));
+        Wt_i = logical((BiosoundObj.wt>=XLim(1)).* (BiosoundObj.wt<=XLim(2)));
+        BiosoundObj.mps = BiosoundObj.mps(Wf_i, Wt_i);
+        Wf_local = BiosoundObj.wf(Wf_i);
+        Wt_local = BiosoundObj.wt(Wt_i);
+        MPS4plot = 10*log10(BiosoundObj.mps);
+        MaxMPS = max(max(MPS4plot));
+        MinMPS = MaxMPS-DBNOISE;
+        MPS4plot(MPS4plot < MinMPS) = MinMPS;
+        Im = imagesc(MPS4plot);
+        axis xy
+        colormap(Im.Parent,'jet');
+        colorbar()
+        xlabel('Temporal Frequency (Hz)')
+        ylabel('Spectral Frequency (Cycles/kHz)')
+        % get nice X and y tick labels
+        MaxWf = max(floor(Wf_local*10^3));
+        YTickLabel=0:MaxWf;
+        YTick = nan(length(YTickLabel),1);
+        for yy=1:length(YTick)
+            YTick(yy) = find(floor(Wf_local*10^3)==YTickLabel(yy),1);
+        end
+        set(gca, 'YTickLabel', YTickLabel, 'YTick', YTick)
+        MaxWt = max(floor(Wt_local*10^-2))*10^2;
+        XTickLabel = -MaxWt:100:MaxWt;
+        XTick = nan(length(XTickLabel),1);
+        for xx=1:length(XTick)
+            [~,XTick(xx)] = min(abs(round(Wt_local)-XTickLabel(xx)));
+        end
+        set(gca, 'XTickLabel',XTickLabel, 'XTick', XTick)
     end
 
 
@@ -682,7 +1150,7 @@ end
                 hold on;
             end
             ylabel('Amplitude')
-            xlabel(sprintf('Fundamental (Hz), %.1f Hz', double(BiosoundPiezo.fund)))
+            xlabel(sprintf('Fundamental (Hz), %.1f Hz', mean(double(BiosoundPiezo.f0), 'omitnan')))
             set(gca,'XLim',[200 3000])
         end
         
@@ -726,13 +1194,14 @@ end
         for ii=1:length(yy)
             if ii==1 || ii==length(yy)
                 outyy(ii) = yy(ii);
-            elseif ii<((Span-1)/2)
+            elseif ii<=((Span-1)/2)
                 HalfSpan = ii-1;
                 outyy(ii) = nanmean(yy(1:(ii+HalfSpan)));
-            elseif (length(yy)-ii) < ((Span-1)/2)
+            elseif (length(yy)-ii) <= ((Span-1)/2)
                 HalfSpan = length(yy)-ii;
                 outyy(ii) = nanmean(yy((ii-HalfSpan):end));
             else
+                HalfSpan = (Span-1)/2;
                 outyy(ii) = nanmean(yy((ii-HalfSpan):(ii+HalfSpan)));
             end
         end

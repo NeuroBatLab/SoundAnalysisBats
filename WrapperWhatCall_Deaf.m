@@ -1,7 +1,9 @@
 %% This script run through files that have been manually cured to apply what_calls.m
 %% These are specific to the dataset and computer
-BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
-BaseCodeDir = 'C:\Users\tobias\Documents\GitHub\';
+% BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
+BaseDataDir = '/Volumes/server_home/users/JulieE/DeafSalineGroup151/';
+% BaseCodeDir = 'C:\Users\tobias\Documents\GitHub\';
+BaseCodeDir = '/Users/elie/Documents/CODE/GitHub/';
 % WorkingDir = 'C:\Users\tobias\Documents\DeafWhoWorkDir\';
 WhoLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalWho.txt');
 WhatLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalWhat.txt');
@@ -12,6 +14,7 @@ WhatLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalWhat.txt');
 addpath(genpath(fullfile(BaseCodeDir,'LMC')))
 addpath(genpath(fullfile(BaseCodeDir, 'LoggerDataProcessing')))
 addpath(genpath(fullfile(BaseCodeDir,'SoundAnalysisBats')))
+addpath(genpath(fullfile(BaseCodeDir,'General')))
 
 %% Parameters of WhatCalls
 
@@ -57,9 +60,9 @@ NToDo = length(ListOfFilesToDo{1});
 for ff=1:NToDo
     % Get the BatID the Date and the time of the ff experiment (use
     % ListOfFilesToDo)
-    BatID = ListOfFilesToDo{1}{ff}
-    Date = ListOfFilesToDo{2}{ff}
-    ExpStartTime = ListOfFilesToDo{3}{ff}
+    BatID = ListOfFilesToDo{1}{ff};
+    Date = ListOfFilesToDo{2}{ff};
+    ExpStartTime = ListOfFilesToDo{3}{ff};
     
     % 2- Now Check that this file/experiment listed in WhoLog is not already listed in
     % WhatLog (if they are listed in WhatLog it means they've already been
@@ -81,8 +84,9 @@ for ff=1:NToDo
         % Apply what_calls
         % 3- Once you've identified an experimental date that has not been run
         % through whatcalls, apply whatcalls
+        fprintf(1, '***********************************************\n* Running what_calls on:\n %s\n Date: %s\n ExpStartTime:%s *\n***********************************************\n', Logger_dir, Date, ExpStartTime)
         what_calls(Logger_dir, Date, ExpStartTime)
-        %fprintf(1, 'This is where I would call what_calls with Logger_dir being:\n %s\n Date: %s\n ExpStartTime:%s\n', Logger_dir, Date, ExpStartTime)
+        %
         
       % Add code that records results in whatlog  
       %fprintf(FidWhat, 'Subject\tDate\tTime\n');
