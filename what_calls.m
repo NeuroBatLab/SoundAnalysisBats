@@ -14,7 +14,7 @@ end
 if nargin<7
     TransferLocal = 1;
 end
-PrevData = 0; %set to NaN to let computer ask each time 0 to overwrite any existing data, 1 to use previous data
+PrevData_toggle = 0; %set to NaN to let computer ask each time 0 to overwrite any existing data, 1 to use previous data, 2 to use previous data for microphone only, 3 to recalculate data only for sections that were not cut properly
 % Hard coded parameters for the filtering of the signal and calculations in biosound
 F_high_Raw = 50000;
 F_low_Raw = 100;
@@ -24,7 +24,7 @@ High_Fc_Piezo = 5000;
 
 % Set to 1 if you want to manually pause after each vocalization and listen
 % to them
-ManualPause=1;
+ManualPause=0;
 
 % Import biosound library
 py.importlib.import_module('soundsig')
@@ -67,7 +67,7 @@ else
             if ~exist('WorkDir','dir')
                 mkdir(WorkDir)
             end
-            if ~exist(fullfile(WorkDir, DataFile.name))
+            if ~exist(fullfile(WorkDir, DataFile.name), "file")
                 [s,m,e]=copyfile(fullfile(DataFile.folder, DataFile.name), WorkDir, 'f');
                 if ~s
                     m %#ok<NOPRT>
@@ -75,7 +75,7 @@ else
                     error('File transfer did not occur correctly for %s\n', fullfile(DataFile.folder, DataFile.name));
                 end
             end
-            if ~exist(fullfile(WorkDir, Data1.name))
+            if ~exist(fullfile(WorkDir, Data1.name), "file")
                 [s,m,e]=copyfile(fullfile(Data1.folder, Data1.name), WorkDir, 'f');
                 if ~s
                     m %#ok<NOPRT>
@@ -86,7 +86,7 @@ else
         else
             WorkDir = Loggers_dir;
         end
-        load(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged','IndVocStartPiezo','IndVocStopPiezo', 'BatID','LoggerName');
+        load(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged','IndVocStartPiezo','IndVocStopPiezo','IndVocStartRaw','IndVocStopRaw', 'BatID','LoggerName');
         if ~exist('BatID', 'var')
             Ind_ = strfind(DataFile.name, '_');
              load(fullfile(WorkDir, sprintf('%s_%s_VocExtractData%d%s', Date, ExpStartTime,1, DataFile.name(Ind_(end):end))), 'BatID','LoggerName');
@@ -118,6 +118,21 @@ else
     
         % Number of call sequences with identified vocalizations
         VocInd = find(~cellfun('isempty',IndVocStartRaw_merged));
+        VocInd_true = nan(size(VocInd));
+        for vvi=1:length(VocInd)
+            VocInd_true(vvi) = any(~cellfun('isempty',IndVocStartRaw_merged{VocInd(vvi)}));
+        end
+        VocInd = VocInd(logical(VocInd_true));
+        VocInd2 = find(~cellfun('isempty',IndVocStartPiezo));
+        VocInd2_true = nan(size(VocInd2));
+        for vvi=1:length(VocInd2)
+            VocInd2_true(vvi) = any(~cellfun('isempty',IndVocStartPiezo{VocInd2(vvi)}));
+        end
+        VocInd2 = VocInd2(logical(VocInd2_true));
+        if length(VocInd) ~= length(VocInd2) || any(VocInd~=VocInd2)
+%             keyboard % there should be the same sequences labelled as having vocalizationss
+            VocInd = intersect(VocInd, VocInd2);
+        end
         NV = length(VocInd);
         Fns_AL = fieldnames(Piezo_wave);
     
@@ -126,7 +141,7 @@ else
         sos_band_raw = zp2sos(z,p,k);
     
         % Filter for the Piezo signal
-        PFS = round(nanmean(Piezo_FS.(Fns_AL{1})(:)));
+        PFS = round(mean(Piezo_FS.(Fns_AL{1})(:), 'omitnan'));
         [z,p,k] = butter(6,[F_low_Piezo F_high_Piezo]/(PFS/2),'bandpass');
         sos_band_piezo = zp2sos(z,p,k);
         
@@ -148,13 +163,14 @@ else
             else
                 load(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','vv_what', 'Ncall');
             end
-            if exist('BioSoundCalls','var') && isnan(PrevData)
-                PrevData = input('Do you want to use previous data?');
-            elseif isnan(PrevData)
+            if exist('BioSoundCalls','var') && isnan(PrevData_toggle)
+                PrevData = input('Do you want to use previous data? 0: no; 1: yes; 2:yes only for microphone (recalculate piezo)');
+            elseif isnan(PrevData_toggle)
                 fprintf(1, 'No previous data, starting from scratch');
                 PrevData = 0;
             elseif exist('BioSoundCalls','var')
-                fprintf(1,'Enforce PrevData usage to %d\n', PrevData);
+                PrevData = PrevData_toggle;
+                fprintf(1,'Enforced PrevData usage to %d\n', PrevData_toggle);
             else
                 fprintf(1, 'No previous data, starting from scratch');
                 PrevData = 0;
@@ -171,11 +187,13 @@ else
             Firstcall = 1;
             NVocFile = 0;
             Ncall = nan(NV,length(Fns_AL));
-        else
+        elseif PrevData==1
             Firstcall=vv_what;
             NVocFile = sum(sum(Ncall(1:(vv_what-1),:)));
+        elseif PrevData==2 || PrevData==3
+            Firstcall = 1;
+            NVocFile = 0;
         end
-        
         if Firstcall==NV && ~isempty(BioSoundCalls{end,1})
             clear BioSoundCalls
             continue
@@ -207,95 +225,140 @@ else
                             warning('Issue with the call counting')
                             keyboard
                         end
-                        fprintf(1,'%d/%d Vocalization\n',NVocFile,VocCall)
-                        % Extract the sound of the microphone that
-                        % correspond to the data
-%                         IndOn = IndVocStartRaw_merged{VocInd(vv_what)}{ll}(nn);
-%                         IndOff = min(length(Raw_wave{VocInd(vv_what)}),IndVocStopRaw_merged{VocInd(vv_what)}{ll}(nn)); % we take the min here as sometimes the rounding procedures gets numbers outisde of wave length
-%                         Dur = (IndOff-IndOn)/FS;
-%                         if IndOn>=IndOff || Dur<0.01 % sound too short to be a call
-%                             warning('Miss-allignement between Microphone and piezo, skip this one for Microphone data\n')
-% %                             keyboard
-%                         else
-%                             WL = Raw_wave{VocInd(vv_what)}(IndOn:IndOff);
-%                             FiltWL = filtfilt(sos_band_raw,1,WL);
-%                             FiltWL = FiltWL-mean(FiltWL);
-%                             BioSoundFilenames{NVocFile,1} = fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.wav',FileVoc, BatID_local,ALNum,nn));
-%                             audiowrite(BioSoundFilenames{NVocFile,1},WL,FS);
-%                             if Dur>=0.1
-%                                 if SaveBiosoundperFile
-%                                     BioSoundCall = runBiosound(FiltWL, FS, F_high_Raw);
-%                                     save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,1}(1:end-4)),'BioSoundCall')
-%                                 else
-%                                     try
-%                                         BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw);
-%                                     catch ME
-%                                         warning('Issue cannot run biosound the error is:\n%s, skip\n', ME.identifier)
-%                                         continue
-%                                     end
-%                                 end
-%                             else
-%                                 warning('Very Short vocalization, extracting the vocalization in a larger window of 100ms for mps calculations purposes\n')
-%                                 IndOn2 = IndOn - ceil((0.1- Dur)*FS/2);
-%                                 IndOff2 = IndOff + ceil((0.1 - Dur)*FS/2);
-%                                 if IndOn2<0
-%                                     IndOn2=1;
-%                                     IndOff2 = IndOff + ceil((0.1 - Dur)*FS) - IndOn;
-%                                 elseif IndOff2>length(Raw_wave{VocInd(vv_what)})
-%                                     IndOff2 = length(Raw_wave{VocInd(vv_what)});
-%                                     IndOn2 = IndOn - ceil((0.1 - Dur)*FS) + IndOff2 - IndOff;
-%                                 end
-%                                 if (IndOn2<0) || IndOff2>length(Raw_wave{VocInd(vv_what)})
-%                                     warning('we cannot get a larger window of 100ms for this one')
-%                                     keyboard
-%                                     IndOn2=1;
-%                                     IndOff2 = length(Raw_wave{VocInd(vv_what)});
-%                                 end
-%                                 WL2 = Raw_wave{VocInd(vv_what)}(IndOn2:IndOff2);
-%                                 WL2 = WL2 - mean(WL2); % center the piezo data around 0
-%                                 if any(abs(WL2)>=1)
-%                                     WL2 = WL2./max(abs(WL2)); % scale between 0 and 1 if exceeding 1
-%                                 end
-%                                 FiltWL2 = filtfilt(sos_band_raw,1,WL2);
-% 
-%                                 if SaveBiosoundperFile
-%                                     BioSoundCall = runBiosound(FiltWL, FS, F_high_Raw,[],FiltWL2);
-%                                     save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,1}(1:end-4)),'BioSoundCall')
-%                                 else
-%                                     try
-%                                         BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw,[],FiltWL2);
-%                                     catch ME
-%                                         warning('Issue cannot run biosound the error is:\n%s, skip\n', ME.identifier)
-%                                         continue
-%                                     end
-%                                 end
-%                             end
-%                             % Plot figures of biosound results for Microphone data
-%                             Fig1=figure(1);
-%                             clf
-%                             if SaveBiosoundperFile
-%                                 plotBiosound(BioSoundCall, F_high_Raw)
-%                             else
-%                                 plotBiosound(BioSoundCalls{NVocFile,1}, F_high_Raw)
-%                             end
-%                             hold on
-%                             suplabel(sprintf('%d/%d Vocalization',NVocFile,VocCall),'t');
-%                             hold off
-%                             % Play the sound
-%                             if ManualPause
-%                                 AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS); %#ok<TNMLP,UNRCH>
-%                                 play(AP)
-%                             end
-%                             print(Fig1,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
-%                         end
-                    
+                        fprintf(1,'\n\n%d/%d Vocalization\n',NVocFile,VocCall)
+                        if PrevData~=2
+                            fprintf(1,'--> Microphone Calculations\n')
+                            % Extract the sound of the microphone that
+                            % correspond to the data
+                            IndOn = IndVocStartRaw_merged{VocInd(vv_what)}{ll}(nn);
+                            IndOff = min(length(Raw_wave{VocInd(vv_what)}),IndVocStopRaw_merged{VocInd(vv_what)}{ll}(nn)); % we take the min here as sometimes the rounding procedures gets numbers outisde of wave length
+                            Dur = (IndOff-IndOn)/FS;
+                            if IndOn>=IndOff || Dur<0.01 % sound too short to be a call
+                                warning('Miss-allignement between Microphone and piezo, skip this one for Microphone data\n')
+                                %                             keyboard
+                            else
+                                WL = Raw_wave{VocInd(vv_what)}(IndOn:IndOff);
+                                FiltWL = filtfilt(sos_band_raw,1,WL);
+                                FiltWL = FiltWL-mean(FiltWL);
+                                FiltWL2 = []; % Set default value of WL2 as empty
+                                BioSoundFilenames{NVocFile,1} = fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.wav',FileVoc, BatID_local,ALNum,nn));
+                                audiowrite(BioSoundFilenames{NVocFile,1},WL,FS);
+                                if Dur>=0.1
+                                    % get the onset and offfsets of every
+                                    % single vocal element OnOffSetsInd
+                                    OnOffInd = logical((IndVocStartRaw{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStopRaw{VocInd(vv_what)}{ll}<=IndOff));
+                                    if ~OnOffInd
+                                        OnOffInd = logical((IndVocStartRaw{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStartRaw{VocInd(vv_what)}{ll}<IndOff));
+                                    end
+                                    if PrevData==3
+                                        OnOffIndOld = logical((IndVocStartRaw{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStopRaw{VocInd(vv_what)}{ll}<IndOff)); % here I am checking for a past error in the data (get rid of it once I have rerun up to Set 30/33 200129)
+                                        OnOffError = abs(sum(OnOffInd)-sum(OnOffIndOld));% here I am checking for a past error in the data (get rid of it once I have rerun up to Set 30/33 200129)
+                                    else
+                                        OnOffError = 0;
+                                        OnOffError2= 0;
+                                    end
+                                    OnOffSetsInd = ([IndVocStartRaw{VocInd(vv_what)}{ll}(OnOffInd)' IndVocStopRaw{VocInd(vv_what)}{ll}(OnOffInd)']-IndOn+1);
+                                    if SaveBiosoundperFile
+                                        BioSoundCall = runBiosound(FiltWL, FS, F_high_Raw,[], FiltWL2,OnOffSetsInd);
+                                        save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,1}(1:end-4)),'BioSoundCall')
+                                    elseif PrevData~=3 || OnOffError % here I am checking for a past error in the data (get rid of it once I have rerun up to Set 30/33 200129)
+                                        try
+                                            BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw, [], FiltWL2,OnOffSetsInd);
+                                        catch ME
+                                            warning('Issue cannot run biosound the error is:\n%s, skip\n', ME.identifier)
+                                            continue
+                                        end
+                                    end
+                                else
+                                    warning('Very Short vocalization, extracting the vocalization in a larger window of 100ms for mps calculations purposes\n')
+                                    IndOn2 = IndOn - ceil((0.1- Dur)*FS/2);
+                                    IndOff2 = IndOff + ceil((0.1 - Dur)*FS/2);
+                                    if IndOn2<0
+                                        IndOn2=1;
+                                        IndOff2 = IndOff + ceil((0.1 - Dur)*FS) - IndOn;
+                                    elseif IndOff2>length(Raw_wave{VocInd(vv_what)})
+                                        IndOff2 = length(Raw_wave{VocInd(vv_what)});
+                                        IndOn2 = IndOn - ceil((0.1 - Dur)*FS) + IndOff2 - IndOff;
+                                    end
+                                    if (IndOn2<0) || IndOff2>length(Raw_wave{VocInd(vv_what)})
+                                        warning('we cannot get a larger window of 100ms for this one')
+                                        keyboard
+                                        IndOn2=1;
+                                        IndOff2 = length(Raw_wave{VocInd(vv_what)});
+                                    end
+                                    WL2 = Raw_wave{VocInd(vv_what)}(IndOn2:IndOff2);
+                                    WL2 = WL2 - mean(WL2); % center the piezo data around 0
+                                    if any(abs(WL2)>=1)
+                                        WL2 = WL2./max(abs(WL2)); % scale between 0 and 1 if exceeding 1
+                                    end
+                                    FiltWL2 = filtfilt(sos_band_raw,1,WL2);
+                                    % Onset and offset of each sound element
+                                    % in WL
+                                    OnOffInd = logical((IndVocStartRaw{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStopRaw{VocInd(vv_what)}{ll}<=IndOff));
+                                    if ~OnOffInd
+                                        OnOffInd = logical((IndVocStartRaw{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStartRaw{VocInd(vv_what)}{ll}<IndOff));
+                                    end
+                                    OnOffSetsInd = ([IndVocStartRaw{VocInd(vv_what)}{ll}(OnOffInd)' IndVocStopRaw{VocInd(vv_what)}{ll}(OnOffInd)']-IndOn+1);
+                                    if PrevData==3
+                                        OnOffInd_Old = logical((IndVocStartRaw{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStartRaw{VocInd(vv_what)}{ll}<IndOff));
+                                        OnOffError = abs(sum(OnOffInd) - sum(OnOffInd_Old));
+                                    else 
+                                        OnOffError =0;
+                                    end
+                                    % Onset and offset of each sound element
+                                    % in WL2
+                                    OnOffInd2 = logical((IndVocStartRaw{VocInd(vv_what)}{ll}>=IndOn2) .* (IndVocStopRaw{VocInd(vv_what)}{ll}<=IndOff2));
+                                    if ~OnOffInd2
+                                        OnOffInd2 = logical((IndVocStartRaw{VocInd(vv_what)}{ll}>=IndOn2) .* (IndVocStartRaw{VocInd(vv_what)}{ll}<IndOff2));
+                                    end
+                                    if PrevData==3
+                                        OnOffInd2_Old = logical((IndVocStartRaw{VocInd(vv_what)}{ll}>=IndOn2) .* (IndVocStartRaw{VocInd(vv_what)}{ll}<IndOff2));
+                                        OnOffError2 = abs(sum(OnOffInd2) - sum(OnOffInd2_Old));
+                                    else
+                                        OnOffError2=0;
+                                    end
+                                    OnOffSetsInd2 = ([IndVocStartRaw{VocInd(vv_what)}{ll}(OnOffInd2)' IndVocStopRaw{VocInd(vv_what)}{ll}(OnOffInd2)']-IndOn2+1);
+                                    if SaveBiosoundperFile
+                                        BioSoundCall = runBiosound(FiltWL, FS, F_high_Raw,[],FiltWL2, OnOffSetsInd, OnOffSetsInd2);
+                                        save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,1}(1:end-4)),'BioSoundCall')
+                                    elseif PrevData~=3 || OnOffError || OnOffError2
+                                        try
+                                            BioSoundCalls{NVocFile,1} = runBiosound(FiltWL, FS, F_high_Raw,[],FiltWL2, OnOffSetsInd, OnOffSetsInd2);
+                                        catch ME
+                                            warning('Issue cannot run biosound the error is:\n%s, skip\n', ME.identifier)
+                                            continue
+                                        end
+                                    end
+                                end
+                                % Plot figures of biosound results for Microphone data
+                                if PrevData~=3 || OnOffError || OnOffError2
+                                    Fig1=figure(1);
+                                    clf
+                                    if SaveBiosoundperFile
+                                        plotBiosound(BioSoundCall, F_high_Raw, FiltWL2)
+                                    else
+                                        plotBiosound(BioSoundCalls{NVocFile,1}, F_high_Raw, FiltWL2)
+                                    end
+                                    hold on
+                                    suplabel(sprintf('%d/%d Vocalization',NVocFile,VocCall),'t');
+                                    hold off
+                                    % Play the sound
+                                    if ManualPause
+                                        AP=audioplayer(FiltWL./(max(abs(FiltWL))),FS); %#ok<TNMLP>
+                                        play(AP)
+                                    end
+                                    print(Fig1,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Raw.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
+                                end
+                            end
+                        end
                         % Extract the sound of the audio-logger that
                         % correspond to the data
+                        fprintf(1,'--> Piezo Calculations\n')
                         IndOn = IndVocStartPiezo_merged{VocInd(vv_what)}{ll}(nn);
                         IndOff = min(IndVocStopPiezo_merged{VocInd(vv_what)}{ll}(nn), length(Piezo_wave.(Fns_AL{ll}){VocInd(vv_what)}));
                         FSpiezo = round(Piezo_FS.(Fns_AL{ll})(VocInd(vv_what)));
                         if isnan(FSpiezo)
-                            FSpiezo = round(nanmean(Piezo_FS.(Fns_AL{ll})(:)));
+                            FSpiezo = round(mean(Piezo_FS.(Fns_AL{ll})(:), 'omitnan'));
                         end
                         Dur = (IndOff-IndOn)/FSpiezo;
                         if IndOn>=IndOff || Dur<0.01 % sound too short to be a call
@@ -310,18 +373,31 @@ else
                             FiltWL = filtfilt(sos_band_piezo,1,WL);
                             BioSoundFilenames{NVocFile,2} =fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Piezo.wav',FileVoc,BatID_local,ALNum,nn));
                             audiowrite(BioSoundFilenames{NVocFile,2},WL,FSpiezo);
+                            FiltWL2 = [];
                             if Dur>=0.1
-                                OnOffInd = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStartPiezo{VocInd(vv_what)}{ll}<IndOff));
+                                % get the onset and offfsets of every
+                                % single vocal element OnOffSetsInd
+                                OnOffInd = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStopPiezo{VocInd(vv_what)}{ll}<=IndOff));
+                                if ~OnOffInd
+                                    OnOffInd = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStartPiezo{VocInd(vv_what)}{ll}<IndOff));
+                                end
+                                if PrevData==3
+                                    OnOffInd_Old = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStopPiezo{VocInd(vv_what)}{ll}<IndOff));
+                                    OnOffError = abs(sum(OnOffInd) - sum(OnOffInd_Old));
+                                else
+                                    OnOffError= 0;
+                                    OnOffError2= 0;
+                                end
                                 OnOffSetsInd = ([IndVocStartPiezo{VocInd(vv_what)}{ll}(OnOffInd)' IndVocStopPiezo{VocInd(vv_what)}{ll}(OnOffInd)']-IndOn+1);
                                 if SaveBiosoundperFile
                                     BioSoundCall = runBiosound(FiltWL, FSpiezo, F_high_Piezo, High_Fc_Piezo, [], OnOffSetsInd);
                                     save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,2}(1:end-4)),'BioSoundCall')
-                                else
+                                elseif PrevData~=3 || OnOffError
                                     BioSoundCalls{NVocFile,2} = runBiosound(FiltWL, FSpiezo, F_high_Piezo, High_Fc_Piezo,[],OnOffSetsInd);
                                 end
                             else
                                 warning('Very Short vocalization, extracting the vocalization in a larger window of 100ms for mps calculations purposes\n')
-                                IndOn2 = IndOn- ceil((0.1 - Dur)*FSpiezo/2);
+                                IndOn2 = IndOn - ceil((0.1 - Dur)*FSpiezo/2);
                                 IndOff2 = IndOff + ceil((0.1 - Dur)*FSpiezo/2);
                                 if IndOn2<0
                                     IndOn2=1;
@@ -344,40 +420,60 @@ else
                                 FiltWL2 = filtfilt(sos_band_piezo,1,WL2);
                                 % Onset and offset of each sound element
                                 % in WL
-                                OnOffInd = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStartPiezo{VocInd(vv_what)}{ll}<IndOff));
+                                OnOffInd = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStopPiezo{VocInd(vv_what)}{ll}<=IndOff));
+                                if ~OnOffInd
+                                    OnOffInd = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStartPiezo{VocInd(vv_what)}{ll}<IndOff));
+                                end
                                 OnOffSetsInd = ([IndVocStartPiezo{VocInd(vv_what)}{ll}(OnOffInd)' IndVocStopPiezo{VocInd(vv_what)}{ll}(OnOffInd)']-IndOn+1);
+                                if PrevData==3
+                                    OnOffInd_Old = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn) .* (IndVocStartPiezo{VocInd(vv_what)}{ll}<IndOff));
+                                    OnOffError = abs(sum(OnOffInd)-sum(OnOffInd_Old));
+                                else
+                                    OnOffError = 0;
+                                end
                                 % Onset and offset of each sound element
                                 % in WL2
-                                OnOffInd2 = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn2) .* (IndVocStartPiezo{VocInd(vv_what)}{ll}<IndOff2));
+                                OnOffInd2 = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn2) .* (IndVocStopPiezo{VocInd(vv_what)}{ll}<=IndOff2));
+                                if ~OnOffInd2
+                                    OnOffInd2 = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn2) .* (IndVocStartPiezo{VocInd(vv_what)}{ll}<IndOff2));
+                                end
                                 OnOffSetsInd2 = ([IndVocStartPiezo{VocInd(vv_what)}{ll}(OnOffInd2)' IndVocStopPiezo{VocInd(vv_what)}{ll}(OnOffInd2)']-IndOn2+1);
+                                if PrevData==3
+                                    OnOffInd2_Old = logical((IndVocStartPiezo{VocInd(vv_what)}{ll}>=IndOn2) .* (IndVocStartPiezo{VocInd(vv_what)}{ll}<IndOff2));
+                                    OnOffError2 = abs(sum(OnOffInd2) - sum(OnOffInd2_Old));
+                                else
+                                    OnOffError2 = 0;
+                                end
                                 if SaveBiosoundperFile
                                     BioSoundCall = runBiosound(FiltWL, FSpiezo, F_high_Piezo, High_Fc_Piezo,FiltWL2,OnOffSetsInd,OnOffSetsInd2);
                                     save(sprintf('%s_biosound.mat', BioSoundFilenames{NVocFile,2}(1:end-4)),'BioSoundCall')
-                                else
+                                elseif PrevData~=3 || OnOffError || OnOffError2
                                     BioSoundCalls{NVocFile,2} = runBiosound(FiltWL, FSpiezo, F_high_Piezo,High_Fc_Piezo, FiltWL2,OnOffSetsInd,OnOffSetsInd2);
                                 end
                             end
                             % Plot figures of biosound results for piezo data
-                            Fig2=figure(2);
-                            clf
-                            if SaveBiosoundperFile
-                                plotBiosound(BioSoundCall, F_high_Piezo,0)
-                            else
-                                plotBiosound(BioSoundCalls{NVocFile,2}, F_high_Piezo,0)
+                            if PrevData~=3 || OnOffError || OnOffError2
+                                Fig2=figure(2);
+                                clf
+                                if SaveBiosoundperFile
+                                    plotBiosound(BioSoundCall, F_high_Piezo,FiltWL2,0)
+                                else
+                                    plotBiosound(BioSoundCalls{NVocFile,2}, F_high_Piezo,FiltWL2,0)
+                                end
+                                hold on
+                                suplabel(sprintf('%d/%d Vocalization',NVocFile,VocCall), 't');
+                                hold off
+                                % Play the sound
+                                if ManualPause
+                                    AP=audioplayer(WL,FSpiezo); %#ok<TNMLP>
+                                    play(AP)
+                                end
+                                print(Fig2,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Piezo.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
                             end
-                            hold on
-                            suplabel(sprintf('%d/%d Vocalization',NVocFile,VocCall), 't');
-                            hold off
-                            % Play the sound
-                            if ManualPause
-                                AP=audioplayer(WL,FSpiezo); %#ok<TNMLP,UNRCH>
-                                play(AP)
-                            end
-                            print(Fig2,fullfile(Path2Wav,sprintf('%s_Bat%d_AL%s_Elmt%d_Piezo.pdf', FileVoc, BatID_local,ALNum,nn)),'-dpdf','-fillpage')
                         end
                         % Plot figures of dynamic jointly evaluated by piezo and
                         % microphone data
-                        if PlotDyn && ~isempty(BioSoundCalls{NVocFile,1})
+                        if PlotDyn && ~isempty(BioSoundCalls{NVocFile,1}) && (PrevData~=3)
                             Fig3 = figure(3); %#ok<NASGU>
                             clf
                             title(sprintf('%d/%d Vocalization',NVocFile,VocCall))
@@ -386,8 +482,8 @@ else
                         end
                     
                         % Guess for the call category
-                        if GuessCallType
-                            try double(BioSoundCalls{NVocFile,1}.AmpPeriodP)
+                        if GuessCallType && (PrevData~=3)
+                            try double(BioSoundCalls{NVocFile,1}.AmpPeriodP);
                                 if (BioSoundCalls{NVocFile,1}.AmpPeriodF<40.5) && (BioSoundCalls{NVocFile,1}.AmpPeriodF>34) && (BioSoundCalls{NVocFile,1}.AmpPeriodP>0.075)
                                     Guess ='Tr';
                                 else
@@ -622,7 +718,7 @@ end
                         TimeAfter = (Onset_local(bo+1)-Offset_local(bo))-1;
                     elseif bo==length(Onset_local) % This is the last call
                         TimeBefore = (Onset_local(bo)-Offset_local(bo-1))-1;
-                        TimeAfter = (length(Y)-Offset_local(bo));
+                        TimeAfter = (length(Y_local)-Offset_local(bo));
                     else
                         warning('We should not end up there!!')
                         keyboard
@@ -630,13 +726,13 @@ end
                     Blank = 2*(ceil((0.1*FS-length(Ybo))/2)); % making sure we ask for a value that splits in 2
                     if TimeBefore>=(Blank/2) && TimeAfter>=(Blank/2)
                         Onset_local2 = Onset_local(bo)- Blank/2;
-                        Offset_local2 = min(Offset_local(bo) + Blank/2, length(Y));
+                        Offset_local2 = min(Offset_local(bo) + Blank/2, length(Y_local));
                     elseif TimeBefore<(Blank/2) && TimeAfter>=(Blank/2) % not enough time before
                         Onset_local2 = Onset_local(bo)-TimeBefore;
-                        Offset_local2 = min(Offset_local(bo) + Blank - TimeBefore, length(Y));
+                        Offset_local2 = min(Offset_local(bo) + Blank - TimeBefore, length(Y_local));
                     elseif TimeBefore>=(Blank/2) && TimeAfter<(Blank/2) % not enough time after
                         Onset_local2 = Onset_local(bo)- Blank + TimeAfter;
-                        Offset_local2 = min(Offset_local(bo) + TimeAfter, length(Y));
+                        Offset_local2 = min(Offset_local(bo) + TimeAfter, length(Y_local));
                     end
                     Ybo = Y_local(Onset_local2:Offset_local2); % Overwrite Ybo
                 end
@@ -649,14 +745,14 @@ end
                 Window = 0.1;% duration of the window in sec when binning the spectrogram
                 Norm = 1; % boolean to indicate if you want to normalize or not the MPS (zscore of the spectrogram before 2Dfft
                 mpsCalc(BO, Window, Norm)
-                BioSoundObj.spectro_elmts{bo} = BO.spectro; % Spectro of individual sound elements
-                BioSoundObj.to_elmts{bo} = BO.to; % Spectro t0 of individual sound elements
-                BioSoundObj.fo_elmts{bo} = BO.fo;% Spectro f0 of individual sound elements
-                BioSoundObj.mps_elmts{bo}= BO.mps; % mps of individual sound elements
-                BioSoundObj.wt_elmts{bo}= BO.wt; % mps of individual sound elements
-                BioSoundObj.wf_elmts{bo}= BO.wf; % mps of individual sound elements
+                BioSoundObj.spectro_elmts{bo} = double(BO.spectro); % Spectro of individual sound elements
+                BioSoundObj.to_elmts{bo} = double(BO.to); % Spectro t0 of individual sound elements
+                BioSoundObj.fo_elmts{bo} = double(BO.fo);% Spectro f0 of individual sound elements
+                BioSoundObj.mps_elmts{bo}= double(BO.mps); % mps of individual sound elements
+                BioSoundObj.wt_elmts{bo}= double(BO.wt); % mps of individual sound elements
+                BioSoundObj.wf_elmts{bo}= double(BO.wf); % mps of individual sound elements
             end
-
+            BioSoundObj.OnOffSets_elmts = [Onset_local Offset_local];
         else
             BioSoundObj.meanspect = double(BiosoundObj.meanspect);
             BioSoundObj.stdspect = double(BiosoundObj.stdspect);
@@ -729,7 +825,12 @@ end
             fundest(BiosoundObj, MaxFund, MinFund,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
         catch ME2% increase the Min Fund value such as to look for only high pitch values (smaller time lag/window)
             if contains(ME2.message, 'Lags are too long')
-                fundest(BiosoundObj, MaxFund, MinFund*10,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
+                try
+                    fundest(BiosoundObj, MaxFund, MinFund*10,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
+                catch ME3
+                    warning(ME3.identifier,'Error on calculation of fundamental: %s', ME3.message)
+                    fundest(BiosoundObj, MaxFund, MinFund*5,LowFc, HighFc, MinSaliency,DebugFigFundest,MinFormantFreq,MaxFormantBW,WindowFormant,Method)
+                end
             else
                 keyboard
             end
@@ -744,7 +845,7 @@ end
         MaxF0 = ceil(max(Fund)/100)*100;
         SpectroFo = double(BiosoundObj.fo);
         SpectroRows = logical((SpectroFo>MinF0) .* (SpectroFo<MaxF0));
-        PowerSpectroBand = mean(Spectro(SpectroRows,:));
+        PowerSpectroBand = mean(Spectro(SpectroRows,:),1);
         VocOffFund = PowerSpectroBand<PowerThresh;
         Fund(VocOffFund) = nan;
         Fund2(VocOffFund) = nan;
@@ -974,8 +1075,11 @@ end
         BioSoundObj.hashid = double(BiosoundObj.hashid);
     end
 
-    function plotBiosound(BiosoundObj, F_high, FormantPlot)
+    function plotBiosound(BiosoundObj, F_high, Sound2,FormantPlot)
         if nargin<3
+            Sound2 = []; % when the time window for analysis is enlarged to calculate the MPS
+        end
+        if nargin<4
             FormantPlot=1;
         end
         % Plot the results of biosound calculations
@@ -1042,13 +1146,31 @@ end
         
         ss2=subplot(3,1,2);
         yyaxis left
-        plot((1:length(double(BiosoundObj.sound)))/BiosoundObj.samprate*1000,double(BiosoundObj.sound), 'k-','LineWidth',2)
+        if ~isempty(Sound2)
+            Sound = Sound2;
+        else
+            Sound = double(BiosoundObj.sound);
+        end
+        plot((1:length(Sound))/BiosoundObj.samprate*1000,Sound, 'k-','LineWidth',2)
         hold on
         YLIM = get(gca,'YLim');
         YLIM = max(abs(YLIM)).*[-1 1];
         set(gca, 'YLim', YLIM)
         SoundAmp = double(py.array.array('d', py.numpy.nditer(BiosoundObj.amp)));
         ss2.YColor = 'k';
+         % Plot the onsets and offsets of each sound element according to
+        % Piezo manual curation
+        if isfield(BiosoundObj, 'OnOffSets_elmts')
+            for Ne = 1:size(BiosoundObj.OnOffSets_elmts,1)
+                ColorInd = rem(Ne,size(ColorCode,1));
+                if ColorInd==0
+                    ColorInd = size(ColorCode,1);
+                end
+                plot((BiosoundObj.OnOffSets_elmts(Ne,1):BiosoundObj.OnOffSets_elmts(Ne,2))/BiosoundObj.samprate*1000,Sound(BiosoundObj.OnOffSets_elmts(Ne,1):BiosoundObj.OnOffSets_elmts(Ne,2)),'LineStyle','-','LineWidth',2,'Color',ColorCode(ColorInd,:), 'DisplayName',sprintf('Elmt %d',Ne))
+            end
+            legend('AutoUpdate', 'Off')
+        end
+        
         yyaxis right
         plot(double(BiosoundObj.tAmp)*1000,double(SoundAmp), 'r-', 'LineWidth',2)
         YLIM = get(gca,'YLim');
@@ -1057,11 +1179,15 @@ end
         set(gca, 'XLim', v_axis(1:2))
         xlabel('Time (ms)')
         ylabel('sound amplitude')
-        title(sprintf('AmpPeriodicity = %.3f AmpPF = %.1f Hz',BiosoundObj.AmpPeriodP, BiosoundObj.AmpPeriodF))
+        if ~isempty(Sound2)
+            title(sprintf('AmpPeriodicity = %.3f AmpPF = %.1f Hz  Note: Sound enlarged for MPS calculations',BiosoundObj.AmpPeriodP, BiosoundObj.AmpPeriodF))
+        else
+            title(sprintf('AmpPeriodicity = %.3f AmpPF = %.1f Hz',BiosoundObj.AmpPeriodP, BiosoundObj.AmpPeriodF))
+        end
         ss2.YColor = 'r';
         hold off
 
-        ss3=subplot(3,1,3);
+        subplot(3,1,3);
         DBNOISE=60;
         YLim = [0 max(BiosoundObj.wf*10^3)];
 %         XLim = [min(BiosoundObj.wt) max(BiosoundObj.wt)];
@@ -1165,7 +1291,7 @@ end
                 hold on;
             end
             ylabel('Amplitude')
-            xlabel(sprintf('Spectral Mean (Hz), %.1f Hz', nanmean(double(BiosoundRaw.SpectralMean))))
+            xlabel(sprintf('Spectral Mean (Hz), %.1f Hz', mean(double(BiosoundRaw.SpectralMean),'omitnan')))
             set(gca,'XLim',[25000 30000])
         end
         
@@ -1196,13 +1322,13 @@ end
                 outyy(ii) = yy(ii);
             elseif ii<=((Span-1)/2)
                 HalfSpan = ii-1;
-                outyy(ii) = nanmean(yy(1:(ii+HalfSpan)));
+                outyy(ii) = mean(yy(1:(ii+HalfSpan)),'omitnan');
             elseif (length(yy)-ii) <= ((Span-1)/2)
                 HalfSpan = length(yy)-ii;
-                outyy(ii) = nanmean(yy((ii-HalfSpan):end));
+                outyy(ii) = mean(yy((ii-HalfSpan):end),'omitnan');
             else
                 HalfSpan = (Span-1)/2;
-                outyy(ii) = nanmean(yy((ii-HalfSpan):(ii+HalfSpan)));
+                outyy(ii) = mean(yy((ii-HalfSpan):(ii+HalfSpan)),'omitnan');
             end
         end
     end

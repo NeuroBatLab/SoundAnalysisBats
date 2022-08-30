@@ -1,5 +1,4 @@
-function audioQuality_calls_Deafs(Loggers_dir, Date, ExpStartTime)
-
+function audioQuality_calls_Deafs(Loggers_dir, Date, ExpStartTime, ReDo)
 BandPassFilter = [1000 5000];
 
 % Set to 1 if you want to manually pause after each vocalization
@@ -35,11 +34,11 @@ for df=1:length(DataFiles) %1
     fprintf(1, 'Set %d/%d\n', df, length(DataFiles))
     DataFile = DataFiles(df);
     load(fullfile(DataFile.folder, DataFile.name), 'AudioGood');
-    if exist('AudioGood', 'var') && (isempty(AudioGood) || ~isempty(AudioGood{end}))
+    if ~ReDo && (exist('AudioGood', 'var') && (isempty(AudioGood) || ~isempty(AudioGood{end})))
         clear AudioGood
         continue
         
-    elseif exist('AudioGood', 'var') && isempty(AudioGood{end})
+    elseif ~ReDo && exist('AudioGood', 'var') && isempty(AudioGood{end})
         GoAudioGood = input(sprintf('It looks like we should start from here because the last vocalization quality is empty in AudioGood\n There is however %d empty cells\n Resume audioGood:1 skip and check the next file:0\n', sum(cellfun('isempty',AudioGood))));
         if GoAudioGood
             Rangevv = find(cellfun('isempty',AudioGood));
@@ -75,12 +74,16 @@ for df=1:length(DataFiles) %1
     end
     for jj=1:length(Rangevv)
         vv=Rangevv(jj);
+        fprintf(1,'set %d/%d Voc %d/%d\n',df,length(DataFiles), vv,NVoc)
+        % Check that biosound could be run on the extract
+        if ~isfield(BioSoundCalls{vv,1}, 'sound')
+            fprintf(1,'Not Processed by BioSound for Microphone Data\n')
+            system('killall Preview');
+            continue
+        end
         % Open the Biosound calculation results for the piezo
         open([BioSoundFilenames{vv,2}(1:end-4) '.pdf'])
         % filter the original microphone wavfile
-        if ~isfield(BioSoundCalls{vv,1}, 'sound')
-            continue
-        end
         Filt_Raw_wav=(filtfilt(sos_Raw,1,BioSoundCalls{vv,1}.sound)); % band-pass filter the voltage traces
         if ManualPause
             F1=figure(1);
@@ -117,91 +120,91 @@ for df=1:length(DataFiles) %1
             Resamp_Filt_Logger_wav = Resamp_Filt_Logger_wav(1:(end-1));
         elseif DiffLength ==1
             Resamp_Filt_Raw_wav = Resamp_Filt_Raw_wav(1:(end-1));
-        elseif abs(DiffLength)>1
-                warning('There was an isue with the extraction of microphone data, not as long as Logger data, skip vocalization')
-                continue
         end
-        
-        if ManualPause
-            figure(1)
-            subplot(2,1,1)
-            t2 = (0:(length(Resamp_Filt_Raw_wav)-1))*BioSoundCalls{vv,1}.samprate/(4*BandPassFilter(2));
-            hold on
-            plot(t2, Resamp_Filt_Raw_wav, 'g-', 'DisplayName',sprintf('BandPass + Resampled %d Hz', 4*BandPassFilter(2)))
-            hold off
-            subplot(2,1,2)
-            t2 = (0:(length(Resamp_Filt_Logger_wav)-1))*FS_ll/(4*BandPassFilter(2));
-            hold on
-            plot(t2, Resamp_Filt_Logger_wav , 'g-', 'DisplayName',sprintf('BandPass + Resampled %d Hz', 4*BandPassFilter(2)))
-            hold off
-        end
-        
-        % Localize vocalizations on the microphone and logger and set to zero the
-        % signal outside of putative vocalizations.
-        % calculate a running RMS of the audio signal with a 1ms bin
-        % resolution. a vocalization is defined as 10 consecutive time bins
-        % (15ms) above the median amplitude here
-        Consecutive_bins = 15;
-        Fs_env = 1000; %Hz
-        Vocp_logger = BioSoundCalls{vv,2}.amp>median(BioSoundCalls{vv,2}.amp);
-        IndVocStart = strfind(Vocp_logger, ones(1,Consecutive_bins));
-        if isempty(IndVocStart)
-            keyboard
-        end
-        if isempty(IndVocStart)
-            continue
-        end
-        IndVocStart_diffind = find(diff(IndVocStart)>1);
-        IndVocStart = [IndVocStart(1) IndVocStart(IndVocStart_diffind +1)];
-        NV = length(IndVocStart);
-        IndVocStop = nan(NV,1);
-        Clean_Resamp_Filt_Logger_wav = zeros(size(Resamp_Filt_Logger_wav));
-        Clean_Resamp_Filt_Raw_wav = zeros(size(Resamp_Filt_Raw_wav));
-        for ii=1:NV
-            IVStop = find(Vocp_logger(IndVocStart(ii):end)==0, 1, 'first');
-            if isempty(IVStop)
-                IVStop = length(Vocp_logger(IndVocStart(ii):end));
+        if abs(DiffLength)<=1 % else: 
+            if ManualPause
+                figure(1)
+                subplot(2,1,1)
+                t2 = (0:(length(Resamp_Filt_Raw_wav)-1))*BioSoundCalls{vv,1}.samprate/(4*BandPassFilter(2));
+                hold on
+                plot(t2, Resamp_Filt_Raw_wav, 'g-', 'DisplayName',sprintf('BandPass + Resampled %d Hz', 4*BandPassFilter(2)))
+                hold off
+                subplot(2,1,2)
+                t2 = (0:(length(Resamp_Filt_Logger_wav)-1))*FS_ll/(4*BandPassFilter(2));
+                hold on
+                plot(t2, Resamp_Filt_Logger_wav , 'g-', 'DisplayName',sprintf('BandPass + Resampled %d Hz', 4*BandPassFilter(2)))
+                hold off
             end
-            IndVocStop(ii) = IndVocStart(ii) + IVStop;
-            IndVocStart(ii) = round(IndVocStart(ii)/Fs_env*4*BandPassFilter(2));
-            IndVocStop(ii) = round(IndVocStop(ii)/Fs_env*4*BandPassFilter(2));
-            if IndVocStop(ii)>length(Clean_Resamp_Filt_Logger_wav) % This sound element reaches the end of the recording and downsampling messed up the exact indices values
-                Clean_Resamp_Filt_Logger_wav(IndVocStart(ii):end) = Resamp_Filt_Logger_wav(IndVocStart(ii):end);
-                Clean_Resamp_Filt_Raw_wav(IndVocStart(ii):end) = Resamp_Filt_Raw_wav(IndVocStart(ii):end);
-            else
-                Clean_Resamp_Filt_Logger_wav(IndVocStart(ii):IndVocStop(ii)) = Resamp_Filt_Logger_wav(IndVocStart(ii):IndVocStop(ii));
-                Clean_Resamp_Filt_Raw_wav(IndVocStart(ii):IndVocStop(ii)) = Resamp_Filt_Raw_wav(IndVocStart(ii):IndVocStop(ii));
-            end
-        end
-        if ManualPause
-            figure(1)
-            subplot(2,1,1)
-            t2 = (0:(length(Resamp_Filt_Raw_wav)-1))*BioSoundCalls{vv,1}.samprate/(4*BandPassFilter(2));
-            hold on
-            plot(t2, Clean_Resamp_Filt_Raw_wav , 'c-', 'DisplayName','Cleaned signal for cross-correlation')
-            hold off
-            subplot(2,1,2)
-            t2 = (0:(length(Resamp_Filt_Logger_wav)-1))*FS_ll/(4*BandPassFilter(2));
-            hold on
-            plot(t2, Clean_Resamp_Filt_Logger_wav , 'c-', 'DisplayName','Cleaned signal for cross-correlation')
-            hold off
             
+            % Localize vocalizations on the microphone and logger and set to zero the
+            % signal outside of putative vocalizations.
+            % calculate a running RMS of the audio signal with a 1ms bin
+            % resolution. a vocalization is defined as 10 consecutive time bins
+            % (15ms) above the median amplitude here
+            Consecutive_bins = 15;
+            Fs_env = 1000; %Hz
+            Vocp_logger = BioSoundCalls{vv,2}.amp>median(BioSoundCalls{vv,2}.amp);
+            IndVocStart = strfind(Vocp_logger, ones(1,Consecutive_bins));
+            if isempty(IndVocStart)
+                while isempty(IndVocStart) && Consecutive_bins>7
+                    Consecutive_bins = Consecutive_bins-1;
+                    IndVocStart = strfind(Vocp_logger, ones(1,Consecutive_bins));
+                end
+            end
+            if ~isempty(IndVocStart)
+                IndVocStart_diffind = find(diff(IndVocStart)>1);
+                IndVocStart = [IndVocStart(1) IndVocStart(IndVocStart_diffind +1)];
+                NV = length(IndVocStart);
+                IndVocStop = nan(NV,1);
+                Clean_Resamp_Filt_Logger_wav = zeros(size(Resamp_Filt_Logger_wav));
+                Clean_Resamp_Filt_Raw_wav = zeros(size(Resamp_Filt_Raw_wav));
+                for ii=1:NV
+                    IVStop = find(Vocp_logger(IndVocStart(ii):end)==0, 1, 'first');
+                    if isempty(IVStop)
+                        IVStop = length(Vocp_logger(IndVocStart(ii):end));
+                    end
+                    IndVocStop(ii) = IndVocStart(ii) + IVStop;
+                    IndVocStart(ii) = round(IndVocStart(ii)/Fs_env*4*BandPassFilter(2));
+                    IndVocStop(ii) = round(IndVocStop(ii)/Fs_env*4*BandPassFilter(2));
+                    if IndVocStop(ii)>length(Clean_Resamp_Filt_Logger_wav) % This sound element reaches the end of the recording and downsampling messed up the exact indices values
+                        Clean_Resamp_Filt_Logger_wav(IndVocStart(ii):end) = Resamp_Filt_Logger_wav(IndVocStart(ii):end);
+                        Clean_Resamp_Filt_Raw_wav(IndVocStart(ii):end) = Resamp_Filt_Raw_wav(IndVocStart(ii):end);
+                    else
+                        Clean_Resamp_Filt_Logger_wav(IndVocStart(ii):IndVocStop(ii)) = Resamp_Filt_Logger_wav(IndVocStart(ii):IndVocStop(ii));
+                        Clean_Resamp_Filt_Raw_wav(IndVocStart(ii):IndVocStop(ii)) = Resamp_Filt_Raw_wav(IndVocStart(ii):IndVocStop(ii));
+                    end
+                end
+                if ManualPause
+                    figure(1)
+                    subplot(2,1,1)
+                    t2 = (0:(length(Resamp_Filt_Raw_wav)-1))*BioSoundCalls{vv,1}.samprate/(4*BandPassFilter(2));
+                    hold on
+                    plot(t2, Clean_Resamp_Filt_Raw_wav , 'c-', 'DisplayName','Cleaned signal for cross-correlation')
+                    hold off
+                    subplot(2,1,2)
+                    t2 = (0:(length(Resamp_Filt_Logger_wav)-1))*FS_ll/(4*BandPassFilter(2));
+                    hold on
+                    plot(t2, Clean_Resamp_Filt_Logger_wav , 'c-', 'DisplayName','Cleaned signal for cross-correlation')
+                    hold off
+                    
+                end
+                
+                
+                % correlate the raw data with the logger
+                [XCorr, Lags]=xcorr(Clean_Resamp_Filt_Raw_wav',Clean_Resamp_Filt_Logger_wav',(10)*4*BandPassFilter(2)); % finding the optimal alignement between the 2 signals
+                [~,Ind] = max(abs(XCorr));
+                Lag = Lags(Ind);
+                if Lag<0
+                    CorrPiezoRaw(vv) = abs(corr(Resamp_Filt_Raw_wav(1:(end+Lag))',Resamp_Filt_Logger_wav((1-Lag):end)')); % Running correlation with optimal alignment (mic ahead of logger signal)
+                elseif Lag>0
+                    CorrPiezoRaw(vv) = abs(corr(Resamp_Filt_Raw_wav((1+Lag):end)',Resamp_Filt_Logger_wav(1:(end-Lag))')); % Running correlation with optimal alignment (logger ahead of mic signal)
+                elseif Lag==0
+                    CorrPiezoRaw(vv) = abs(corr(Resamp_Filt_Raw_wav',Resamp_Filt_Logger_wav')); % % Running correlation with optimal alignment 
+                end
+            end
+        else
+            warning('There was an isue with the extraction of microphone data, not as long as Logger data, skip vocalization for correlation calculations')
         end
-        
-        
-        % correlate the raw data with the logger
-        [XCorr, Lags]=xcorr(Clean_Resamp_Filt_Raw_wav',Clean_Resamp_Filt_Logger_wav',(10)*4*BandPassFilter(2)); % finding the optimal alignement between the 2 signals
-        [~,Ind] = max(abs(XCorr));
-        Lag = Lags(Ind);
-        if Lag<0
-            CorrPiezoRaw(vv) = abs(corr(Resamp_Filt_Raw_wav(1:(end+Lag))',Resamp_Filt_Logger_wav((1-Lag):end)')); % Running correlation with optimal alignment (mic ahead of logger signal)
-        elseif Lag>0
-            CorrPiezoRaw(vv) = abs(corr(Resamp_Filt_Raw_wav((1+Lag):end)',Resamp_Filt_Logger_wav(1:(end-Lag))')); % Running correlation with optimal alignment (logger ahead of mic signal)
-        elseif Lag==0
-            CorrPiezoRaw(vv) = abs(corr(Resamp_Filt_Raw_wav',Resamp_Filt_Logger_wav')); % % Running correlation with optimal alignment 
-        end
-        
-        
         Duration(vv) = length(BioSoundCalls{vv,1}.amp);
         RMS(vv) = BioSoundCalls{vv,2}.rms;
         
@@ -216,8 +219,13 @@ for df=1:length(DataFiles) %1
 %             play(AP2)
             % Rate the audio quality at the microphone
             commandwindow
-            AudioGood{vv} = nan(size(BioSoundCalls{vv,2}.OnOffSets_elmts,1),1);
-            ManualCallType{vv} = cell(size(BioSoundCalls{vv,2}.OnOffSets_elmts,1),1);
+            if isfield(BioSoundCalls{vv,2}, 'OnOffSets_elmts')
+                AudioGood{vv} = nan(size(BioSoundCalls{vv,2}.OnOffSets_elmts,1),1);
+                ManualCallType{vv} = cell(size(BioSoundCalls{vv,2}.OnOffSets_elmts,1),1);
+            else
+                AudioGood{vv} = nan;
+                ManualCallType{vv} = cell(1,1);
+            end
             ManualAnnotationOK{vv} = AudioGood{vv};
             for elmt = 1:length(AudioGood{vv})
                 fprintf(1, 'Sound Element #%d\n', elmt)
@@ -225,13 +233,40 @@ for df=1:length(DataFiles) %1
                 INPUT=[];
                 while isempty(INPUT)
                     play(APM)
-                    INPUT = input('Is it a vocalization? 1 yes, 0 No');
-                    if isempty(INPUT) || ((INPUT~=1) && (INPUT~=0))
+                    pause(1)
+                    play(APP)
+                    INPUT = input('Is it a vocalization? 1 yes, 0 No, -1 alignment error or piezo choice error or bad piezo recording, 100 plot the spectrogram of the element');
+                    if INPUT==100 % Plot the spectrogram of the elmt
+                        figure(2)
+                        clf
+                        DBNOISE =50;
+                        f_low = 0;
+                        F_high = 10000;
+                        logB = BioSoundCalls{vv,2}.spectro_elmts{elmt};
+                        maxB = max(max(logB));
+                        minB = maxB-DBNOISE;
+                        imagesc(double(BioSoundCalls{vv,2}.to_elmts{elmt})*1000,double(BioSoundCalls{vv,2}.fo_elmts{elmt}),logB);          % to is in seconds
+                        axis xy;
+                        caxis('manual');
+                        caxis([minB maxB]);
+                        cmap = spec_cmap();
+                        colormap(cmap);
+                        v_axis = axis;
+                        v_axis(3)=f_low;
+                        v_axis(4)=F_high;
+                        axis(v_axis);
+                        xlabel('time (ms)'), ylabel('Frequency');
+                        title(sprintf('Set %d/%d Voc %d/%d Elmt %d/%d\n',df,length(DataFiles), vv,NVoc, elmt, length(AudioGood{vv})))
+                        INPUT=[];
+                    elseif isempty(INPUT) || ((INPUT~=1) && (INPUT~=0) && (INPUT~=-1))
                         INPUT=[];
                     end
                 end
                 ManualAnnotationOK{vv}(elmt) = INPUT;
-                if ~INPUT % This is not a vocalization
+                if ~INPUT || INPUT<0 % This is not a good vocalization
+                    if elmt==length(AudioGood{vv})
+                        system('killall Preview') 
+                    end
                     continue
                 end
                 
@@ -251,8 +286,8 @@ for df=1:length(DataFiles) %1
                     play(APM)
                     pause(1)
                     play(APP)
-                    INPUT = input('Trill (1), Bark(2), pitchy call(3), low buzz(4) panting (5) Low tuck (6) Squeal (7) Rattle (8) Chuckles (9) Unknown (0)');
-                    if isempty(INPUT) || ((INPUT~=0) &&(INPUT~=1) && (INPUT~=2) && (INPUT~=3)&& (INPUT~=4) && (INPUT~=5)&& (INPUT~=6)&& (INPUT~=7)&& (INPUT~=8)&& (INPUT~=9))
+                    INPUT = input('Trill (1), Bark(2), pitchy call(3), low buzz(4) panting (5) Low tuck (6) Squeal (7) Rattle (8) Chuckles (9) Unknown (0) BarkBuzz (24)');
+                    if isempty(INPUT) || ((INPUT~=0) &&(INPUT~=1) && (INPUT~=2) && (INPUT~=3)&& (INPUT~=4) && (INPUT~=5)&& (INPUT~=6)&& (INPUT~=7)&& (INPUT~=8)&& (INPUT~=9) && (INPUT~=24))
                         INPUT=[];
                     end
                 end
@@ -274,6 +309,8 @@ for df=1:length(DataFiles) %1
                     ManualCallType{vv}{elmt} = 'Ra';
                 elseif INPUT==9
                     ManualCallType{vv}{elmt} = 'Ch';
+                elseif INPUT==24
+                    ManualCallType{vv}{elmt} = 'BB';
                 elseif INPUT==0
                     ManualCallType{vv}{elmt} = 'Un';
                 end
@@ -282,6 +319,7 @@ for df=1:length(DataFiles) %1
                 
             end
         end
+        system('killall Preview');   
     end
     if ManualPause
         save(fullfile(DataFile.folder, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', 'AudioGood','ManualCallType','ManualAnnotationOK', '-append')

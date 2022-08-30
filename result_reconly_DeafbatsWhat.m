@@ -31,7 +31,7 @@ else
     fclose(FidWho);
 end
 
-% This is tye loop that goes through all manually manually curated exp
+% This is the loop that goes through all manually manually curated exp
 NExpe = length(DoneListDetect{1});
 
 for exp=1:NExpe
@@ -43,7 +43,7 @@ for exp=1:NExpe
     Loggerdir = fullfile(BaseDataDir,['20', Date],'audiologgers');
     % Apply what calls to that experiment
     fprintf(1,'Now running %s\n', Loggerdir)
-    % whatcalls(Loggerdir);
+    what_calls(Loggerdir, Date, ExpStartTime);
     
     % Append to Logfile to indicate this data is processed
     fprintf(FidWhat, '%s\t%s\t%s\n',BatsID,Date,ExpStartTime);
