@@ -1,6 +1,6 @@
 %% This script run through files that have been manually cured to apply audioQuality_calls_deaf.m
-Redo = 1; % 0: do not rerun dates that have already been run; 1 rerun all 
-Redo2=1; % 0: do not rerun sets that have already been run and continue from where we left; 1 rerun all 
+Redo = 0; % 0: do not rerun dates that have already been run; 1 rerun all 
+Redo2=0; % 0: do not rerun sets that have already been run and continue from where we left; 1 rerun all 
 %% These are specific to the dataset and computer
 % BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
 BaseDataDir = '/Volumes/server_home/users/JulieE/DeafSalineGroup151/';
@@ -44,7 +44,7 @@ else
     FidQuality = fopen(QualityLog, 'a');
 end
 
-%% Run what_calls on the selected data
+%% Run audioQuality_calls on the selected data
 % 1- Do a loop through all the files that need to run
 % 1.1- Get the number of experiments from the content of WhoLog that was
 % read into ListOfFilesToDo
@@ -62,6 +62,7 @@ for ff=1:NToDo
     % processed by audioQuality_calls_deaf and we might not want to run them and overwrite
     % the data)
     if ~(str2double(Date)>200122)  % these recordings where done not in the final set up and/or had issue with the extraction pipeline
+        fprintf(1, 'Wrong dataset, Date = %s   Start Time = %s\n', Date,ExpStartTime)
         continue
     end
     if ~isempty(DoneListQuality)
@@ -71,6 +72,7 @@ for ff=1:NToDo
     end
     
     if Done && ~Redo % the manual evaluation (audioQuality_calls_deaf) has already been applied to this experiment, proceed to the next ff
+        fprintf(1, 'Date=%s Time = %s Manual evaluation already performed\n', Date,ExpStartTime)
         continue
     else
         % Give the path to the data for that ff experiment
@@ -78,7 +80,7 @@ for ff=1:NToDo
         Logger_dir = fullfile(ParamFile.folder(1:(strfind(ParamFile.folder, 'audio')-1)), 'audiologgers');
         % 3- Once you've identified an experimental date that has not been run
         % apply audioQuality_calls_deaf
-        fprintf(1, '***********************************************\n* Running what_calls on:\n %s\n Date: %s\n ExpStartTime:%s *\n***********************************************\n', Logger_dir, Date, ExpStartTime)
+        fprintf(1, '***********************************************\n* Running audioQuality_calls_Deafs on:\n %s\n Date: %s\n ExpStartTime:%s *\n***********************************************\n', Logger_dir, Date, ExpStartTime)
         audioQuality_calls_Deafs(Logger_dir, Date, ExpStartTime,Redo2)
         %
         

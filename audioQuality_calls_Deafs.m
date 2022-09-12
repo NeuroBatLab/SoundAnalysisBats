@@ -30,26 +30,32 @@ sos_Piezo = zp2sos(z,p,k);
 clear BioSoundCalls
 
 % Loop through the datafiles
-for df=1:length(DataFiles) %1
-    fprintf(1, 'Set %d/%d\n', df, length(DataFiles))
-    DataFile = DataFiles(df);
-    load(fullfile(DataFile.folder, DataFile.name), 'AudioGood');
-    if ~ReDo && (exist('AudioGood', 'var') && (isempty(AudioGood) || ~isempty(AudioGood{end})))
-        clear AudioGood
+for df=1:length(DataFiles) 
+    DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData%d_*.mat', Date, ExpStartTime,df)));
+    if isempty(DataFile) % who calls was the earlier format
+        DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_*.mat', Date, ExpStartTime)));
+    end
+    fprintf(1,'Set %d/%d\nwith file %s\n', df, length(DataFiles), DataFile.name)
+    load(fullfile(DataFile.folder, DataFile.name), 'ManualAnnotationOK', 'BioSoundFilenames');
+    if ~ReDo && (~exist('BioSoundFilenames', 'var') || (exist('BioSoundFilenames', 'var') && exist('ManualAnnotationOK', 'var') && isempty(BioSoundFilenames)))
+            fprintf(1, 'No Calls for that set\n')
+            continue
+    elseif ~ReDo && exist('BioSoundFilenames', 'var') && (exist('ManualAnnotationOK', 'var') && ~isempty(ManualAnnotationOK) && (~isempty(ManualAnnotationOK{end})))
+        clear ManualAnnotationOK
         continue
         
-    elseif ~ReDo && exist('AudioGood', 'var') && isempty(AudioGood{end})
-        GoAudioGood = input(sprintf('It looks like we should start from here because the last vocalization quality is empty in AudioGood\n There is however %d empty cells\n Resume audioGood:1 skip and check the next file:0\n', sum(cellfun('isempty',AudioGood))));
+    elseif ~ReDo && exist('ManualAnnotationOK', 'var') && ~isempty(ManualAnnotationOK) && isempty(ManualAnnotationOK{end})
+        GoAudioGood = input(sprintf('It looks like we should start from here because the last vocalization quality is empty in AudioGood\n There is however %d empty cells\n Resume audioGood:1 skip and check the next file:0\n', sum(cellfun('isempty',ManualAnnotationOK))));
         if GoAudioGood
-            Rangevv = find(cellfun('isempty',AudioGood));
-            load(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames', 'RMS', 'Duration','CorrPiezoRaw','ManualCallType','ManualAnnotationOK')
+            Rangevv = find(cellfun('isempty',ManualAnnotationOK));
+            load(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames', 'RMS', 'Duration','CorrPiezoRaw','ManualCallType','AudioGood')
             NVoc = size(BioSoundCalls,1);
         else
-            clear AudioGood
+            clear ManualAnnotationOK
             continue
         end
     else
-        load(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames')
+        load(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls')
         if ~exist('BioSoundCalls', 'var')
             fprintf(1, 'No Calls for that set\n')
             BioSoundCalls = [];
@@ -57,8 +63,10 @@ for df=1:length(DataFiles) %1
             Duration = [];
             ManualCallType = [];
             ManualAnnotationOK = [];
+            fprintf(1, 'Saving data....')
             save(fullfile(DataFile.folder, DataFile.name), 'Duration', 'AudioGood','BioSoundCalls','ManualCallType','ManualAnnotationOK', '-append')
-            clear AudioGood BioSoundCalls ManualCallType
+            fprintf(1, 'Done!\n')
+            clear AudioGood BioSoundCalls ManualCallType ManualAnnotationOK
             continue
         end
         NVoc = size(BioSoundCalls,1);
@@ -79,6 +87,11 @@ for df=1:length(DataFiles) %1
         if ~isfield(BioSoundCalls{vv,1}, 'sound')
             fprintf(1,'Not Processed by BioSound for Microphone Data\n')
             system('killall Preview');
+            if ManualPause && (~rem(jj,40) || (jj==length(Rangevv)))
+                fprintf(1, 'Saving data....')
+                save(fullfile(DataFile.folder, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', 'AudioGood','ManualCallType','ManualAnnotationOK', '-append')
+                fprintf(1, 'Done!\n')
+            end
             continue
         end
         % Open the Biosound calculation results for the piezo
@@ -236,7 +249,7 @@ for df=1:length(DataFiles) %1
                     pause(1)
                     play(APP)
                     INPUT = input('Is it a vocalization? 1 yes, 0 No, -1 alignment error or piezo choice error or bad piezo recording, 100 plot the spectrogram of the element');
-                    if INPUT==100 % Plot the spectrogram of the elmt
+                    if ~isempty(INPUT) && INPUT==100 && isfield(BioSoundCalls{vv,2}, 'spectro_elmts') % Plot the spectrogram of the elmt
                         figure(2)
                         clf
                         DBNOISE =50;
@@ -267,6 +280,11 @@ for df=1:length(DataFiles) %1
                     if elmt==length(AudioGood{vv})
                         system('killall Preview') 
                     end
+                    if ManualPause && (~rem(jj,40) || (jj==length(Rangevv))) && (elmt==length(ManualAnnotationOK{vv}))
+                        fprintf(1, 'Saving data....')
+                        save(fullfile(DataFile.folder, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', 'AudioGood','ManualCallType','ManualAnnotationOK', '-append')
+                        fprintf(1, 'Done!\n')
+                    end
                     continue
                 end
                 
@@ -286,8 +304,8 @@ for df=1:length(DataFiles) %1
                     play(APM)
                     pause(1)
                     play(APP)
-                    INPUT = input('Trill (1), Bark(2), pitchy call(3), low buzz(4) panting (5) Low tuck (6) Squeal (7) Rattle (8) Chuckles (9) Unknown (0) BarkBuzz (24)');
-                    if isempty(INPUT) || ((INPUT~=0) &&(INPUT~=1) && (INPUT~=2) && (INPUT~=3)&& (INPUT~=4) && (INPUT~=5)&& (INPUT~=6)&& (INPUT~=7)&& (INPUT~=8)&& (INPUT~=9) && (INPUT~=24))
+                    INPUT = input('Trill (1), Bark(2), pitchy call(3), low buzz(4) panting (5) Low tuck (6) Squeal (7) Rattle (8) Chuckles (9) Unknown (0) BarkBuzz (24) PitchyCallBuzz (34) SquealBuzz (74)');
+                    if isempty(INPUT) || ((INPUT~=0) &&(INPUT~=1) && (INPUT~=2) && (INPUT~=3)&& (INPUT~=4) && (INPUT~=5)&& (INPUT~=6)&& (INPUT~=7)&& (INPUT~=8)&& (INPUT~=9) && (INPUT~=24) && (INPUT~=34) && (INPUT~=74))
                         INPUT=[];
                     end
                 end
@@ -311,6 +329,10 @@ for df=1:length(DataFiles) %1
                     ManualCallType{vv}{elmt} = 'Ch';
                 elseif INPUT==24
                     ManualCallType{vv}{elmt} = 'BB';
+                elseif INPUT==34
+                    ManualCallType{vv}{elmt} = 'PB';
+                elseif INPUT==74
+                    ManualCallType{vv}{elmt} = 'SB';
                 elseif INPUT==0
                     ManualCallType{vv}{elmt} = 'Un';
                 end
@@ -320,11 +342,12 @@ for df=1:length(DataFiles) %1
             end
         end
         system('killall Preview');   
-    end
-    if ManualPause
-        save(fullfile(DataFile.folder, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', 'AudioGood','ManualCallType','ManualAnnotationOK', '-append')
-    else
-        save(fullfile(DataFile.folder, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', '-append')
+    
+        if ManualPause && (~rem(jj,40) || (jj==length(Rangevv)))
+            fprintf(1, 'Saving data....')
+            save(fullfile(DataFile.folder, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', 'AudioGood','ManualCallType','ManualAnnotationOK', '-append')
+            fprintf(1, 'Done!')
+        end
     end
     clear BioSoundCalls CorrPiezoRaw Duration RMS AudioGood ManualCallType ManualAnnotationOK
 end

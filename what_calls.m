@@ -14,7 +14,7 @@ end
 if nargin<7
     TransferLocal = 1;
 end
-PrevData_toggle = 0; %set to NaN to let computer ask each time 0 to overwrite any existing data, 1 to use previous data, 2 to use previous data for microphone only, 3 to recalculate data only for sections that were not cut properly
+PrevData_toggle = 1; %set to NaN to let computer ask each time 0 to overwrite any existing data, 1 to use previous data, 2 to use previous data for microphone only, 3 to recalculate data only for sections that were not cut properly
 % Hard coded parameters for the filtering of the signal and calculations in biosound
 F_high_Raw = 50000;
 F_low_Raw = 100;
@@ -1146,11 +1146,11 @@ end
         
         ss2=subplot(3,1,2);
         yyaxis left
-        if ~isempty(Sound2)
-            Sound = Sound2;
-        else
+%         if ~isempty(Sound2)
+%             Sound = Sound2;
+%         else
             Sound = double(BiosoundObj.sound);
-        end
+%         end
         plot((1:length(Sound))/BiosoundObj.samprate*1000,Sound, 'k-','LineWidth',2)
         hold on
         YLIM = get(gca,'YLim');
@@ -1166,7 +1166,8 @@ end
                 if ColorInd==0
                     ColorInd = size(ColorCode,1);
                 end
-                plot((BiosoundObj.OnOffSets_elmts(Ne,1):BiosoundObj.OnOffSets_elmts(Ne,2))/BiosoundObj.samprate*1000,Sound(BiosoundObj.OnOffSets_elmts(Ne,1):BiosoundObj.OnOffSets_elmts(Ne,2)),'LineStyle','-','LineWidth',2,'Color',ColorCode(ColorInd,:), 'DisplayName',sprintf('Elmt %d',Ne))
+                MaxX = min(length(Sound),BiosoundObj.OnOffSets_elmts(Ne,2));
+                plot((BiosoundObj.OnOffSets_elmts(Ne,1):MaxX)/BiosoundObj.samprate*1000,Sound(BiosoundObj.OnOffSets_elmts(Ne,1):MaxX),'LineStyle','-','LineWidth',2,'Color',ColorCode(ColorInd,:), 'DisplayName',sprintf('Elmt %d',Ne))
             end
             legend('AutoUpdate', 'Off')
         end

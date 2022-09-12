@@ -1,5 +1,5 @@
 %% This script run through files that have been manually cured to apply what_calls.m
-Redo = 1; % 0: do not rerun things that have already been run; 1 rerun all 
+Redo = 0; % 0: do not rerun things that have already been run; 1 rerun all 
 %% These are specific to the dataset and computer
 % BaseDataDir = 'Z:\users\JulieE\DeafSalineGroup151\';
 BaseDataDir = '/Volumes/server_home/users/JulieE/DeafSalineGroup151/';
@@ -65,9 +65,6 @@ for ff=1:NToDo
     % the data)
     if ~(str2double(Date)>200122)  % these recordings where done not in the final set up and/or had issue with the extraction pipeline
         continue
-    end
-    if str2double(Date) == 200129 % We need to be cautious here and change the PrevData_Toggle in What_calls from 3 to 0, because this is where we stopped (set 30/33) before I identified the bug in What calls about non identifying the last elements (indVocStartRaw) (08/29/2022)
-        keyboard
     end
     if ~isempty(DoneListWhat)
         Done = sum(contains(DoneListWhat{1},BatID) .* contains(DoneListWhat{2},Date) .* contains(DoneListWhat{3},ExpStartTime));
