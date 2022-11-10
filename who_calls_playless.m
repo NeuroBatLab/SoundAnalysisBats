@@ -6,9 +6,9 @@ function [IndVocStartRaw_merged, IndVocStopRaw_merged, IndVocStartPiezo_merge_lo
 RMS_Fig=0;
 VolDenominatorLogger=5;
 VolFactorMic=0.5;
-pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic','SaveFileType','CheckAfterMergePatch','FixingDeletionError'};
-dflts  = {3,Loggers_dir,0,'pdf',0,0};
-[Factor_RMS_Mic,Working_dir,Force_Save_onoffsets_mic,SaveFileType, CheckAfterMergePatch, FixingDeletionError] = internal.stats.parseArgs(pnames,dflts,varargin{:});
+pnames = {'Factor_RMS_Mic','Working_dir','Force_Save_onoffsets_mic','SaveFileType','CheckAfterMergePatch','FixingDeletionError', 'UseResNetNoiseFilter', 'Sorter'};
+dflts  = {3,Loggers_dir,0,'pdf',0,0,0,'JulieE'};
+[Factor_RMS_Mic,Working_dir,Force_Save_onoffsets_mic,SaveFileType, CheckAfterMergePatch, FixingDeletionError, UseResNetNoiseFilter, Sorter] = internal.stats.parseArgs(pnames,dflts,varargin{:});
 % UsePrevious is a boolean to indicate if you sould only check the
 % vocalizations that are new after the MergePatch
 
@@ -25,7 +25,9 @@ end
 if nargin<5
     MergeThresh = 500; % any 2 detected call spaced by less than MergeThresh ms are merged
 end
-
+if UseResNetNoiseFilter
+    PPT = [0.96 0.9]; % Post probability threshold to consider a sequence containing a vocalizations or for sure being noise
+end
 
 Working_dir_read = fullfile(Working_dir, 'read');
 Working_dir_write = fullfile(Working_dir, 'write');
@@ -39,6 +41,11 @@ elseif strcmp(Loggers_dir,Working_dir)
     Working_dir_write = Loggers_dir;
 end
 DataFiles = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData*.mat', Date, ExpStartTime)));
+
+if UseResNetNoiseFilter
+    ResNetDataFile = dir(fullfile(Loggers_dir, sprintf('*%s.csv', Date)));
+    ResNetData = readtable(fullfile(ResNetDataFile.folder, ResNetDataFile.name), 'Delimiter',',');
+end
 
 if isempty(DataFiles)
     warning('Vocalization data were not extracted by get_logger_data_voc.m')
@@ -59,6 +66,7 @@ else
         IndDataFiles(nfile) = str2double(DataFiles(nfile).name(IndData:IndDot));
     end
     [~,AscendOrd] = sort(IndDataFiles);
+    InDataFilesOrdered = IndDataFiles(AscendOrd);
     DataFiles = DataFiles(AscendOrd);
     load(fullfile(Raw_dir, sprintf('%s_%s_VocExtractTimes.mat', Date, ExpStartTime)), 'MeanStdAmpRawExtract','Voc_filename')
     Nvoc_all = length(Voc_filename);
@@ -100,7 +108,7 @@ else
         end
         if ~isempty(dir(PreviousFile)) && UseOld
 %             load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
-            load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+            load(PreviousFile, 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStart_all', 'IndVocStop_all','IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType', 'SorterName','ResNetPrediction');
             if ~exist('vv','var') % There is no previous data but just data regarding piezo numbers and bats_ID
                 vv=1;
             end
@@ -168,7 +176,7 @@ else
         % parameters
         Consecutive_binsMic = 10; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
         Consecutive_binsPiezo = 15; % Number of consecutive bins of the envelope difference between highpass and low pass logger signal that has to be higher than threshold to be considered as a vocalization
-        Factor_RMS_low = 1.5.*ones(length(AudioLogs),1); % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on piezos
+        Factor_RMS_low = 1.5.*ones(length(AudioLogs),1); % Factor by which the RMS of the low-pass filtered baseline signal is multiplied to obtained the threshold of vocalization detection on piezos I sometimes have to manually increase that one for some loggers Logger 39 on 200131 needs ot have a threshold of 2.75...
         % Factor_AmpRatio = 1.5; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
         Factor_AmpDiff = 50; % Factor by which the ratio of amplitude between low and high  pass filtered baseline signals is multiplied to obtain the threshold on calling vs hearing (when the bats call there is more energy in the lower frequency band than higher frequency band of the piezo) % used to be 3
         DB_noise = 60; % Noise threshold for the spectrogram colormap
@@ -233,7 +241,8 @@ else
             MicErrorType = [0 0];% first element false negative (detected as noise or already detected when it is a new call), second element false positive (vice versa)
             PiezoError = [0 0];% first element = number of corrections. second = number of detection (question)
             PiezoErrorType = [0 0]; % first element false negative (detected as noise or hearing when it is a new call), second element false positive (vice versa)
-            
+            SorterName = cell(1,Nvoc); % Contains for each sequence of vocalizations (Nvoc) the name of the sorter
+            ResNetPrediction = cell(1,Nvoc); % Contains for each voc [correctVoc NoisePredictedAsVoc correctNoise VocPredictedAsNoise]
         end
         if CheckAfterMergePatch
 %             Old_vv_out_list(vv)
@@ -395,6 +404,16 @@ else
             set(gca, 'XTick',[],'XTickLabel',{})
         
             if Manual
+
+                if UseResNetNoiseFilter
+                    RowsData = logical(contains(ResNetData.Var1(:), sprintf('15120%s%s_%d_Logger', Date, DataFiles(df).name(1:11), InDataFilesOrdered(df))) .*contains(ResNetData.Var1(:), sprintf('_%d.mat', vv-1)));
+                    pVoc = ResNetData.Var3(RowsData); % all probability of a vocalization across all 100ms windows of all loggers through that sequence
+                    if ~any(pVoc>PPT(1))
+                        fprintf('p=%.2f ResNet is not predicting any vocalization within that sequence. Skip\n', max(pVoc))
+                    else
+                        fprintf('p=%.2f ResNet predicts vocalizations within that sequence.\n', max(pVoc))
+                    end
+                end
                 pause(0.1)
                 Raw_listen = filtfilt(sos_raw_band_listen,1,Raw_wave_nn);
                 SampleMic = resample((Raw_listen - mean(Raw_listen))/(std(Raw_listen)/VolFactorMic),FS/4,FS);
@@ -416,6 +435,7 @@ else
                 end
                 if ManCall==0
                     fprintf(1,'Manual input enforced: Noise (0)\n');
+                    skipvoc(vv)
                     % Gather Vocalization production data:
                     IndVocStart_all{vv} = [];
                     IndVocStop_all{vv} = [];
@@ -424,15 +444,20 @@ else
                     IndVocStartRaw_merged{vv} = [];
                     IndVocStopRaw_merged{vv} = [];
                     IndVocStartPiezo_merged{vv} = [];
+                    if UseResNetNoiseFilter && any(pVoc>PPT(1))
+                        ResNetPrediction{vv} = [0 1 0 0];
+                    elseif UseResNetNoiseFilter && ~any(pVoc>PPT(1))
+                        ResNetPrediction{vv} = [0 0 1 0];
+                    end
                     IndVocStopPiezo_merged{vv} = [];
                     RMSRatio_all{vv} = [];
                     RMSDiff_all{vv} = [];
                     fprintf(1,'saving data...\n')
                     if ~isempty(dir(PreviousFile))
-                        save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv', '-append');
+                        save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','ResNetPrediction','RMSRatio_all','RMSDiff_all','vv', '-append');
                     else
                         %                     save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
-                        save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+                        save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','ResNetPrediction','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
                     end
                     clf(F1)
                     if SaveRawWave
@@ -463,6 +488,7 @@ else
             end
             %% Loop through the loggers and calculate envelopes
             Logger_Spec = cell(length(AudioLogs),1);
+            ResNetPred = nan(length(AudioLogs),1);
             for ll=1:length(AudioLogs)
                 if isnan(Piezo_FS.(Fns_AL{ll})(vv))
                     Piezo_FS.(Fns_AL{ll})(vv) = nanmean(Piezo_FS.(Fns_AL{ll}));
@@ -498,7 +524,45 @@ else
                         end
                         Amp_env_LowPassLogVoc{ll}=running_rms(LowPassLogVoc{ll}, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
                         Amp_env_HighPassLogVoc{ll}=running_rms(HighPassLogVoc, Piezo_FS.(Fns_AL{ll})(vv), Fhigh_power, Fs_env);
-                    
+                   else
+                        Amp_env_LowPassLogVoc{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})), Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
+                        Amp_env_HighPassLogVoc{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})), Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
+                    end
+                    if UseResNetNoiseFilter
+                        RowsData = logical(contains(ResNetData.Var1(:), sprintf('15120%s%s_%d_%s_', Date, DataFiles(df).name(1:11), InDataFilesOrdered(df),Fns_AL{ll})) .*contains(ResNetData.Var1(:), sprintf('_%d.mat', vv-1)));
+                        pVoclogger = ResNetData.Var3(RowsData); % all probability of a vocalization across all 100ms windows of that logger on that sequence
+                        ResNetPred(ll) = max(pVoclogger);
+                        if ~any(pVoclogger>PPT(1))
+                            fprintf(1, 'p= %.2f No vocalization according to ResNet on %s\n', max(pVoclogger), Fns_AL{ll})
+                        else
+                            fprintf(1, 'p= %.2f ResNet found a vocalization on %s\n', max(pVoclogger), Fns_AL{ll})
+                        end
+                    end
+                end
+            end
+            
+            if ~(sum(cellfun('isempty',(Amp_env_LowPassLogVoc))) == length(AudioLogs)) % No logger data, just isolate onset/offset of vocalizations on the microphone
+                %% There is some data on the logger, extract the id of the vocalizing bat
+                % Treat the case where some approximations of the calculations led to
+                % slight diffreent sizes of running RMS
+                Short = min(cellfun('length',Amp_env_LowPassLogVoc));
+                Long = max(cellfun('length',Amp_env_LowPassLogVoc));
+                if (Long-Short)>1
+                    error('The length of vectors of running RMS are too different than expected, please check!\n')
+                elseif Long~=Short
+                    Amp_env_LowPassLogVoc = cellfun(@(X) X(1:Short), Amp_env_LowPassLogVoc, 'UniformOutput',false);
+                    Amp_env_HighPassLogVoc = cellfun(@(X) X(1:Short), Amp_env_HighPassLogVoc, 'UniformOutput',false);
+                end
+                Amp_env_LowPassLogVoc_MAT = cell2mat(Amp_env_LowPassLogVoc);
+                Amp_env_HighPassLogVoc_MAT = cell2mat(Amp_env_HighPassLogVoc);
+                RatioAmp = (Amp_env_LowPassLogVoc_MAT +1)./(Amp_env_HighPassLogVoc_MAT+1);
+                DiffAmp = Amp_env_LowPassLogVoc_MAT-Amp_env_HighPassLogVoc_MAT;
+                for ll=1:length(AudioLogs) % We are looking at actual logger!
+                    Vocp_local = Amp_env_LowPassLogVoc_MAT(ll,:)>(Factor_RMS_low(ll) * RMSLow.(Fns_AL{ll})(1)); % Time points above amplitude threshold on the low-passed logger signal
+                    IndVocStart_local = strfind(Vocp_local, ones(1,Consecutive_binsPiezo)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
+                    if isempty(IndVocStart_local) || ResNetPred(ll)<=PPT(2)
+                        fprintf('\nNo vocalization detected on %s\n',Fns_AL{ll});
+                    else% Some vocalizations were detected plot the spectrogram
                         % Plot the low pass filtered signal of each logger
                         figure(1)
                         subplot(length(AudioLogs)+2,1,ll+1)
@@ -514,18 +578,16 @@ else
                         plot((1:length(Amp_env_HighPassLogVoc{ll}))/Fs_env*1000, Amp_env_HighPassLogVoc{ll}, 'r-','LineWidth',2);
                         ylabel(sprintf('Amp\n%s',Fns_AL{ll}([1:3 7:end])))
                         hold off
-%                         if Manual
-%                             pause(0.1)
-%                             Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
-%                             play(Player)
-%                             pause(length(Raw_wave{vv})/FS +1)
-%                         end
-                    else
-                        Amp_env_LowPassLogVoc{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})), Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
-                        Amp_env_HighPassLogVoc{ll}=resample(nan(1,length(Piezo_wave.(Fns_AL{ll}){vv})), Fs_env, round(Piezo_FS.(Fns_AL{ll})(vv)));
+                        %                         if Manual
+                        %                             pause(0.1)
+                        %                             Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}))/std(Piezo_wave.(Fns_AL{ll}){vv}), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                        %                             play(Player)
+                        %                             pause(length(Raw_wave{vv})/FS +1)
+                        %                         end
                     end
                 end
             end
+
             
             %% Listen to microphone and decide if we should go anyfurther in analysis
             ManCall=2;
@@ -573,14 +635,20 @@ else
                 IndVocStopRaw_merged{vv} = [];
                 IndVocStartPiezo_merged{vv} = [];
                 IndVocStopPiezo_merged{vv} = [];
+                SorterName{vv} = Sorter;
                 RMSRatio_all{vv} = [];
                 RMSDiff_all{vv} = [];
+                if UseResNetNoiseFilter && any(pVoc>PPT(1))
+                    ResNetPrediction{vv} = [0 1 0 0];
+                elseif UseResNetNoiseFilter && ~any(pVoc>PPT(1))
+                    ResNetPrediction{vv} = [0 0 1 0];
+                end
                 fprintf(1,'saving data...\n')
                 if ~isempty(dir(PreviousFile))
-                    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv', '-append');
+                    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged','ResNetPrediction', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','ResNetPrediction','RMSRatio_all','RMSDiff_all','vv', '-append');
                 else
 %                     save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
-                    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+                    save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged','ResNetPrediction', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','ResNetPrediction','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
                 end
                 clf(F1)
                 if SaveRawWave
@@ -603,6 +671,12 @@ else
                 % we don't need to redo this sequence it was correctly
                 % analyzed previously
                 continue
+            else % there is a vocalization in that sequence
+                if UseResNetNoiseFilter && any(pVoc>PPT(1))
+                    ResNetPrediction{vv} = [1 0 0 0];
+                elseif UseResNetNoiseFilter && ~any(pVoc>PPT(1))
+                    ResNetPrediction{vv} = [0 0 0 1];
+                end
             end
                 
              %% Now find onset/offset on microphone recording if there is no logger data      
@@ -641,7 +715,7 @@ else
                     VocpMic = Amp_env_Mic>(Factor_RMS_Mic * MeanStdAmpRawExtract(Nvocs(df)+vv,1)); % Time points above amplitude threshold on the band-pass microphone signal
                     VocpMic = reshape(VocpMic,1,length(VocpMic));
                     IndVocStart{RowSize} = strfind(VocpMic, ones(1,Consecutive_binsMic)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
-                    if isempty(IndVocStart{RowSize})
+                    if isempty(IndVocStart{RowSize}) || ResNetPred(ll)<=PPT(2)
                         fprintf(1,'No vocalization detected on microphone\n');
                     else% Some vocalizations are automatically detected
                         IndVocStart_diffind = find(diff(IndVocStart{RowSize})>1);
@@ -804,12 +878,12 @@ else
                     fprintf(1,'saving figures...\n')
                     if strcmp(SaveFileType,'pdf')
                         print(F1,fullfile(Working_dir_write,sprintf('%s_whocalls_spec_%d.pdf', FileVoc, MergeThresh)),'-dpdf','-fillpage')
-                        if ManCall && RMS_Fig % Only save the RMS figure if there was a vocalization
+                        if sum(cellfun(@length, IndVocStartRaw_merge_local)) && RMS_Fig % Only save the RMS figure if there was a vocalization
                             saveas(F2,fullfile(Working_dir_write,sprintf('%s_whocalls_RMS_%d.pdf', FileVoc, MergeThresh)),'pdf')
                         end
                     elseif strcmp(SaveFileType,'fig')
                         saveas(F1,fullfile(Working_dir_write,sprintf('%s_whocalls_spec_%d.fig', FileVoc, MergeThresh)))
-                        if ManCall && RMS_Fig % Only save the RMS figure if there was a vocalization
+                        if sum(cellfun(@length, IndVocStartRaw_merge_local)) && RMS_Fig % Only save the RMS figure if there was a vocalization
                             saveas(F2,fullfile(Working_dir_write,sprintf('%s_whocalls_RMS_%d.fig', FileVoc, MergeThresh)))
                         end
                     end
@@ -824,21 +898,6 @@ else
                 end
             else
                 %% There is some data on the logger, extract the id of the vocalizing bat
-                % Treat the case where some approximations of the calculations led to
-                % slight diffreent sizes of running RMS
-                Short = min(cellfun('length',Amp_env_LowPassLogVoc));
-                Long = max(cellfun('length',Amp_env_LowPassLogVoc));
-                if (Long-Short)>1
-                    error('The length of vectors of running RMS are too different than expected, please check!\n')
-                elseif Long~=Short
-                    Amp_env_LowPassLogVoc = cellfun(@(X) X(1:Short), Amp_env_LowPassLogVoc, 'UniformOutput',false);
-                    Amp_env_HighPassLogVoc = cellfun(@(X) X(1:Short), Amp_env_HighPassLogVoc, 'UniformOutput',false);
-                end
-                Amp_env_LowPassLogVoc_MAT = cell2mat(Amp_env_LowPassLogVoc);
-                Amp_env_HighPassLogVoc_MAT = cell2mat(Amp_env_HighPassLogVoc);
-                RatioAmp = (Amp_env_LowPassLogVoc_MAT +1)./(Amp_env_HighPassLogVoc_MAT+1);
-                DiffAmp = Amp_env_LowPassLogVoc_MAT-Amp_env_HighPassLogVoc_MAT;
-            
                 % Plot the ratio of time varying RMS, the difference in time varying
                 % RMS between the high and low frequency bands and the absolute time
                 % varying RMS of the low frequency band
@@ -1103,7 +1162,7 @@ else
                     elseif ll<=length(AudioLogs) % We are looking at an actual logger!
                         Vocp(ll,:) = Amp_env_LowPassLogVoc_MAT(ll,:)>(Factor_RMS_low(ll) * RMSLow.(Fns_AL{ll})(1)); % Time points above amplitude threshold on the low-passed logger signal
                         IndVocStart{ll} = strfind(Vocp(ll,:), ones(1,Consecutive_binsPiezo)); %find the first indices of every sequences of length "Consecutive_bins" higher than RMS threshold
-                        if isempty(IndVocStart{ll})
+                        if isempty(IndVocStart{ll}) || ResNetPred(ll)<=PPT(2)
                             fprintf('\nNo vocalization detected on %s\n',Fns_AL{ll});
                         else% Some vocalizations were detected
                         
@@ -1422,10 +1481,18 @@ else
                 set(gca, 'XLim', XLIM);
                 ylabel('AL ID')
                 xlabel('Time (ms)')
-                [~,FileVoc]=fileparts(VocFilename{vv}); %#ok<IDISVAR,USENS>
+                if ~isempty(strfind(VocFilename{vv}, filesep))
+                    [~,FileVoc]=fileparts(VocFilename{vv}); %#ok<IDISVAR,USENS>
+                elseif ~isempty(strfind(VocFilename{vv},'\'))
+                    AllSep = strfind(VocFilename{vv},'\');
+                    FileVoc = VocFilename{vv}((AllSep(end)+1):(strfind(VocFilename{vv}, '.')-1));
+                elseif ~isempty(strfind(VocFilename{vv},'/'))
+                    AllSep = strfind(VocFilename{vv},'/');
+                    FileVoc = VocFilename{vv}((AllSep(end)+1):(strfind(VocFilename{vv}, '.')-1));
+                end
             
                 if strcmp(SaveFileType,'pdf')
-                    if ManCall % Only save the RMS and spectro figures if there was a vocalization
+                    if sum(cellfun(@length, IndVocStartRaw_merge_local)) % Only save the RMS and spectro figures if there was a vocalization
                         fprintf(1,'saving figures...\n')
                         try
                             print(F1,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.pdf',FileVoc,vv, df,MergeThresh)),'-dpdf','-fillpage')
@@ -1442,7 +1509,7 @@ else
                         end
                     end
                 elseif strcmp(SaveFileType,'fig')
-                    if ManCall % Only save the RMS and spectro figures if there was a vocalization
+                    if sum(cellfun(@length, IndVocStartRaw_merge_local)) % Only save the RMS and spectro figures if there was a vocalization
                         fprintf(1,'saving figures...\n')
                         saveas(F1,fullfile(Working_dir_write,sprintf('%s_%d_%d_whocalls_spec_%d.fig', FileVoc,vv, df,MergeThresh)))
                         if RMS_Fig
@@ -1469,14 +1536,15 @@ else
                 IndVocStopPiezo_merged{vv} = IndVocStopPiezo_merge_local;
                 RMSRatio_all{vv} = RMSRatio;
                 RMSDiff_all{vv} = RMSDiff;
+                SorterName{vv} = Sorter;
             end
             fprintf(1,'saving data...\n')
             if ~isempty(dir(PreviousFile))
 %                 save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
-                  save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
+                  save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw','ResNetPrediction', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType','-append');
             else
 %                 save(fullfile(Working_dir, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','IndNoiseStart_all','IndNoiseStop_all', 'IndNoiseStartRaw', 'IndNoiseStopRaw', 'IndNoiseStartPiezo', 'IndNoiseStopPiezo','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
-                save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
+                save(fullfile(Working_dir_write, sprintf('%s_%s_VocExtractData%d_%d.mat', Date, ExpStartTime,df, MergeThresh)), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged', 'IndVocStartRaw', 'ResNetPrediction', 'IndVocStopRaw', 'IndVocStartPiezo', 'IndVocStopPiezo', 'IndVocStart_all', 'IndVocStop_all','RMSRatio_all','RMSDiff_all','vv','MicError','PiezoError','MicErrorType','PiezoErrorType');
             end
             if SaveRawWave
                 if Chunking_RawWav

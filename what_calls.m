@@ -14,7 +14,7 @@ end
 if nargin<7
     TransferLocal = 1;
 end
-PrevData_toggle = 1; %set to NaN to let computer ask each time 0 to overwrite any existing data, 1 to use previous data, 2 to use previous data for microphone only, 3 to recalculate data only for sections that were not cut properly
+PrevData_toggle = 0; %set to NaN to let computer ask each time 0 to overwrite any existing data, 1 to use previous data, 2 to use previous data for microphone only, 3 to recalculate data only for sections that were not cut properly
 % Hard coded parameters for the filtering of the signal and calculations in biosound
 F_high_Raw = 50000;
 F_low_Raw = 100;
@@ -656,6 +656,8 @@ end
         if size(OnOffSetsInd_local,1)>1 && any(((OnOffSetsInd_local(2:end,1) - OnOffSetsInd_local(1:end-1,2))./FS*1000)>50)
             ICI = ( OnOffSetsInd_local(2:end,1) - OnOffSetsInd_local(1:end-1,2))./FS*1000;
             ICILarge = find(ICI>50);
+            BioSoundObj.psd = cell(length(ICILarge)+1,1);
+            BioSoundObj.psdf = cell(length(ICILarge)+1,1);
             BioSoundObj.meanspect = nan(length(ICILarge)+1,1);
             BioSoundObj.stdspect = nan(length(ICILarge)+1,1);
             BioSoundObj.kurtosisspect = nan(length(ICILarge)+1,1);
@@ -689,16 +691,18 @@ end
                 ampenv(BO, Cutoff_freq,Amp_sample_rate);
                 % Calculate the spectral envelope and its momentums
                 spectrum(BO, F_high)
-                BioSoundObj.meanspect(bo) = BO.meanspect;
-                BioSoundObj.stdspect(bo) = BO.stdspect;
-                BioSoundObj.kurtosisspect(bo) = BO.kurtosisspect;
-                BioSoundObj.skewspect(bo) = BO.skewspect;
-                BioSoundObj.entropyspect(bo) = BO.entropyspect;
-                BioSoundObj.meantime(bo) = BO.meantime;
-                BioSoundObj.stdtime(bo) = BO.stdtime;
-                BioSoundObj.kurtosistime(bo) = BO.kurtosistime;
-                BioSoundObj.skewtime(bo) = BO.skewtime;
-                BioSoundObj.entropytime(bo) = BO.entropytime;
+                BioSoundObj.psd{bo} = double(BO.psd);
+                BioSoundObj.psdf{bo} = double(BO.fpsd);
+                BioSoundObj.meanspect(bo) = double(BO.meanspect);
+                BioSoundObj.stdspect(bo) = double(BO.stdspect);
+                BioSoundObj.kurtosisspect(bo) = double(BO.kurtosisspect);
+                BioSoundObj.skewspect(bo) = double(BO.skewspect);
+                BioSoundObj.entropyspect(bo) = double(BO.entropyspect);
+                BioSoundObj.meantime(bo) = double(BO.meantime);
+                BioSoundObj.stdtime(bo) = double(BO.stdtime);
+                BioSoundObj.kurtosistime(bo) = double(BO.kurtosistime);
+                BioSoundObj.skewtime(bo) = double(BO.skewtime);
+                BioSoundObj.entropytime(bo) = double(BO.entropytime);
             end
 
             BioSoundObj.spectro_elmts = cell(length(ICILarge)+1,1); % Spectro of individual sound elements
@@ -754,6 +758,8 @@ end
             end
             BioSoundObj.OnOffSets_elmts = [Onset_local Offset_local];
         else
+            BioSoundObj.psd{1} = double(BiosoundObj.psd);
+            BioSoundObj.psdf{1} = double(BiosoundObj.fpsd);
             BioSoundObj.meanspect = double(BiosoundObj.meanspect);
             BioSoundObj.stdspect = double(BiosoundObj.stdspect);
             BioSoundObj.kurtosisspect = double(BiosoundObj.kurtosisspect);
@@ -1048,8 +1054,8 @@ end
 %         BiosoundObj.F3 = double(BiosoundObj.F3);
         BioSoundObj.F3 = F3;
         BioSoundObj.MeanF3 = MeanF3;
-        BioSoundObj.fpsd = double(BiosoundObj.fpsd);
-        BioSoundObj.psd = double(BiosoundObj.psd);
+%         BioSoundObj.fpsd = double(BiosoundObj.fpsd);
+%         BioSoundObj.psd = double(BiosoundObj.psd);
 %         BiosoundObj.sal = double(BiosoundObj.sal);
         BioSoundObj.sal = Sal;
         BioSoundObj.MeanSal = MeanSal;
