@@ -304,8 +304,8 @@ for df=1:length(DataFiles)
                     play(APM)
                     pause(1)
                     play(APP)
-                    INPUT = input('Trill (1), Bark(2), pitchy call(3), low buzz(4) panting (5) Low tuck (6) Squeal (7) Rattle (8) Chuckles (9) Unknown (0) BarkBuzz (24) PitchyCallBuzz (34) SquealBuzz (74)');
-                    if isempty(INPUT) || ((INPUT~=0) &&(INPUT~=1) && (INPUT~=2) && (INPUT~=3)&& (INPUT~=4) && (INPUT~=5)&& (INPUT~=6)&& (INPUT~=7)&& (INPUT~=8)&& (INPUT~=9) && (INPUT~=24) && (INPUT~=34) && (INPUT~=74))
+                    INPUT = input('Trill (1), Bark(2), pitchy call(3), low buzz(4) panting (5) Low tuck (6) Squeal (7) Rattle (8) Chuckles (9) LoudPicthy (10) Unknown (0) BarkBuzz (24) PitchyCallBuzz (34) SquealBuzz (74)');
+                    if isempty(INPUT) || ((INPUT~=0) &&(INPUT~=1) && (INPUT~=2) && (INPUT~=3)&& (INPUT~=4) && (INPUT~=5)&& (INPUT~=6)&& (INPUT~=7)&& (INPUT~=8)&& (INPUT~=9)&& (INPUT~=10) && (INPUT~=24) && (INPUT~=34) && (INPUT~=74))
                         INPUT=[];
                     end
                 end
@@ -327,6 +327,8 @@ for df=1:length(DataFiles)
                     ManualCallType{vv}{elmt} = 'Ra';
                 elseif INPUT==9
                     ManualCallType{vv}{elmt} = 'Ch';
+                elseif INPUT==10
+                    ManualCallType{vv}{elmt} = 'LPi';
                 elseif INPUT==24
                     ManualCallType{vv}{elmt} = 'BB';
                 elseif INPUT==34

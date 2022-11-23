@@ -58,7 +58,7 @@ end
 
 NExpe = length(DoneListDetect{1});
 
-for ee=10:NExpe
+for ee=17:NExpe
     BatsID = DoneListDetect{1}{ee};
     Date = DoneListDetect{2}{ee};
     Time = DoneListDetect{3}{ee};

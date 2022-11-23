@@ -5,10 +5,12 @@ TTLFolder = 'C:\Users\tobias\Documents\GoogleDriveNeuroBatGroup\JuvenileRecordin
 WorkingDir = 'C:\Users\tobias\Documents\DeafMicCheckWorkDir\';
 
 % BaseDataDir = '/Volumes/Julie4T/JuvenileRecordings151/';
-% BaseCodeDir = '/Users/elie/Documents/CODE';
-% %Path2RecordingTable = '/Users/elie/Google Drive/JuvenileRecordings/DeafRecordingsNWAF155_Log.xlsx';
-% Path2RecordingTable = '/Users/elie/Google Drive/JuvenileRecordings/JuvenileRecordingsNWAF155_Log.xlsx';
-% TTLFolder = '/Users/elie/Documents/zero_playback_12h';
+BaseDataDir = '/Volumes/server_home/users/JulieE/DeafSalineGroup151';
+BaseCodeDir = '/Users/elie/Documents/CODE/GitHub';
+% Path2GD = dir('/Users/elie/Google*');
+Path2RecordingTable = '/Users/elie/Google Drive/My Drive/JuvenileRecordings/DeafRecordingsNWAF155_Log.xlsx';
+%Path2RecordingTable = '/Users/elie/Google Drive/JuvenileRecordings/JuvenileRecordingsNWAF155_Log.xlsx';
+TTLFolder = '/Users/elie/Documents/zero_playback_12h';
 
 addpath(genpath(fullfile(BaseCodeDir,'LMC')))
 addpath(genpath(fullfile(BaseCodeDir, 'LoggerDataProcessing')))
@@ -112,7 +114,7 @@ function [Processed] = result_reconly_Dbats(Path2ParamFile, Path2RecordingTable,
 TranscExtract = 1; % set to 1 to extract logger data and transceiver time
 ForceExtract = 0; % set to 1 to redo the extraction of loggers otherwise the calculations will use the previous extraction data
 ForceAllign = 0; % In case the TTL pulses allignment was already done but you want to do it again, set to 1
-ForceVocExt1 = 1; % In case the localization on raw files of vocalizations that were manually extracted was already done but you want to do it again set to 1
+ForceVocExt1 = 0; % In case the localization on raw files of vocalizations that were manually extracted was already done but you want to do it again set to 1
 ForceVocExt2 = 0; % In case the localization on Loggers of vocalizations that were manually extracted was already done but you want to do it again set to 1
 ReAllignment = 0; % Incase we don't have a logger on all animals, it's better not to reallign the vocal data by cross correlation between the Microphone and the loggers
 close all
