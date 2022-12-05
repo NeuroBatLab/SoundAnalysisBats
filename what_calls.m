@@ -14,7 +14,7 @@ end
 if nargin<7
     TransferLocal = 1;
 end
-PrevData_toggle = 0; %set to NaN to let computer ask each time 0 to overwrite any existing data, 1 to use previous data, 2 to use previous data for microphone only, 3 to recalculate data only for sections that were not cut properly
+PrevData_toggle = 1; %set to NaN to let computer ask each time 0 to overwrite any existing data, 1 to use previous data, 2 to use previous data for microphone only, 3 to recalculate data only for sections that were not cut properly
 % Hard coded parameters for the filtering of the signal and calculations in biosound
 F_high_Raw = 50000;
 F_low_Raw = 100;
@@ -194,7 +194,7 @@ else
             Firstcall = 1;
             NVocFile = 0;
         end
-        if Firstcall==NV && ~isempty(BioSoundCalls{end,1})
+        if ~isempty(Firstcall) && Firstcall==NV && ~isempty(BioSoundCalls{end,1})
             clear BioSoundCalls
             continue
         end
@@ -202,7 +202,14 @@ else
         % Turn off warning notifications for python 2 struct conversion
         warning('off', 'MATLAB:structOnObject')
     
-    
+        if NV==0
+            % save the values!
+            if ~SaveBiosoundperFile
+                save(fullfile(WorkDir, DataFile.name), 'BioSoundCalls','BioSoundFilenames','NVocFile','Ncall','-append');
+            else
+                save(fullfile(WorkDir, DataFile.name), 'BioSoundFilenames','NVocFile','vv_what','-append');
+            end
+        end
         for vv_what=Firstcall:NV
             if strfind(VocFilename{VocInd(vv_what)}, '/')
                 [~,FileVoc]=fileparts(VocFilename{VocInd(vv_what)});
