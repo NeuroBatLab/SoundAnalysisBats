@@ -1,6 +1,6 @@
 function audioQuality_calls_Deafs(Loggers_dir, Date, ExpStartTime, ReDo)
 BandPassFilter = [1000 5000];
-
+VolFactorMic = 0.5;
 % Set to 1 if you want to manually pause after each vocalization
 ManualPause=1;
 
@@ -27,6 +27,9 @@ sos_Raw = zp2sos(z,p,k); % obtain the second order section (biquad) filter to us
 FS_ll = round(BioSoundCalls{ii,2}.samprate);
 [z,p,k] = butter(6,BandPassFilter(1:2)/(FS_ll/2),'bandpass');
 sos_Piezo = zp2sos(z,p,k);
+
+[z,p,k] = butter(6,[100 20000]/(BioSoundCalls{ii,1}.samprate/2),'bandpass');
+sos_raw_band_listen = zp2sos(z,p,k);
 clear BioSoundCalls
 
 % Loop through the datafiles
@@ -222,9 +225,13 @@ for df=1:length(DataFiles)
         RMS(vv) = BioSoundCalls{vv,2}.rms;
         
         if ManualPause
+            ElmtMode = 0;
             figure(1)
             sgtitle(sprintf('set %d/%d Voc %d/%d rho = %.2f',df,length(DataFiles), vv,NVoc,CorrPiezoRaw(vv)))
-            APM=audioplayer(BioSoundCalls{vv,1}.sound./(max(abs(BioSoundCalls{vv,1}.sound))),BioSoundCalls{vv,1}.samprate);
+            Raw_listen = filtfilt(sos_raw_band_listen,1,BioSoundCalls{vv,1}.sound);
+            SampleMic = resample((Raw_listen - mean(Raw_listen))/(std(Raw_listen)/VolFactorMic),BioSoundCalls{vv,1}.samprate/4,BioSoundCalls{vv,1}.samprate);
+            APM = audioplayer(SampleMic, BioSoundCalls{vv,1}.samprate/4,24);
+%             APM=audioplayer(BioSoundCalls{vv,1}.sound./(max(abs(BioSoundCalls{vv,1}.sound))),BioSoundCalls{vv,1}.samprate);
             APP=audioplayer(BioSoundCalls{vv,2}.sound./(max(abs(BioSoundCalls{vv,2}.sound))),BioSoundCalls{vv,2}.samprate);
             
             
@@ -242,14 +249,39 @@ for df=1:length(DataFiles)
             ManualAnnotationOK{vv} = AudioGood{vv};
             for elmt = 1:length(AudioGood{vv})
                 fprintf(1, 'Sound Element #%d\n', elmt)
+                if ElmtMode
+                    Raw_listenE = Raw_listen(BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,1):BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,2));
+                    SampleMicE = resample((Raw_listenE - mean(Raw_listenE))/(std(Raw_listenE)/VolFactorMic),BioSoundCalls{vv,1}.samprate/4,BioSoundCalls{vv,1}.samprate);
+                    APMe = audioplayer(SampleMicE, BioSoundCalls{vv,1}.samprate/4,24);
+%             APM=audioplayer(BioSoundCalls{vv,1}.sound./(max(abs(BioSoundCalls{vv,1}.sound))),BioSoundCalls{vv,1}.samprate);
+                    OOInd = BioSoundCalls{vv,2}.OnOffSets_elmts(elmt,1):BioSoundCalls{vv,2}.OnOffSets_elmts(elmt,2);
+                    APPe=audioplayer(BioSoundCalls{vv,2}.sound(OOInd)./(max(abs(BioSoundCalls{vv,2}.sound(OOInd)))),BioSoundCalls{vv,2}.samprate);
+                end
+                    
                 
                 INPUT=[];
                 while isempty(INPUT)
-                    play(APM)
-                    pause(1)
-                    play(APP)
+                    if ~ ElmtMode
+                        play(APM)
+                        pause(max(1, length(Raw_listen)/BioSoundCalls{vv,1}.samprate))
+                        play(APP)
+                    else
+                        play(APMe)
+                        pause(max(1, length(Raw_listenE)/BioSoundCalls{vv,1}.samprate))
+                        play(APPe)
+                    end
                     INPUT = input('Is it a vocalization? 1 yes, 0 No, -1 alignment error or piezo choice error or bad piezo recording, 100 plot the spectrogram of the element');
+                    
                     if ~isempty(INPUT) && INPUT==100 && isfield(BioSoundCalls{vv,2}, 'spectro_elmts') % Plot the spectrogram of the elmt
+                        ElmtMode = 1;
+                        if elmt==1
+                            Raw_listenE = Raw_listen(BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,1):BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,2));
+                            SampleMicE = resample((Raw_listenE - mean(Raw_listenE))/(std(Raw_listenE)/VolFactorMic),BioSoundCalls{vv,1}.samprate/4,BioSoundCalls{vv,1}.samprate);
+                            APMe = audioplayer(SampleMicE, BioSoundCalls{vv,1}.samprate/4,24);
+                            %             APM=audioplayer(BioSoundCalls{vv,1}.sound./(max(abs(BioSoundCalls{vv,1}.sound))),BioSoundCalls{vv,1}.samprate);
+                            OOInd = BioSoundCalls{vv,2}.OnOffSets_elmts(elmt,1):BioSoundCalls{vv,2}.OnOffSets_elmts(elmt,2);
+                            APPe=audioplayer(BioSoundCalls{vv,2}.sound(OOInd)./(max(abs(BioSoundCalls{vv,2}.sound(OOInd)))),BioSoundCalls{vv,2}.samprate);
+                        end
                         figure(2)
                         clf
                         DBNOISE =50;
@@ -290,7 +322,11 @@ for df=1:length(DataFiles)
                 
                 INPUT=[];
                 while isempty(INPUT)
-                    play(APM)
+                    if ~ ElmtMode
+                        play(APM)
+                    else
+                        play(APMe)
+                    end
                     INPUT = input('Good 4 Audio on Microphone? 1 yes, 0 No');
                     if isempty(INPUT) || ((INPUT~=1) && (INPUT~=0))
                         INPUT=[];
@@ -301,9 +337,15 @@ for df=1:length(DataFiles)
                 % Annotate the type of call
                 INPUT=[];
                 while isempty(INPUT)
-                    play(APM)
-                    pause(1)
-                    play(APP)
+                    if ~ ElmtMode
+                        play(APM)
+                        pause(max(1, length(Raw_listen)/BioSoundCalls{vv,1}.samprate))
+                        play(APP)
+                    else
+                        play(APMe)
+                        pause(max(1, length(Raw_listenE)/BioSoundCalls{vv,1}.samprate))
+                        play(APPe)
+                    end
                     INPUT = input('Trill (1), Bark(2), pitchy call(3), low buzz(4) panting (5) Low tuck (6) Squeal (7) Rattle (8) Chuckles (9) LoudPicthy (10) Unknown (0) BarkBuzz (24) PitchyCallBuzz (34) SquealBuzz (74)');
                     if isempty(INPUT) || ((INPUT~=0) &&(INPUT~=1) && (INPUT~=2) && (INPUT~=3)&& (INPUT~=4) && (INPUT~=5)&& (INPUT~=6)&& (INPUT~=7)&& (INPUT~=8)&& (INPUT~=9)&& (INPUT~=10) && (INPUT~=24) && (INPUT~=34) && (INPUT~=74))
                         INPUT=[];
@@ -343,7 +385,7 @@ for df=1:length(DataFiles)
                 
             end
         end
-        system('killall Preview');   
+        system('killall Preview'); 
     
         if ManualPause && (~rem(jj,40) || (jj==length(Rangevv)))
             fprintf(1, 'Saving data....')
