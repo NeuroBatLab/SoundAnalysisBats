@@ -645,6 +645,11 @@ end
         AmpPeriodF = F(LOCS(PKS == max(PKS))); % Frequency in hertz of the max peak
         AmpPeriodP = max(PKS)/mean(SoundAmp.^2); % Proportion of power in the max peak of the spectrum
         
+        % Store data for the amplitude envelope of the whole sound
+        BioSoundObj.amp = SoundAmp;
+        BioSoundObj.ampt = double(BiosoundObj.tAmp);
+        BioSoundObj.maxAmp = double(BiosoundObj.maxAmp);
+
         % calculate the spectrum (lhs spectrum(self, f_high, pyargs))
         spectrum(BiosoundObj, F_high)
 
@@ -663,6 +668,9 @@ end
         if size(OnOffSetsInd_local,1)>1 && any(((OnOffSetsInd_local(2:end,1) - OnOffSetsInd_local(1:end-1,2))./FS*1000)>50)
             ICI = ( OnOffSetsInd_local(2:end,1) - OnOffSetsInd_local(1:end-1,2))./FS*1000;
             ICILarge = find(ICI>50);
+            BioSoundObj.amp_elmts = cell(length(ICILarge)+1,1);
+            BioSoundObj.ampt_elmts = cell(length(ICILarge)+1,1);
+            BioSoundObj.maxAmp_elmts = nan(length(ICILarge)+1,1);
             BioSoundObj.psd = cell(length(ICILarge)+1,1);
             BioSoundObj.psdf = cell(length(ICILarge)+1,1);
             BioSoundObj.meanspect = nan(length(ICILarge)+1,1);
@@ -698,6 +706,9 @@ end
                 ampenv(BO, Cutoff_freq,Amp_sample_rate);
                 % Calculate the spectral envelope and its momentums
                 spectrum(BO, F_high)
+                BioSoundObj.amp_elmts{bo} = double(py.array.array('d', py.numpy.nditer(BO.amp)));
+                BioSoundObj.ampt_elmts{bo} = double(BO.tAmp);
+                BioSoundObj.maxAmp_elmts(bo) = double(BO.maxAmp);
                 BioSoundObj.psd{bo} = double(BO.psd);
                 BioSoundObj.psdf{bo} = double(BO.fpsd);
                 BioSoundObj.meanspect(bo) = double(BO.meanspect);
@@ -777,6 +788,7 @@ end
             BioSoundObj.kurtosistime = double(BiosoundObj.kurtosistime);
             BioSoundObj.skewtime = double(BiosoundObj.skewtime);
             BioSoundObj.entropytime = double(BiosoundObj.entropytime);
+            
         end
 
 
@@ -1046,9 +1058,9 @@ end
         BioSoundObj.MeanQ3t = MeanQuartile_Freq(:,3);
         %         BiosoundObj.SpectralMax = SpectralMax;
         % convert all nmpy arrays to double to be able to save as matfiles
-        BioSoundObj.amp = SoundAmp;
-        BioSoundObj.tAmp = double(BiosoundObj.tAmp);
-        BioSoundObj.maxAmp = double(BiosoundObj.maxAmp);
+        %BioSoundObj.amp = SoundAmp;
+        %BioSoundObj.tAmp = double(BiosoundObj.tAmp);
+        %BioSoundObj.maxAmp = double(BiosoundObj.maxAmp);
         BioSoundObj.spectro = double(BiosoundObj.spectro);
         BioSoundObj.to = double(BiosoundObj.to);
         BioSoundObj.fo = double(BiosoundObj.fo);
