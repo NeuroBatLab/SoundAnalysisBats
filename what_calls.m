@@ -15,6 +15,57 @@ if nargin<7
     TransferLocal = 1;
 end
 PrevData_toggle = 1; %set to NaN to let computer ask each time 0 to overwrite any existing data, 1 to use previous data, 2 to use previous data for microphone only, 3 to recalculate data only for sections that were not cut properly
+
+% Find the google drive folder
+GGFolder = '/Users/elie/Google Drive/My Drive/';
+if ~(exist(GGFolder, 'file')==7)
+    GGFolder = '/Users/elie/Google Drive/Mon Drive/';
+end
+if ~(exist(GGFolder, 'file')==7)
+    warning(sprintf('cannot find GGFolder at %s\n', GGFolder))
+    GGFolder = input('Please enter the GGFolder path: ', 's');
+    keyboard
+end
+
+% Set the path to the recording log
+if contains(Loggers_dir, 'LMC')
+    Path2RecordingTable = fullfile(GGFolder,'/BatmanData/RecordingLogs/recording_logs.xlsx');
+    [~,~,RecTableData]=xlsread(Path2RecordingTable,1,'A1:P200','basic');
+    RowData = find((cell2mat(RecTableData(2:end,1))== str2double(Date))) +1;
+elseif contains(Loggers_dir, 'Juvenile')
+    Path2RecordingTable = fullfile(GGFolder,'/JuvenileRecordings/JuvenileRecordingsNWAF155_Log.xlsx');
+    [~,~,RecTableData]=xlsread(Path2RecordingTable,1,'A1:Q123','basic');
+    RowData = find((cell2mat(RecTableData(4:end,1))== str2double(['20' Date]))) +3;
+elseif contains(Loggers_dir, 'DeafSaline')
+    Path2RecordingTable = fullfile(GGFolder,'/JuvenileRecordings/DeafRecordingsNWAF155_Log.xlsx');
+    [~,~,RecTableData]=xlsread(Path2RecordingTable,1,'A1:AE41','basic');
+    RowData = find((cell2mat(RecTableData(2:end,1))== str2double(['20' Date]))) +1;
+end
+% Find the ID of the recorded bats
+DataInfo = RecTableData(RowData,:);
+Header = RecTableData(1,:);
+BatIDCol = find(contains(Header, 'Bat'));
+All_loggers_dir = dir(fullfile(Loggers_dir, '*ogger*'));
+DirFlags = [All_loggers_dir.isdir];
+% Extract only those that are directories.
+All_loggers_dir = All_loggers_dir(DirFlags);
+LoggerName = cell(length(All_loggers_dir),1);
+BatID = cell(length(All_loggers_dir),1);
+for ll=1:length(All_loggers_dir)
+    Ind = strfind(All_loggers_dir(ll).name, 'r');
+    Logger_num = str2double(All_loggers_dir(ll).name((Ind+1):end));
+    NLogCol = find(contains(Header, 'NL'));% Columns of the neural loggers
+    ALogCol = find(contains(Header, 'AL'));% Columns of the audio loggers
+    LogCol = NLogCol(find(cell2mat(DataInfo(NLogCol))==Logger_num)); %#ok<FNDSB>
+    if isempty(LogCol) % This is an audiologger and not a neural logger
+        LogCol = ALogCol(find(cell2mat(DataInfo(ALogCol))==Logger_num)); %#ok<FNDSB>
+        LoggerName{ll} = ['AL' num2str(Logger_num)];
+    else
+        LoggerName{ll} = ['NL' num2str(Logger_num)];
+    end
+    BatID{ll} = DataInfo{BatIDCol(find(BatIDCol<LogCol,1,'last'))};   
+end
+
 % Hard coded parameters for the filtering of the signal and calculations in biosound
 F_high_Raw = 50000;
 F_low_Raw = 100;
@@ -86,11 +137,14 @@ else
         else
             WorkDir = Loggers_dir;
         end
-        load(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged','IndVocStartPiezo','IndVocStopPiezo','IndVocStartRaw','IndVocStopRaw', 'BatID','LoggerName');
-        if ~exist('BatID', 'var')
-            Ind_ = strfind(DataFile.name, '_');
-             load(fullfile(WorkDir, sprintf('%s_%s_VocExtractData%d%s', Date, ExpStartTime,1, DataFile.name(Ind_(end):end))), 'BatID','LoggerName');
-        end
+        
+        
+        
+        load(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged','IndVocStartPiezo','IndVocStopPiezo','IndVocStartRaw','IndVocStopRaw');
+%         if ~exist('BatID', 'var')
+%             Ind_ = strfind(DataFile.name, '_');
+%              load(fullfile(WorkDir, sprintf('%s_%s_VocExtractData%d%s', Date, ExpStartTime,1, DataFile.name(Ind_(end):end))), 'BatID','LoggerName');
+%         end
         load(fullfile(WorkDir, Data1.name), 'FS','Piezo_wave','Raw_wave', 'Piezo_FS','VocFilename', 'Old_vv_out_list');
         
         if length(IndVocStartRaw_merged)>length(VocFilename) && exist('Old_vv_out_list', 'var') % This is a correction of the correction of merge patch in Who_Calls_Play_Less :-P
@@ -222,7 +276,7 @@ else
                 AL_local = Fns_AL{ll};
                 ALNum = AL_local(7:end);
                 % ID of the bat
-                ALIndex = contains(LoggerName, 'AL') .* contains(LoggerName, ALNum);
+                ALIndex = contains(LoggerName, ['AL' ALNum]);
                 BatID_local =BatID{find(ALIndex)}; %#ok<FNDSB>
                 Ncall(vv_what,ll) = length(IndVocStartRaw_merged{VocInd(vv_what)}{ll});
                 if Ncall(vv_what,ll)
