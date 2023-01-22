@@ -1,4 +1,49 @@
-function what_calls_BatIDNameCorrect(Loggers_dir, Date, ExpStartTime)
+
+BaseDataDir = '/Volumes/server_home/users/JulieE/DeafSalineGroup151/';
+BaseCodeDir = '/Users/elie/Documents/CODE/GitHub/';
+WhatLog = fullfile(BaseDataDir, 'RecOnlyLogDeafSalWhat.txt');
+%% Paths to code
+addpath(genpath(fullfile(BaseCodeDir,'LMC')))
+addpath(genpath(fullfile(BaseCodeDir, 'LoggerDataProcessing')))
+addpath(genpath(fullfile(BaseCodeDir,'SoundAnalysisBats')))
+addpath(genpath(fullfile(BaseCodeDir,'General')))
+
+%% Get the name of the next experiment that needs to be manually curated
+ee=0;
+% these are the list of files to run
+if ~exist(WhatLog, 'file')
+    error('Cannot find the list of file to run in: %s \n', WhatLog);
+else
+    FidWhat = fopen(WhatLog, 'r');
+    Header = textscan(FidWhat,'%s\t%s\t%s\t%s\t%s\n',1);
+    ListOfFilesToDo = textscan(FidWhat,'%s\t%s\t%s\t%.1f\t%d');
+    fclose(FidWhat);
+end
+
+
+%% Run the correction of BatName on the selected data
+NToDo = length(ListOfFilesToDo{1});
+%Loop through these files
+for ff=1:NToDo
+    % Get the BatID the Date and the time of the ff experiment (use
+    % ListOfFilesToDo)
+    BatID = ListOfFilesToDo{1}{ff};
+    Date = ListOfFilesToDo{2}{ff};
+    ExpStartTime = ListOfFilesToDo{3}{ff};
+    
+    if ~(str2double(Date)>200122) || str2double(Date)==200123  % these recordings where done not in the final set up and/or had issue with the extraction pipeline or have already run
+        continue
+    end
+        % Give the path to the data for that ff experiment
+        ParamFile = dir(fullfile(BaseDataDir, ['20' Date], 'audio', sprintf('%s_%s_%s*RecOnly_param.txt', BatID, Date, ExpStartTime)));
+        Logger_dir = fullfile(ParamFile.folder(1:(strfind(ParamFile.folder, 'audio')-1)), 'audiologgers');
+        % apply BatIDNameCorrect
+        fprintf(1, '***********************************************\n* Running BatIDNameCorrect on:\n %s\n Date: %s\n ExpStartTime:%s *\n***********************************************\n', Logger_dir, Date, ExpStartTime)
+        BatIDNameCorrect(Logger_dir, Date, ExpStartTime)
+end
+
+%% INTERNAL FUNCTION
+function BatIDNameCorrect(Loggers_dir, Date, ExpStartTime)
 Error=0; %counter for the number of vocalizations misslabeled
 % Find the google drive folder
 GGFolder = '/Users/elie/Google Drive/My Drive/';
@@ -82,47 +127,64 @@ else
         if isempty(DataFile) % who calls was the earlier format
             DataFile = dir(fullfile(Loggers_dir, sprintf('%s_%s_VocExtractData_*.mat', Date, ExpStartTime)));
         end
-        fprintf(1,'Set %d/%d\nwith file %s and %s', df, sum(Gdf), Data1.name, DataFile.name)
+        fprintf(1,'Set %d/%d\nwith file %s and %s\n', df, sum(Gdf), Data1.name, DataFile.name)
         % Save the BatID and Logger names
         save(fullfile(Loggers_dir, DataFile.name), 'BatID', 'LoggerName', '-append');
         
         load(fullfile(Loggers_dir, DataFile.name),'BioSoundFilenames');
-        
+        if ~exist('BioSoundFilenames', 'var')
+            continue
+        end
         %% Loop through calls, correct wavfile and pdf names 
         % Turn off warning notifications for python 2 struct conversion
-        NV = length(BioSoundFilenames);
+        NV = size(BioSoundFilenames,1);
+        if isempty(BioSoundFilenames)
+            continue
+        end
         
         for NVocFile=1:NV
             OldBSName1 = BioSoundFilenames{NVocFile,1};
-            ALInd = strfind(OldBSName1, 'AL');
-            ElmtInd = strfind(OldBSName1, 'Elmt');
-            ALNum = OldBSName1((ALInd+2):(ElmtInd-2));
+            OldBSName2=BioSoundFilenames{NVocFile,2};
+            OldBSName = OldBSName1;
+            if isempty(BioSoundFilenames{NVocFile,1})
+                if isempty(BioSoundFilenames{NVocFile,2})
+                    continue
+                else
+                    OldBSName = OldBSName2;
+                end
+            end
+            ALInd = strfind(OldBSName, 'AL');
+            ElmtInd = strfind(OldBSName, 'Elmt');
+            ALNum = OldBSName((ALInd+2):(ElmtInd-2));
+
             % ID of the bat
-            ALIndex = contains(LoggerName, ['AL' ALNum]);
+            ALIndex = strcmp(LoggerName, ['AL' ALNum]);
             if sum(ALIndex)~=1
                 keyboard
             end
             BatID_local =BatID{ALIndex};
-            BatInd = strfind(OldBSName1, 'Bat');
-            BatID_old = OldBSName1((BatInd+3):(ALInd-2));
-            if ~strcmp(BatID_old, str2double(BatID_local))
+            BatInd = strfind(OldBSName, 'Bat');
+            BatID_old = OldBSName((BatInd+3):(ALInd-2));
+            if ~strcmp(BatID_old, num2str(BatID_local))
                 Error = Error+1;
-                BioSoundFilenames{NVocFile,1}((BatInd+3):(ALInd-2)) = str2double(BatID_local);
-                [Status,MSG]=movefile(OldBSName1, BioSoundFilenames{NVocFile,1});
-                if ~Status
-                    warning('Issue with renaming file, error is:')
-                    MSG %#ok<*NOPRT>
-                    keyboard
+                if ~isempty(OldBSName1)
+                    BioSoundFilenames{NVocFile,1}((BatInd+3):(ALInd-2)) = num2str(BatID_local);
+                    [Status,MSG]=movefile(OldBSName1, BioSoundFilenames{NVocFile,1});
+                    if ~Status
+                        warning('Issue with renaming file, error is:')
+                        MSG %#ok<*NOPRT>
+                        keyboard
+                    end
+                    OldPDFName1 = [OldBSName1(1:end-3) 'pdf'];
+                    [Status,MSG]=movefile(OldPDFName1, [BioSoundFilenames{NVocFile,1}(1:end-3) 'pdf']);
+                    if ~Status
+                        warning('Issue with renaming file, error is:')
+                        MSG
+                        keyboard
+                    end
                 end
-                OldPDFName1 = [OldBSName1(1:end-3) 'pdf'];
-                [Status,MSG]=movefile(OldPDFName1, [BioSoundFilenames{NVocFile,1}(1:end-3) 'pdf']);
-                if ~Status
-                    warning('Issue with renaming file, error is:')
-                    MSG
-                    keyboard
-                end
-                OldBSName2=BioSoundFilenames{NVocFile,2};
-                BioSoundFilenames{NVocFile,2}((BatInd+3):(ALInd-2)) = str2double(BatID_local);
+                
+                BioSoundFilenames{NVocFile,2}((BatInd+3):(ALInd-2)) = num2str(BatID_local);
                 [Status,MSG]=movefile(OldBSName2, BioSoundFilenames{NVocFile,2});
                 if ~Status
                     warning('Issue with renaming file, error is:')
@@ -143,7 +205,7 @@ else
         clear BioSoundFilenames
     end
 end
-fprintf(1,'%d vocalizations were mislabeled with the wrong bat ID\n', Error)
+fprintf(1,'\n**** %d vocalizations were mislabeled with the wrong bat ID ****\n', Error)
 end
 
 

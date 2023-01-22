@@ -22,7 +22,7 @@ if ~(exist(GGFolder, 'file')==7)
     GGFolder = '/Users/elie/Google Drive/Mon Drive/';
 end
 if ~(exist(GGFolder, 'file')==7)
-    warning(sprintf('cannot find GGFolder at %s\n', GGFolder))
+    warning('cannot find GGFolder at %s\n', GGFolder)
     GGFolder = input('Please enter the GGFolder path: ', 's');
     keyboard
 end
@@ -138,8 +138,8 @@ else
             WorkDir = Loggers_dir;
         end
         
-        
-        
+        % Save the BatID and Logger names
+        save(fullfile(WorkDir, DataFile.name), 'BatID', 'LoggerName', '-append');
         load(fullfile(WorkDir, DataFile.name), 'IndVocStartRaw_merged', 'IndVocStopRaw_merged', 'IndVocStartPiezo_merged', 'IndVocStopPiezo_merged','IndVocStartPiezo','IndVocStopPiezo','IndVocStartRaw','IndVocStopRaw');
 %         if ~exist('BatID', 'var')
 %             Ind_ = strfind(DataFile.name, '_');
@@ -276,7 +276,10 @@ else
                 AL_local = Fns_AL{ll};
                 ALNum = AL_local(7:end);
                 % ID of the bat
-                ALIndex = contains(LoggerName, ['AL' ALNum]);
+                ALIndex = strcmp(LoggerName, ['AL' ALNum]);
+                if sum(ALIndex)~=1
+                    keyboard
+                end
                 BatID_local =BatID{find(ALIndex)}; %#ok<FNDSB>
                 Ncall(vv_what,ll) = length(IndVocStartRaw_merged{VocInd(vv_what)}{ll});
                 if Ncall(vv_what,ll)
