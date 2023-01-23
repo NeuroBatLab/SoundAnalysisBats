@@ -1255,7 +1255,7 @@ end
         end
         
         yyaxis right
-        plot(double(BiosoundObj.tAmp)*1000,double(SoundAmp), 'r-', 'LineWidth',2)
+        plot(double(BiosoundObj.ampt)*1000,double(SoundAmp), 'r-', 'LineWidth',2)
         YLIM = get(gca,'YLim');
         YLIM = max(abs(YLIM)).*[-1 1];
         set(gca, 'YLim', YLIM)
