@@ -1127,17 +1127,18 @@ else
                         
                             if ManCall
                                 fprintf(1,'\nSound event detected on %s.',Fns_AL{ll})
-                                Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}, 'omitnan'))/(VolDenominatorLogger*std(Piezo_wave.(Fns_AL{ll}){vv}, 'omitnan')), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                                LoggerSound = Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}, 'omitnan');
+                                Player= audioplayer(LoggerSound/(VolDenominatorLogger*std(LoggerSound, 'omitnan')), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                 play(Player)
                                 pause(length(Raw_wave_nn)/FS +1)
-                                ManCall_logger=input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0; Yes but go auto: 100  ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
+                                ManCall_logger=input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0; Yes but go auto: 100 ; Yes but listen to each call: 101 ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
                                 if isempty(ManCall_logger)
                                     ManCall_logger=2;
                                 end
-                                while ManCall_logger~=0 && ManCall_logger~=1 && ManCall_logger~=100
+                                while ManCall_logger~=0 && ManCall_logger~=1 && ManCall_logger~=100 && ManCall_logger~=101
                                     play(Player)
                                     pause(length(Raw_wave_nn)/FS +1)
-                                    ManCall_logger = input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; Yes but go auto: 100 ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
+                                    ManCall_logger = input(sprintf('\nDid you hear any call on %s? (yes:1 ; No:0  ; Yes but go auto: 100 ;Yes but listen to each call: 101 ; listen again to that logger recording (any other number) )\n',Fns_AL{ll}));
                                     if isempty(ManCall_logger)
                                         ManCall_logger=2;
                                     end
@@ -1288,10 +1289,34 @@ else
                                             Call1Hear0_man(ii) = TempIn;
                                         end
                                         while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
-                                            Player= audioplayer((Piezo_wave.(Fns_AL{ll}){vv}-mean(Piezo_wave.(Fns_AL{ll}){vv}, 'omitnan'))/(VolDenominatorLogger*std(Piezo_wave.(Fns_AL{ll}){vv}, 'omitnan')), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                                            Player= audioplayer(LoggerSound/(VolDenominatorLogger*std(LoggerSound, 'omitnan')), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
                                             play(Player)
                                             pause(length(Raw_wave_nn)/FS +1)
                                             TempIn = input('Indicate your choice: calling (1);    hearing/noise (0);    listen again to that logger recording (any other number)\n');
+                                            if isempty(TempIn)
+                                                fprintf(1, 'NO ENTRY GIVEN, playing again the sound and asking the same question\n')
+                                                Call1Hear0_man(ii)=2;
+                                            else
+                                                Call1Hear0_man(ii) = TempIn;
+                                            end
+                                        end
+                                    elseif ManCall &&  (ManCall_logger==101)
+                                        LoggerSound_ext = LoggerSound(floor(IndVocStart{ll}(ii)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv)) : min(ceil(IndVocStop{ll}(ii)/Fs_env*Piezo_FS.(Fns_AL{ll})(vv)), length(LoggerSound)));
+                                        Player= audioplayer(LoggerSound_ext/(VolDenominatorLogger*std(LoggerSound_ext, 'omitnan')), Piezo_FS.(Fns_AL{ll})(vv)); %#ok<TNMLP>
+                                        play(Player)
+                                        pause(length(LoggerSound_ext)/Piezo_FS.(Fns_AL{ll})(vv) +1)
+                                        TempIn = input('Indicate your choice: calling (1);    hearing/noise (0);    Listen again to that logger extract recording (any other number)\n');
+                                         
+                                        if isempty(TempIn)
+                                            fprintf(1, 'NO ENTRY GIVEN, playing again the sound and asking the same question\n')
+                                            Call1Hear0_man(ii)=2;
+                                        else
+                                            Call1Hear0_man(ii) = TempIn;
+                                        end
+                                        while Call1Hear0_man(ii)~=0 && Call1Hear0_man(ii)~=1
+                                            play(Player)
+                                            pause(length(LoggerSound_ext)/Piezo_FS.(Fns_AL{ll})(vv) +1)
+                                            TempIn = input('Indicate your choice: calling (1);    hearing/noise (0);    listen again to that logger extract recording (any other number)\n');
                                             if isempty(TempIn)
                                                 fprintf(1, 'NO ENTRY GIVEN, playing again the sound and asking the same question\n')
                                                 Call1Hear0_man(ii)=2;
