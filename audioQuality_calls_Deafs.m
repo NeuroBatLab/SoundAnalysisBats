@@ -1,8 +1,12 @@
-function audioQuality_calls_Deafs(Loggers_dir, Date, ExpStartTime, ReDo,ManualPause)
+function audioQuality_calls_Deafs(Loggers_dir, Date, ExpStartTime, ReDo,Local,ManualPause)
 BandPassFilter = [1000 5000];
 VolFactorMic = 0.5;
-% Set to 1 if you want to manually pause after each vocalization
 if nargin<5
+    Local = 1; % Set to 1 if you want to bring data locally
+end
+
+% Set to 1 if you want to manually pause after each vocalization
+if nargin<6
     ManualPause=2; % Set to 2 if you want to see all calculation plots
 end
 
@@ -53,14 +57,40 @@ for df=1:length(DataFiles)
         GoAudioGood = input(sprintf('It looks like we should start from here because the last vocalization quality is empty in AudioGood\n There is however %d empty cells\n Resume audioGood:1 skip and check the next file:0\n', sum(cellfun('isempty',ManualAnnotationOK))));
         if GoAudioGood
             Rangevv = find(cellfun('isempty',ManualAnnotationOK));
-            load(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls','BioSoundFilenames', 'RMS', 'Duration','CorrPiezoRaw','ManualCallType','AudioGood')
+            if Local
+                FolderPath = '/Users/elie/WorkingDirectoryAudioQual';
+                fprintf(1,'Bringing data locally from the server\n')
+                [s,~]=copyfile(fullfile(DataFile.folder, DataFile.name), FolderPath, 'f');
+                if ~s
+                    fprintf(1,'File transfer did not occur correctly\n')
+                    keyboard
+                else
+                    fprintf(1,'File transfer successful!\n')
+                end
+            else
+                FolderPath = DataFile.folder;
+            end
+            load(fullfile(FolderPath, DataFile.name), 'BioSoundCalls','BioSoundFilenames', 'RMS', 'Duration','CorrPiezoRaw','ManualCallType','AudioGood')
             NVoc = size(BioSoundCalls,1);
         else
             clear ManualAnnotationOK
             continue
         end
     else
-        load(fullfile(DataFile.folder, DataFile.name), 'BioSoundCalls')
+        if Local
+            FolderPath = '/Users/elie/WorkingDirectoryAudioQual';
+            fprintf(1,'Bringing data locally from the server\n')
+            [s,~]=copyfile(fullfile(DataFile.folder, DataFile.name), FolderPath, 'f');
+            if ~s
+                fprintf(1,'File transfer did not occur correctly\n')
+                keyboard
+            else
+                fprintf(1,'File transfer successful!\n')
+            end
+        else
+            FolderPath = DataFile.folder;
+        end
+        load(fullfile(FolderPath, DataFile.name), 'BioSoundCalls')
         if ~exist('BioSoundCalls', 'var')
             fprintf(1, 'No Calls for that set\n')
             BioSoundCalls = [];
@@ -69,17 +99,52 @@ for df=1:length(DataFiles)
             ManualCallType = [];
             ManualAnnotationOK = [];
             fprintf(1, 'Saving data....')
-            save(fullfile(DataFile.folder, DataFile.name), 'Duration', 'AudioGood','BioSoundCalls','ManualCallType','ManualAnnotationOK', '-append')
+            save(fullfile(FolderPath, DataFile.name), 'Duration', 'AudioGood','BioSoundCalls','ManualCallType','ManualAnnotationOK', '-append')
             fprintf(1, 'Done!\n')
             clear AudioGood BioSoundCalls ManualCallType ManualAnnotationOK
+            if Local
+                fprintf(1,'Putting back local data onto the server\n')
+                [s,~]=copyfile(fullfile(FolderPath, DataFile.name),DataFile.folder, 'f');
+                if ~s
+                    fprintf(1,'File transfer did not occur correctly\n')
+                    keyboard
+                else
+                    fprintf(1,'File transfer successful!\n')
+                end
+            end
             continue
         end
         NVoc = size(BioSoundCalls,1);
+        if NVoc==0
+            fprintf(1, 'No Calls for that set\n')
+            BioSoundCalls = [];
+            AudioGood = [];
+            Duration = [];
+            ManualCallType = [];
+            ManualAnnotationOK = [];
+            fprintf(1, 'Saving data....')
+            save(fullfile(FolderPath, DataFile.name), 'Duration', 'AudioGood','BioSoundCalls','ManualCallType','ManualAnnotationOK', '-append')
+            fprintf(1, 'Done!\n')
+            clear AudioGood BioSoundCalls ManualCallType ManualAnnotationOK
+            if Local
+                fprintf(1,'Putting back local data onto the server\n')
+                [s,~]=copyfile(fullfile(FolderPath, DataFile.name),DataFile.folder, 'f');
+                if ~s
+                    fprintf(1,'File transfer did not occur correctly\n')
+                    keyboard
+                else
+                    fprintf(1,'File transfer successful!\n')
+                end
+            end
+            continue
+        end
+            
         CorrPiezoRaw = nan(NVoc,1);
         if ManualPause
             AudioGood = cell(NVoc,1);
             ManualCallType = cell(NVoc,1);
             ManualAnnotationOK = cell(NVoc,1);
+            fprintf(1,'%d Vocalization found in that set\n', NVoc)
         end
         Duration = nan(NVoc,1);
         RMS = nan(NVoc,1);
@@ -98,10 +163,10 @@ for df=1:length(DataFiles)
             end
             if ManualPause && (~rem(jj,40) || (jj==length(Rangevv)))
                 fprintf(1, 'Saving data....')
-                save(fullfile(DataFile.folder, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', 'AudioGood','ManualCallType','ManualAnnotationOK', '-append')
+                save(fullfile(FolderPath, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', 'AudioGood','ManualCallType','ManualAnnotationOK', '-append')
                 fprintf(1, 'Done!\n')
             elseif ~ManualPause && (jj==length(Rangevv))
-                save(fullfile(DataFile.folder, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', '-append')
+                save(fullfile(FolderPath, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', '-append')
             end
             continue
         end
@@ -265,7 +330,7 @@ for df=1:length(DataFiles)
             for elmt = 1:length(AudioGood{vv})
                 fprintf(1, 'Sound Element #%d\n', elmt)
                 if ElmtMode(elmt)
-                    if elmt<=size(BioSoundCalls{vv,1}.OnOffSets_elmts,1) % Issue with onset/offset indices, beter play the whole recording rather than crash
+                    if isfield(BioSoundCalls{vv,1},'OnOffSets_elmts') && elmt<=size(BioSoundCalls{vv,1}.OnOffSets_elmts,1) % Issue with onset/offset indices, beter play the whole recording rather than crash
                         Raw_listenE = Raw_listen(BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,1):BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,2));
                         SampleMicE = resample((Raw_listenE - mean(Raw_listenE))/(std(Raw_listenE)/VolFactorMic),BioSoundCalls{vv,1}.samprate/4,BioSoundCalls{vv,1}.samprate);
                         APMe = audioplayer(SampleMicE, BioSoundCalls{vv,1}.samprate/4,24);
@@ -307,7 +372,7 @@ for df=1:length(DataFiles)
                         xlabel('time (ms)'), ylabel('Frequency');
                         title(sprintf('Set %d/%d Voc %d/%d Elmt %d/%d\n',df,length(DataFiles), vv,NVoc, elmt, length(AudioGood{vv})))
                         play(APMe)
-                        pause(max(1, length(Raw_listenE)/BioSoundCalls{vv,1}.samprate))
+                        pause(max(1, APMe.TotalSamples/APMe.SampleRate))
                         play(APPe)
                     end
                     commandwindow
@@ -327,7 +392,7 @@ for df=1:length(DataFiles)
                         elseif INPUT==101
                             ElmtMode(elmt:end) = 1;
                         end
-                        if elmt<=size(BioSoundCalls{vv,1}.OnOffSets_elmts,1) % Issue with onset/offset indices, beter play the whole recording rather than crash
+                        if isfield(BioSoundCalls{vv,1},'OnOffSets_elmts') && elmt<=size(BioSoundCalls{vv,1}.OnOffSets_elmts,1) % Issue with onset/offset indices, beter play the whole recording rather than crash
                             Raw_listenE = Raw_listen(BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,1):BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,2));
                             SampleMicE = resample((Raw_listenE - mean(Raw_listenE))/(std(Raw_listenE)/VolFactorMic),BioSoundCalls{vv,1}.samprate/4,BioSoundCalls{vv,1}.samprate);
                             APMe = audioplayer(SampleMicE, BioSoundCalls{vv,1}.samprate/4,24);
@@ -370,7 +435,7 @@ for df=1:length(DataFiles)
                     end
                     if ManualPause && (~rem(jj,40) || (jj==length(Rangevv))) && (elmt==length(ManualAnnotationOK{vv}))
                         fprintf(1, 'Saving data....')
-                        save(fullfile(DataFile.folder, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', 'AudioGood','ManualCallType','ManualAnnotationOK', '-append')
+                        save(fullfile(FolderPath, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', 'AudioGood','ManualCallType','ManualAnnotationOK', '-append')
                         fprintf(1, 'Done!\n')
                     end
                     continue
@@ -400,7 +465,7 @@ for df=1:length(DataFiles)
                         play(APP)
                     else
                         play(APMe)
-                        pause(max(1, length(Raw_listenE)/BioSoundCalls{vv,1}.samprate))
+                        pause(max(1, APMe.TotalSamples/APMe.SampleRate))
                         play(APPe)
                     end
                     commandwindow
@@ -451,12 +516,23 @@ for df=1:length(DataFiles)
 
         if ManualPause && (~rem(jj,40) || (jj==length(Rangevv)))
             fprintf(1, 'Saving data....')
-            save(fullfile(DataFile.folder, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', 'AudioGood','ManualCallType','ManualAnnotationOK', '-append')
+            save(fullfile(FolderPath, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', 'AudioGood','ManualCallType','ManualAnnotationOK', '-append')
             fprintf(1, 'Done!')
         elseif ~ManualPause && (jj==length(Rangevv))
-            save(fullfile(DataFile.folder, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', '-append')
+            save(fullfile(FolderPath, DataFile.name), 'CorrPiezoRaw','Duration', 'RMS', '-append')
         end
     end
     clear BioSoundCalls CorrPiezoRaw Duration RMS AudioGood ManualCallType ManualAnnotationOK
+    if Local
+        fprintf(1,'Putting back local data onto the server\n')
+        [s,~]=copyfile(fullfile(FolderPath, DataFile.name),DataFile.folder, 'f');
+        if ~s
+            fprintf(1,'File transfer did not occur correctly\n')
+            keyboard
+        else
+                    fprintf(1,'File transfer successful!\n')
+        end
+    end
+        
 end
 end
