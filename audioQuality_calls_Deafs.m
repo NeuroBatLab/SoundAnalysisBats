@@ -331,7 +331,7 @@ for df=1:length(DataFiles)
                 fprintf(1, 'Sound Element #%d\n', elmt)
                 if ElmtMode(elmt)
                     if isfield(BioSoundCalls{vv,1},'OnOffSets_elmts') && elmt<=size(BioSoundCalls{vv,1}.OnOffSets_elmts,1) % Issue with onset/offset indices, beter play the whole recording rather than crash
-                        Raw_listenE = Raw_listen(BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,1):BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,2));
+                        Raw_listenE = Raw_listen(BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,1):min(length(Raw_listen),BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,2)));
                         SampleMicE = resample((Raw_listenE - mean(Raw_listenE))/(std(Raw_listenE)/VolFactorMic),BioSoundCalls{vv,1}.samprate/4,BioSoundCalls{vv,1}.samprate);
                         APMe = audioplayer(SampleMicE, BioSoundCalls{vv,1}.samprate/4,24);
                     else
@@ -393,7 +393,7 @@ for df=1:length(DataFiles)
                             ElmtMode(elmt:end) = 1;
                         end
                         if isfield(BioSoundCalls{vv,1},'OnOffSets_elmts') && elmt<=size(BioSoundCalls{vv,1}.OnOffSets_elmts,1) % Issue with onset/offset indices, beter play the whole recording rather than crash
-                            Raw_listenE = Raw_listen(BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,1):BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,2));
+                            Raw_listenE = Raw_listen(BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,1):min(length(Raw_listen),BioSoundCalls{vv,1}.OnOffSets_elmts(elmt,2)));
                             SampleMicE = resample((Raw_listenE - mean(Raw_listenE))/(std(Raw_listenE)/VolFactorMic),BioSoundCalls{vv,1}.samprate/4,BioSoundCalls{vv,1}.samprate);
                             APMe = audioplayer(SampleMicE, BioSoundCalls{vv,1}.samprate/4,24);
                         else
