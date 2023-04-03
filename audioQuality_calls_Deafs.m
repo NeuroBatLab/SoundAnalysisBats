@@ -56,21 +56,24 @@ for df=1:length(DataFiles)
     elseif ~ReDo && exist('ManualAnnotationOK', 'var') && ~isempty(ManualAnnotationOK) && isempty(ManualAnnotationOK{end})
         GoAudioGood = input(sprintf('It looks like we should start from here because the last vocalization quality is empty in AudioGood\n There is however %d empty cells\n Resume audioGood:1 skip and check the next file:0\n', sum(cellfun('isempty',ManualAnnotationOK))));
         if GoAudioGood
-            Rangevv = find(cellfun('isempty',ManualAnnotationOK));
             if Local
                 FolderPath = '/Users/elie/WorkingDirectoryAudioQual';
-                fprintf(1,'Bringing data locally from the server\n')
-                [s,~]=copyfile(fullfile(DataFile.folder, DataFile.name), FolderPath, 'f');
-                if ~s
-                    fprintf(1,'File transfer did not occur correctly\n')
-                    keyboard
-                else
-                    fprintf(1,'File transfer successful!\n')
+                if ~exist(fullfile(FolderPath, DataFile.name),"file")
+                    fprintf(1,'Bringing data locally from the server\n')
+                    [s,~]=copyfile(fullfile(DataFile.folder, DataFile.name), FolderPath, 'f');
+                    if ~s
+                        fprintf(1,'File transfer did not occur correctly\n')
+                        keyboard
+                    else
+                        fprintf(1,'File transfer successful!\n')
+
+                    end
                 end
             else
                 FolderPath = DataFile.folder;
             end
-            load(fullfile(FolderPath, DataFile.name), 'BioSoundCalls','BioSoundFilenames', 'RMS', 'Duration','CorrPiezoRaw','ManualCallType','AudioGood')
+            load(fullfile(FolderPath, DataFile.name), 'BioSoundCalls','BioSoundFilenames', 'RMS', 'Duration','CorrPiezoRaw','ManualCallType','AudioGood','ManualAnnotationOK')
+            Rangevv = find(cellfun('isempty',ManualAnnotationOK));
             NVoc = size(BioSoundCalls,1);
         else
             clear ManualAnnotationOK
@@ -79,13 +82,15 @@ for df=1:length(DataFiles)
     else
         if Local
             FolderPath = '/Users/elie/WorkingDirectoryAudioQual';
-            fprintf(1,'Bringing data locally from the server\n')
-            [s,~]=copyfile(fullfile(DataFile.folder, DataFile.name), FolderPath, 'f');
-            if ~s
-                fprintf(1,'File transfer did not occur correctly\n')
-                keyboard
-            else
-                fprintf(1,'File transfer successful!\n')
+            if ~exist(fullfile(FolderPath, DataFile.name),"file")
+                fprintf(1,'Bringing data locally from the server\n')
+                [s,~]=copyfile(fullfile(DataFile.folder, DataFile.name), FolderPath, 'f');
+                if ~s
+                    fprintf(1,'File transfer did not occur correctly\n')
+                    keyboard
+                else
+                    fprintf(1,'File transfer successful!\n')
+                end
             end
         else
             FolderPath = DataFile.folder;
