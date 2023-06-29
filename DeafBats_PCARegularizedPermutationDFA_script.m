@@ -3,6 +3,8 @@
 LocalDataDir = '/Users/elie/Documents/DeafBats/Data';
 BaseDataDir = '/Volumes/server_home/users/JulieE/DeafSalineGroup151/';
 BaseCodeDir = '/Users/elie/Documents/CODE/GitHub/';
+GGPath = dir('/Users/elie/Google Drive*');
+Path2Paper = fullfile(GGPath.folder, GGPath.name, 'My Drive', 'BatmanData', 'Deaf Paper');
 %%
 % Loading previous data
 
@@ -113,8 +115,9 @@ CCT_mic = CCT(MicAudioGood01,:);
 
 %% For AllCalls run a PCA  and then a permutation DFA for both male and
 % females
-NRandPerm=10;
-NumPCsup = 5;
+NRandPerm=100;
+PLim = 0.01;
+NumPCsup = 10;
 
 fprintf(1,'<strong>-------------------------------------------------------------------------------</strong>\n')
 fprintf(1,'<strong>-------------------------------------------------------------------------------</strong>\n')
@@ -131,7 +134,7 @@ ylabel('%variance explained for All Calls')
 NPC90var = find(cumsum(VarExpl)>90,1);
 text(100,95, sprintf('90%% variance explained with %d PC',NPC90var ))
 text(100,90, sprintf('%.1f%% variance explained with 100 PC', CSVarExpl(100)))
-save(fullfile(LocalDataDir, 'DeafBats_PCA_AllCalls.mat'), 'PC', 'Score', 'VarExpl', 'NPC90var')
+save(fullfile(LocalDataDir, 'DeafBats_PCA_AllCalls.mat'), 'PC',  'VarExpl', 'NPC90var')
 save(fullfile(LocalDataDir, 'DeafBats_RegularizedPermDFA_AllCalls.mat'),  'NPC90var')
 
 %% DFA for both male and female calls
@@ -164,12 +167,17 @@ end
 Objective = diff(PCC_all_mean_std(:,1)) .* diff(CSVarExpl(PC_val));
 NPC_opt_ind = find(Objective-mean(PCC_all_mean_std(:,2))/2<0, 1, 'first')+1;
 NPC_opt_all = PC_val(NPC_opt_ind);
+% Contingency of correct and wrong classification for the optimal NPC for
+% Fisher exact test with treatment permutation DFA
+CorrectObs = round((1-mean(L_all{PC_val==NPC_opt_all})).*size(Score,1));
+ErrorObs = round(mean(L_all{PC_val==NPC_opt_all}).*size(Score,1));
+
 % Plot the figure
 FIG=figure();
 FIG.Position(3) = 2*FIG.Position(3);
 FIG.PaperPosition(3) = 2*FIG.PaperPosition(3);
 subplot(1,3,1)
-shadedErrorBar(PC_val, PCC_all_mean_std(:,1),PCC_all_mean_std(:,2),{'-','color',ColorCode(5,:)})
+shadedErrorBar(PC_val, PCC_all_mean_std(:,1),PCC_all_mean_std(:,2),{'-','color',ColorCode(5,:), 'LineWidth',2})
 xlabel('# PC')
 ylabel('% Classification correct')
 set(gca, 'YLim', [40 100])
@@ -182,8 +190,8 @@ V.LineWidth = 2;
 %% Permutation tests for both male and female calls
 % Permutation of HD irrespective of ID
 fprintf(1, 'All calls Permutation test irrespective of ID')
-%PC_val_rand = PC_val(1:(NPC_opt_ind+NumPCsup));
-PC_val_rand = PC_val;
+PC_val_rand = PC_val(1:min(length(PC_val),(NPC_opt_ind+NumPCsup)));
+% PC_val_rand = PC_val;
 Lrand_all = cell(length(PC_val_rand),1);
 for bb=1:NRandPerm
     fprintf(1, '\n Permutation %d/%d', bb, NRandPerm)
@@ -209,7 +217,10 @@ fprintf(1, '\nAll calls Permutation test respecting ID')
 C=nchoosek(1:10,5);
 Perm_all = [C(1:size(C,1)/2,:), flip(C((size(C,1)/2 +1) : end,:))];
 Lperm_all = cell(length(PC_val_rand),1);
-
+PFisher = nan(size(Perm_all,1),1); % p-value of the right tail Fisher's exact test to determine if the
+            % odds of correct classification is higher in the observed case
+            % than the permutation case when we use the optimal number of
+            % PC
 BatSexDeaf4DFA = BatSexDeaf([1:3, 7:8, 4:6, 9:10]); % reorder to place Deaf bats first in the list, then hearing bats
 BatName4DFA = BatName([1:3, 7:8, 4:6, 9:10]);
 BatIDMicGR = BatID(IndMicAudioGood);
@@ -232,6 +243,15 @@ for bb=1:size(Perm_all,1)
         end
         Mdlrand = fitcdiscr(Score(:,1:PC_val_rand(npc)), DeafMic_temp, 'CrossVal','on', 'KFold', 10,'Prior', [0.5 0.5], 'SaveMemory', 'on', 'FillCoeffs', 'off');
         Lperm_all{npc}(bb,:) = kfoldLoss(Mdlrand, 'Mode', 'Individual');
+        if npc==NPC_opt_ind
+            % perform a right tail Fisher's exact test to determine if the
+            % odds of correct classification is higher in the observed case
+            % than the permutation case
+            CorrectRand = round((1-mean(Lperm_all{npc}(bb,:))).*size(Score,1));
+            ErrorRand = round(mean(Lperm_all{npc}(bb,:)).*size(Score,1));
+            Tbl = table([CorrectObs ; CorrectRand],[ErrorObs ; ErrorRand], 'VariableNames', {'Correct', 'Error'}, 'RowNames', {'Observed', 'Permutation'});
+            [~,PFisher(bb),~] = fishertest(Tbl, 'Tail','right');
+        end
     end
 end
 
@@ -244,25 +264,23 @@ end
 % Add the permutation values to the figure
 FIG;
 subplot(1,3,2)
-shadedErrorBar(PC_val_rand, PCC_all_mean_std(1:(NPC_opt_ind+1),1),PCC_all_mean_std(1:(NPC_opt_ind+1),2),{'-','color',ColorCode(5,:)})
+shadedErrorBar(PC_val_rand, PCC_all_mean_std(1:length(PC_val_rand),1),PCC_all_mean_std(1:length(PC_val_rand),2),{'-','color',ColorCode(5,:), 'LineWidth',2})
 xlabel('# PC')
 ylabel('% Classification correct')
 set(gca, 'YLim', [40 100])
 hold on
-H=hline(50, 'k--','Chance level');
-H.LineWidth = 2;
-hold on
 V = vline(NPC_opt_all, 'b--', sprintf('Optimal #PC = %d', NPC_opt_all));
 V.LineWidth = 2;
 hold on
-shadedErrorBar(PC_val_rand, PCCrand_all_mean_std(:,1),PCCrand_all_mean_std(:,2))
+shadedErrorBar(PC_val_rand, PCCrand_all_mean_std(:,1),PCCrand_all_mean_std(:,2),{'-','color','k', 'LineWidth',2})
 hold on
-shadedErrorBar(PC_val_rand, PCCperm_all_mean_std(:,1),PCCperm_all_mean_std(:,2))
+shadedErrorBar(PC_val_rand, PCCperm_all_mean_std(:,1),PCCperm_all_mean_std(:,2),{'-','color',[0.5 0.5 0.5], 'LineWidth',2})
 hold off
-
-text(10,55, 'Full permutation')
-text(10,77, 'Permutation respecting ID')
-
+XLim = get(gca,'XLim');
+text(XLim(2)/2,97, 'Observed data', 'Color', ColorCode(5,:))
+text(XLim(2)/2,93, 'Full permutation', 'Color', 'k')
+text(XLim(2)/2,95, 'Permutation respecting ID', 'Color', [0.5 0.5 0.5])
+title(sprintf('# Significant exact Fisher test (obs vs perm) at optimal #PC: %d/%d', sum(PFisher<PLim), length(PFisher)))
 
 %% Rerun the DFA with all the data and the optimal number of PC to obtain the filter
 fprintf(1, 'All calls Getting the DF Axis\n')
@@ -281,7 +299,7 @@ PC_DF_all = PC(:,1:NPC_opt_all) * EigenVec_DFA_all(:,1);
 PC_DF_all = reshape(PC_DF_all, sum(IndWf), length(MPS_mic_wt));
 
 fprintf(1, 'Classification performance between K and S calls: %.1f%% +/-%.1f%%\nPermutation value (respecting ID): %.1f%% +/-%.1f%%\nPermutation value (irrespective of ID): %.1f%% +/-%.1f%%\n#PC:%d \n', PCC_all_mean_std(NPC_opt_ind,1), PCC_all_mean_std(NPC_opt_ind,2),PCCperm_all_mean_std(NPC_opt_ind,1), PCCperm_all_mean_std(NPC_opt_ind,2),PCCrand_all_mean_std(NPC_opt_ind,1), PCCrand_all_mean_std(NPC_opt_ind,2), NPC_opt_all)
-save(fullfile(LocalDataDir, 'DeafBats_RegularizedPermDFA_AllCalls.mat'),  'PC_val', 'NPC_opt_all','L_all', 'PCC_all_mean_std', 'Lperm_all', 'PCCperm_all_mean_std', 'Lrand_all', 'PCCrand_all_mean_std', 'PC_DF_all', 'EigenVec_DFA_all', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
+save(fullfile(LocalDataDir, 'DeafBats_RegularizedPermDFA_AllCalls.mat'),  'PC_val', 'NPC_opt_all','L_all', 'PCC_all_mean_std', 'Lperm_all', 'PCCperm_all_mean_std', 'Lrand_all', 'PCCrand_all_mean_std', 'PFisher', 'PC_DF_all', 'EigenVec_DFA_all', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
 
 % plot the positive direction of the DF1 axis in the MPS space
 FIG;
@@ -294,9 +312,95 @@ colormap(Cmap)
 Axis = caxis();
 Lim = max(abs(Axis));
 caxis([-Lim Lim])
-suplabel('All Calls DFA performance Saline vs Kanamycin irrespective of sex', 't')
+suplabel('All Calls DFA performance Saline vs Kanamycin irrespective of sex', 't');
+for cc=1:length(FIG.Children)
+    FIG.Children(cc).FontSize=12;
+end
 print(FIG, fullfile(GGPath.folder, GGPath.name,'My Drive/BatmanData/FigureLabMeeting/DeafBatsProject', 'RegPermDFA_AllCalls.png') , '-dpng')
-clear Score PC Mdl_all Mdlrand
+clear PC Mdl_all Mdlrand
+
+%% Calculate the genelarized variance for males and females calls in the PCA
+% space (determinant of the variance co-variance matrix). We only take the
+% # PC that explains 90% of the variance for this calculation.
+% 
+% Calculations per bat
+figure()
+CSVarExpl = cumsum(VarExpl);
+plot(CSVarExpl, 'Linewidth',2)
+xlabel('# PC')
+ylabel('%variance explained for All Calls')
+XLim = get(gca, 'XLim');
+text(XLim(2)/5,80, sprintf('%.1f %% of variance explained at 500 dimensions', CSVarExpl(500)))
+
+PC_val = [10:10:90 100:20:490 500:100:700];
+MeanD = nan(4,length(PC_val));
+StdD = nan(4,length(PC_val));
+
+for pc = 1:length(PC_val)
+    fprintf(1,'PC_val %d/%d\n',pc, length(PC_val))
+    NPC = PC_val(pc);
+    BatIDMic = str2double(BatID(MicAudioGood01));
+    DValues = nan(length(BatName),1);
+    for bb=1:length(BatName)
+        VCoVMat = cov(Score(BatIDMic==BatName(bb),1:NPC));
+        DValues(bb) = (det(VCoVMat))^(1/(2*NPC));
+    end
+    for ii=1:4
+        MeanD(ii,pc) = mean(DValues(contains(BatSexDeaf, USexDeaf{ii})));
+        StdD(ii,pc) = std(DValues(contains(BatSexDeaf, USexDeaf{ii})));
+    end
+end
+figure();
+for ii=1:4
+    hold on
+    shadedErrorBar(PC_val, MeanD(ii,:),StdD(ii,:), {'-', 'Color', UCSexDeaf(ii,:), 'LineWidth',2})
+end
+xlabel('# PC');ylabel('mean Generalized variance');
+hold on; yyaxis right; PY=plot(PC_val, MeanD(2,:)./MeanD(4,:),'-k', 'LineWidth',2);
+ylabel('Ratio Hearing Male/Female');
+YLim = get(gca, 'YLim');
+for ct=1:length(USexDeaf)
+    text(500,YLim(2)-diff(YLim)*(2+ct)/40, USexDeaf(ct), 'Color',UCSexDeaf(ct,:), 'FontWeight','bold' )
+end
+hold off
+PY.Parent.YColor = [0 0 0];
+
+NPC=100;
+NPC_Ind = find(PC_val==NPC);
+DMax = (det(cov(Score(:,1:NPC))))^(1/(2*NPC)); % This is
+% the generalized variance for all the data
+DValues = nan(length(BatName),1);
+for bb=1:length(BatName)
+    VCoVMat = cov(Score(BatIDMic==BatName(bb),1:NPC));
+    DValues(bb) = (det(VCoVMat))^(1/(2*NPC));
+end
+
+CData = nan(length(BatName),3);
+for bb=1:length(BatName)
+    CData(bb,:) = UCSexDeaf(strcmp(USexDeaf,BatSexDeaf{bb}),:);
+end
+
+figure()
+B=bar(1:10, DValues,'FaceColor', 'flat');
+B.CData = CData;
+xlabel('BatID')
+B.Parent.XTickLabel = BatName;
+ylabel('Generalized variance for 100 PCA dimensions')
+title('Vocalization dispersion')
+for ct=1:length(USexDeaf)
+    text(1,B.Parent.YLim(2)-diff(B.Parent.YLim)*(2+ct)/40, USexDeaf(ct), 'Color',UCSexDeaf(ct,:), 'FontWeight','bold' )
+end
+box off
+for ii=1:4
+    hold on
+    H=hline(MeanD(ii,NPC_Ind), '--');
+    H.Color = UCSexDeaf(ii,:);
+    H.LineWidth=2;
+end
+hold off
+fprintf(1,'Hearing female Vocalization dispersion at 100 PCA dimensions: %.1f +- %.1f\n', mean(DValues(contains(BatSexDeaf, 'Hearing Female'))), std(DValues(contains(BatSexDeaf, 'Hearing Female'))));
+fprintf(1,'Hearing male Vocalization dispersion at 100 PCA dimensions: %.1f +- %.1f\n', mean(DValues(contains(BatSexDeaf, 'Hearing Male'))), std(DValues(contains(BatSexDeaf, 'Hearing Male'))));
+clear Score
 %% For All Male Calls run a PCA  and then a permutation DFA for males
 fprintf(1,'<strong>-------------------------------------------------------------------------------</strong>\n')
 fprintf(1,'<strong>-------------------------------------------------------------------------------</strong>\n')
@@ -347,12 +451,16 @@ end
 Objective = diff(PCC_males_mean_std(:,1)) .* diff(CSVarExpl_M(PC_val_M));
 NPC_opt_ind = find(Objective-mean(PCC_males_mean_std(:,2))/2<0, 1, 'first')+1;
 NPC_opt_M = PC_val_M(NPC_opt_ind);
+% Contingency of correct and wrong classification for the optimal NPC for
+% Fisher exact test with treatment permutation DFA
+CorrectObs = round((1-mean(L_males{PC_val_M==NPC_opt_M})).*size(Score_M,1));
+ErrorObs = round(mean(L_males{PC_val_M==NPC_opt_M}).*size(Score_M,1));
 % Plot the figure
 FIG=figure();
 FIG.Position(3) = 2*FIG.Position(3);
 FIG.PaperPosition(3) = 2*FIG.PaperPosition(3);
 subplot(1,3,1)
-shadedErrorBar(PC_val_M, PCC_males_mean_std(:,1),PCC_males_mean_std(:,2),{'-','color',ColorCode(5,:)})
+shadedErrorBar(PC_val_M, PCC_males_mean_std(:,1),PCC_males_mean_std(:,2),{'-','color',ColorCode(5,:), 'LineWidth',2})
 xlabel('# PC')
 ylabel('% Classification correct')
 set(gca, 'YLim', [40 100])
@@ -365,8 +473,8 @@ V.LineWidth = 2;
 %% Permutation tests for male calls
 % Permutation of HD irrespective of ID
 fprintf(1, 'Male calls Permutation test irrespective of ID')
-% PC_val_rand = PC_val_M(1:(NPC_opt_ind+NumPCsup));
-PC_val_rand = PC_val_M;
+PC_val_rand = PC_val_M(1:min(length(PC_val_M),(NPC_opt_ind+NumPCsup)));
+% PC_val_rand = PC_val_M;
 Lrand_males = cell(length(PC_val_rand),1);
 for bb=1:NRandPerm
     fprintf(1, '\n Permutation %d/%d', bb, NRandPerm)
@@ -393,7 +501,7 @@ C=nchoosek(1:4,2);
 Perm_males = [C(1:size(C,1)/2,:), flip(C((size(C,1)/2 +1) : end,:))];
 Perm_males = Perm_males(2:end,:); % The first row is the actual true order
 Lperm_males = cell(length(PC_val_rand),1);
-
+PFisher_males = nan(size(Perm_males,1),1);
 BatSexDeaf4DFA = BatSexDeaf(7:10); % only take male bats
 BatName4DFA = BatName(7:10); % only take male bats
 BatIDMicGR = BatID(IndMicAudioGood(MaleLogical));
@@ -416,6 +524,15 @@ for bb=1:size(Perm_males,1)
         end
         Mdlrand = fitcdiscr(Score_M(:,1:PC_val_rand(npc)), DeafMic_temp, 'CrossVal','on', 'KFold', 10,'Prior', [0.5 0.5], 'SaveMemory', 'on', 'FillCoeffs', 'off');
         Lperm_males{npc}(bb,:) = kfoldLoss(Mdlrand, 'Mode', 'Individual');
+        if npc==NPC_opt_ind
+            % perform a right tail Fisher's exact test to determine if the
+            % odds of correct classification is higher in the observed case
+            % than the permutation case
+            CorrectRand = round((1-mean(Lperm_males{npc}(bb,:))).*size(Score_M,1));
+            ErrorRand = round(mean(Lperm_males{npc}(bb,:)).*size(Score_M,1));
+            Tbl = table([CorrectObs ; CorrectRand],[ErrorObs ; ErrorRand], 'VariableNames', {'Correct', 'Error'}, 'RowNames', {'Observed', 'Permutation'});
+            [~,PFisher_males(bb),~] = fishertest(Tbl, 'Tail','right');
+        end
     end
 end
 
@@ -428,7 +545,7 @@ end
 % Add the permutation values to the figure
 FIG;
 subplot(1,3,2)
-shadedErrorBar(PC_val_rand, PCC_males_mean_std(1:(NPC_opt_ind+1),1),PCC_males_mean_std(1:(NPC_opt_ind+1),2),{'-','color',ColorCode(5,:)})
+shadedErrorBar(PC_val_rand, PCC_males_mean_std(1:length(PC_val_rand),1),PCC_males_mean_std(1:length(PC_val_rand),2),{'-','color',ColorCode(5,:), 'LineWidth',2})
 xlabel('# PC')
 ylabel('% Classification correct')
 set(gca, 'YLim', [40 100])
@@ -439,13 +556,15 @@ hold on
 V = vline(NPC_opt_M, 'b--', sprintf('Optimal #PC = %d', NPC_opt_M));
 V.LineWidth = 2;
 hold on
-shadedErrorBar(PC_val_rand, PCCrand_males_mean_std(:,1),PCCrand_males_mean_std(:,2))
+shadedErrorBar(PC_val_rand, PCCrand_males_mean_std(:,1),PCCrand_males_mean_std(:,2),{'-', 'Color', 'k', 'LineWidth',2})
 hold on
-shadedErrorBar(PC_val_rand, PCCperm_males_mean_std(:,1),PCCperm_males_mean_std(:,2))
+shadedErrorBar(PC_val_rand, PCCperm_males_mean_std(:,1),PCCperm_males_mean_std(:,2), {'-', 'Color',[0.5 0.5 0.5], 'LineWidth',2})
 hold off
-
-text(10,55, 'Full permutation')
-text(10,77, 'Permutation respecting ID')
+XLim = get(gca,'XLim');
+text(XLim(2)/2,97, 'Observed data', 'Color', ColorCode(5,:))
+text(XLim(2)/2,93, 'Full permutation', 'Color', 'k')
+text(XLim(2)/2,95, 'Permutation respecting ID', 'Color', [0.5 0.5 0.5])
+title(sprintf('# Significant exact Fisher test (obs vs perm) at optimal #PC: %d/%d', sum(PFisher_males<PLim), length(PFisher_males)))
 
 
 %% Rerun the DFA with all the data and the optimal number of PC to obtain the filter
@@ -465,7 +584,7 @@ PC_DF_males = PC_M(:,1:NPC_opt_M) * EigenVec_DFA_M(:,1);
 PC_DF_males = reshape(PC_DF_males, sum(IndWf), length(MPS_mic_wt));
 
 fprintf(1, 'Classification performance between male K and male S calls: %.1f%% +/-%.1f%%\nPermutation value (respecting ID): %.1f%% +/-%.1f%%\nPermutation value (irrespective of ID): %.1f%% +/-%.1f%%\n#PC:%d \n', PCC_males_mean_std(NPC_opt_ind,1), PCC_males_mean_std(NPC_opt_ind,2),PCCperm_males_mean_std(NPC_opt_ind,1), PCCperm_males_mean_std(NPC_opt_ind,2),PCCrand_males_mean_std(NPC_opt_ind,1), PCCrand_males_mean_std(NPC_opt_ind,2), NPC_opt_M)
-save(fullfile(LocalDataDir, 'DeafBats_RegularizedPermDFA_MaleCalls.mat'),  'PC_val_M', 'NPC_opt_M','L_males', 'PCC_males_mean_std', 'Lperm_males', 'PCCperm_males_mean_std', 'Lrand_males', 'PCCrand_males_mean_std', 'PC_DF_males', 'EigenVec_DFA_M', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
+save(fullfile(LocalDataDir, 'DeafBats_RegularizedPermDFA_MaleCalls.mat'),  'PC_val_M', 'NPC_opt_M','L_males', 'PCC_males_mean_std', 'Lperm_males','PFisher_males', 'PCCperm_males_mean_std', 'Lrand_males', 'PCCrand_males_mean_std', 'PC_DF_males', 'EigenVec_DFA_M', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
 
 % plot the positive direction of the DF1 axis in the MPS space
 FIG;
@@ -478,9 +597,19 @@ colormap(Cmap)
 Axis = caxis();
 Lim = max(abs(Axis));
 caxis([-Lim Lim])
-suplabel('Male Calls DFA performance Saline vs Kanamycin', 't')
+suplabel('Male Calls DFA performance Saline vs Kanamycin', 't');
+for cc=1:length(FIG.Children)
+    FIG.Children(cc).FontSize=12;
+end
 print(FIG, fullfile(GGPath.folder, GGPath.name,'My Drive/BatmanData/FigureLabMeeting/DeafBatsProject', 'RegPermDFA_MaleCalls.png') , '-dpng')
-
+for cc=1:length(FIG.Children)
+    FIG.Children(cc).FontSize=8;
+end
+FIG.PaperOrientation = 'landscape';
+FIG.Units = 'inches';
+FIG.Position(3:4) = [8 4];
+FIG.PaperSize = [8 4];
+print(FIG,fullfile(Path2Paper,'RegPermDFA_MaleCalls.pdf'),'-dpdf','-fillpage')
 clear Score_M PCC_M Mdl_M Mdlrand
 %% For All female Calls run a PCA  and then a permutation DFA for females
 fprintf(1,'<strong>-------------------------------------------------------------------------------</strong>\n')
@@ -532,12 +661,16 @@ end
 Objective = diff(PCC_females_mean_std(:,1)) .* diff(CSVarExpl_F(PC_val_F));
 NPC_opt_ind = find(Objective-mean(PCC_females_mean_std(:,2))/2<0, 1, 'first')+1;
 NPC_opt_F = PC_val_F(NPC_opt_ind);
+% Contingency of correct and wrong classification for the optimal NPC for
+% Fisher exact test with treatment permutation DFA
+CorrectObs = round((1-mean(L_females{PC_val_F==NPC_opt_F})).*size(Score_F,1));
+ErrorObs = round(mean(L_females{PC_val_F==NPC_opt_F}).*size(Score_F,1));
 % Plot the figure
 FIG=figure();
 FIG.Position(3) = 2*FIG.Position(3);
 FIG.PaperPosition(3) = 2*FIG.PaperPosition(3);
 subplot(1,3,1)
-shadedErrorBar(PC_val_F, PCC_females_mean_std(:,1),PCC_females_mean_std(:,2),{'-','color',ColorCode(5,:)})
+shadedErrorBar(PC_val_F, PCC_females_mean_std(:,1),PCC_females_mean_std(:,2),{'-','color',ColorCode(5,:), 'LineWidth',2})
 xlabel('# PC')
 ylabel('% Classification correct')
 set(gca, 'YLim', [40 100])
@@ -550,8 +683,8 @@ V.LineWidth = 2;
 %% Permutation tests for female calls
 % Permutation of HD irrespective of ID
 fprintf(1, 'Female calls Permutation test irrespective of ID')
-%PC_val_rand = PC_val_F(1:(NPC_opt_ind+NumPCsup));
-PC_val_rand = PC_val_F;
+PC_val_rand = PC_val_F(1:min(length(PC_val_F),(NPC_opt_ind+NumPCsup)));
+% PC_val_rand = PC_val_F;
 Lrand_females = cell(length(PC_val_rand),1);
 for bb=1:NRandPerm
     fprintf(1, '\n Permutation %d/%d', bb, NRandPerm)
@@ -578,7 +711,7 @@ C=nchoosek(1:6,3);
 Perm_females = [C(1:size(C,1)/2,:), flip(C((size(C,1)/2 +1) : end,:))];
 Perm_females = Perm_females(2:end,:); % first row is in True order
 Lperm_females = cell(length(PC_val_rand),1);
-
+PFisher_females = nan(size(Perm_females,1),1);
 BatSexDeaf4DFA = BatSexDeaf(1:6); % only take female bats
 BatName4DFA = BatName(1:6); % only take female bats
 BatIDMicGR = BatID(IndMicAudioGood(FemaleLogical));
@@ -601,6 +734,15 @@ for bb=1:size(Perm_females,1)
         end
         Mdlrand = fitcdiscr(Score_F(:,1:PC_val_rand(npc)), DeafMic_temp, 'CrossVal','on', 'KFold', 10,'Prior', [0.5 0.5], 'SaveMemory', 'on', 'FillCoeffs', 'off');
         Lperm_females{npc}(bb,:) = kfoldLoss(Mdlrand, 'Mode', 'Individual');
+        if npc==NPC_opt_ind
+            % perform a right tail Fisher's exact test to determine if the
+            % odds of correct classification is higher in the observed case
+            % than the permutation case
+            CorrectRand = round((1-mean(Lperm_females{npc}(bb,:))).*size(Score_F,1));
+            ErrorRand = round(mean(Lperm_females{npc}(bb,:)).*size(Score_F,1));
+            Tbl = table([CorrectObs ; CorrectRand],[ErrorObs ; ErrorRand], 'VariableNames', {'Correct', 'Error'}, 'RowNames', {'Observed', 'Permutation'});
+            [~,PFisher_females(bb),~] = fishertest(Tbl, 'Tail','right');
+        end
     end
 end
 
@@ -613,7 +755,7 @@ end
 % Add the permutation values to the figure
 FIG;
 subplot(1,3,2)
-shadedErrorBar(PC_val_rand, PCC_females_mean_std(1:(NPC_opt_ind+1),1),PCC_females_mean_std(1:(NPC_opt_ind+1),2),{'-','color',ColorCode(5,:)})
+shadedErrorBar(PC_val_rand, PCC_females_mean_std(1:length(PC_val_rand),1),PCC_females_mean_std(1:length(PC_val_rand),2),{'-','color',ColorCode(5,:), 'LineWidth',2})
 xlabel('# PC')
 ylabel('% Classification correct')
 set(gca, 'YLim', [40 100])
@@ -624,14 +766,15 @@ hold on
 V = vline(NPC_opt_F, 'b--', sprintf('Optimal #PC = %d', NPC_opt_F));
 V.LineWidth = 2;
 hold on
-shadedErrorBar(PC_val_rand, PCCrand_females_mean_std(:,1),PCCrand_females_mean_std(:,2))
+shadedErrorBar(PC_val_rand, PCCrand_females_mean_std(:,1),PCCrand_females_mean_std(:,2),{'-','Color','k', 'LineWidth',2})
 hold on
-shadedErrorBar(PC_val_rand, PCCperm_females_mean_std(:,1),PCCperm_females_mean_std(:,2))
+shadedErrorBar(PC_val_rand, PCCperm_females_mean_std(:,1),PCCperm_females_mean_std(:,2), {'-','Color',[0.5 0.5 0.5], 'LineWidth',2})
 hold off
-
-text(10,55, 'Full permutation')
-text(10,77, 'Permutation respecting ID')
-
+XLim = get(gca,'XLim');
+text(XLim(2)/2,97, 'Observed data', 'Color', ColorCode(5,:))
+text(XLim(2)/2,93, 'Full permutation', 'Color', 'k')
+text(XLim(2)/2,95, 'Permutation respecting ID', 'Color', [0.5 0.5 0.5])
+title(sprintf('# Significant exact Fisher test (obs vs perm) at optimal #PC: %d/%d', sum(PFisher_females<PLim), length(PFisher_females)))
 
 %% Rerun the DFA with all the data and the optimal number of PC to obtain the filter
 fprintf(1, 'Female calls Getting the DF Axis\n')
@@ -650,7 +793,7 @@ PC_DF_females = PC_M(:,1:NPC_opt_F) * EigenVec_DFA_F(:,1);
 PC_DF_females = reshape(PC_DF_females, sum(IndWf), length(MPS_mic_wt));
 
 fprintf(1, 'Classification performance between female K and female S calls: %.1f%% +/-%.1f%%\nPermutation value (respecting ID): %.1f%% +/-%.1f%%\nPermutation value (irrespective of ID): %.1f%% +/-%.1f%%\n#PC:%d \n', PCC_females_mean_std(NPC_opt_ind,1), PCC_females_mean_std(NPC_opt_ind,2),PCCperm_females_mean_std(NPC_opt_ind,1), PCCperm_females_mean_std(NPC_opt_ind,2),PCCrand_females_mean_std(NPC_opt_ind,1), PCCrand_females_mean_std(NPC_opt_ind,2), NPC_opt_F)
-save(fullfile(LocalDataDir, 'DeafBats_RegularizedPermDFA_FemaleCalls.mat'),  'PC_val_F', 'NPC_opt_F','L_females', 'PCC_females_mean_std', 'Lperm_females', 'PCCperm_females_mean_std', 'Lrand_females', 'PCCrand_females_mean_std', 'PC_DF_females','EigenVec_DFA_F', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
+save(fullfile(LocalDataDir, 'DeafBats_RegularizedPermDFA_FemaleCalls.mat'),  'PC_val_F', 'NPC_opt_F','L_females','PFisher_females', 'PCC_females_mean_std', 'Lperm_females', 'PCCperm_females_mean_std', 'Lrand_females', 'PCCrand_females_mean_std', 'PC_DF_females','EigenVec_DFA_F', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
 
 % plot the positive direction of the DF1 axis in the MPS space
 FIG;
@@ -663,15 +806,24 @@ colormap(Cmap)
 Axis = caxis();
 Lim = max(abs(Axis));
 caxis([-Lim Lim])
-suplabel('Female Calls DFA performance Saline vs Kanamycin', 't')
+suplabel('Female Calls DFA performance Saline vs Kanamycin', 't');
+for cc=1:length(FIG.Children)
+    FIG.Children(cc).FontSize=12;
+end
 print(FIG, fullfile(GGPath.folder, GGPath.name,'My Drive/BatmanData/FigureLabMeeting/DeafBatsProject', 'RegPermDFA_FemaleCalls.png') , '-dpng')
-
+for cc=1:length(FIG.Children)
+    FIG.Children(cc).FontSize=8;
+end
+FIG.PaperOrientation = 'landscape';
+FIG.Units = 'inches';
+FIG.Position(3:4) = [8 4];
+FIG.PaperSize = [8 4];
+print(FIG,fullfile(Path2Paper,'RegPermDFA_FemaleCalls.pdf'),'-dpdf','-fillpage')
 clear Score_F PCC_F Mdl_F Mdlrand
 
 
 %% Now same analysis for each acoustic group
 
-NumPCsup = 5;
 UGroup = unique(TmicAll7);
 for gg=1:length(UGroup)
     GR = UGroup(gg);
@@ -691,7 +843,7 @@ for gg=1:length(UGroup)
     NPC90var = find(cumsum(VarExpl)>90,1);
     text(100,95, sprintf('90%% variance explained with %d PC',NPC90var ))
     text(100,90, sprintf('%.1f%% variance explained with 100 PC', CSVarExpl(100)))
-    save(fullfile(LocalDataDir, sprintf('DeafBats_PCA_AcGroup%d.mat', GR)), 'PC', 'Score', 'VarExpl', 'NPC90var')
+    save(fullfile(LocalDataDir, sprintf('DeafBats_PCA_AcGroup%d.mat', GR)), 'PC', 'VarExpl', 'NPC90var')
     save(fullfile(LocalDataDir, sprintf('DeafBats_RegularizedPermDFA_AcGroup%d.mat', GR)),  'NPC90var')
 
     %% DFA for both male and female calls
@@ -724,12 +876,16 @@ for gg=1:length(UGroup)
     Objective = diff(PCC_all_mean_std(:,1)) .* diff(CSVarExpl(PC_val));
     NPC_opt_ind = find(Objective-mean(PCC_all_mean_std(:,2))/2<0, 1, 'first')+1;
     NPC_opt_all = PC_val(NPC_opt_ind);
+    % Contingency of correct and wrong classification for the optimal NPC for
+    % Fisher exact test with treatment permutation DFA
+    CorrectObs = round((1-mean(L_all{PC_val==NPC_opt_all})).*size(Score,1));
+    ErrorObs = round(mean(L_all{PC_val==NPC_opt_all}).*size(Score,1));
     % Plot the figure
     FIG=figure();
     FIG.Position(3) = 2*FIG.Position(3);
     FIG.PaperPosition(3) = 2*FIG.PaperPosition(3);
     subplot(1,3,1)
-    shadedErrorBar(PC_val, PCC_all_mean_std(:,1),PCC_all_mean_std(:,2),{'-','color',ColorCode(5,:)})
+    shadedErrorBar(PC_val, PCC_all_mean_std(:,1),PCC_all_mean_std(:,2),{'-','color',ColorCode(5,:), 'LineWidth',2})
     xlabel('# PC')
     ylabel('% Classification correct')
     set(gca, 'YLim', [40 100])
@@ -742,8 +898,8 @@ for gg=1:length(UGroup)
     %% Permutation tests for both male and female calls
     % Permutation of HD irrespective of ID
     fprintf(1, 'All calls Ac Grp %d Permutation test irrespective of ID', GR)
-    %PC_val_rand = PC_val(1:(NPC_opt_ind+NumPCsup));
-    PC_val_rand = PC_val;
+    PC_val_rand = PC_val(1:min(length(PC_val),(NPC_opt_ind+NumPCsup)));
+%     PC_val_rand = PC_val;
     Lrand_all = cell(length(PC_val_rand),1);
     for bb=1:NRandPerm
         fprintf(1, '\n Permutation %d/%d', bb, NRandPerm)
@@ -769,7 +925,7 @@ for gg=1:length(UGroup)
     C=nchoosek(1:10,5);
     Perm_all = [C(1:size(C,1)/2,:), flip(C((size(C,1)/2 +1) : end,:))];
     Lperm_all = cell(length(PC_val_rand),1);
-
+    PFisher = nan(size(Perm_all,1),1);
     BatSexDeaf4DFA = BatSexDeaf([1:3, 7:8, 4:6, 9:10]); % reorder to place Deaf bats first in the list, then hearing bats
     BatName4DFA = BatName([1:3, 7:8, 4:6, 9:10]);
     BatIDMicGR = BatID(IndMicAudioGood(TmicAll7==GR));
@@ -792,6 +948,15 @@ for gg=1:length(UGroup)
             end
             Mdlrand = fitcdiscr(Score(:,1:PC_val_rand(npc)), DeafMic_temp, 'CrossVal','on', 'KFold', 10,'Prior', [0.5 0.5], 'SaveMemory', 'on', 'FillCoeffs', 'off');
             Lperm_all{npc}(bb,:) = kfoldLoss(Mdlrand, 'Mode', 'Individual');
+            if npc==NPC_opt_ind
+                % perform a right tail Fisher's exact test to determine if the
+                % odds of correct classification is higher in the observed case
+                % than the permutation case
+                CorrectRand = round((1-mean(Lperm_all{npc}(bb,:))).*size(Score,1));
+                ErrorRand = round(mean(Lperm_all{npc}(bb,:)).*size(Score,1));
+                Tbl = table([CorrectObs ; CorrectRand],[ErrorObs ; ErrorRand], 'VariableNames', {'Correct', 'Error'}, 'RowNames', {'Observed', 'Permutation'});
+                [~,PFisher(bb),~] = fishertest(Tbl, 'Tail','right');
+            end
         end
     end
 
@@ -804,7 +969,7 @@ for gg=1:length(UGroup)
     % Add the permutation values to the figure
     FIG;
     subplot(1,3,2)
-    shadedErrorBar(PC_val_rand, PCC_all_mean_std(1:(NPC_opt_ind+NumPCsup),1),PCC_all_mean_std(1:(NPC_opt_ind+NumPCsup),2),{'-','color',ColorCode(5,:)})
+    shadedErrorBar(PC_val_rand, PCC_all_mean_std(1:length(PC_val_rand),1),PCC_all_mean_std(1:length(PC_val_rand),2),{'-','color',ColorCode(5,:), 'LineWidth',2})
     xlabel('# PC')
     ylabel('% Classification correct')
     set(gca, 'YLim', [40 100])
@@ -815,14 +980,15 @@ for gg=1:length(UGroup)
     V = vline(NPC_opt_all, 'b--', sprintf('Optimal #PC = %d', NPC_opt_all));
     V.LineWidth = 2;
     hold on
-    shadedErrorBar(PC_val_rand, PCCrand_all_mean_std(:,1),PCCrand_all_mean_std(:,2))
+    shadedErrorBar(PC_val_rand, PCCrand_all_mean_std(:,1),PCCrand_all_mean_std(:,2), {'-','Color','k', 'LineWidth',2})
     hold on
-    shadedErrorBar(PC_val_rand, PCCperm_all_mean_std(:,1),PCCperm_all_mean_std(:,2))
+    shadedErrorBar(PC_val_rand, PCCperm_all_mean_std(:,1),PCCperm_all_mean_std(:,2),{'-','Color',[0.5 0.5 0.5], 'LineWidth',2})
     hold off
-    
-    text(10,55, 'Full permutation')
-    text(10,77, 'Permutation respecting ID')
-
+    XLim = get(gca,'XLim');
+    text(XLim(2)/2,97, 'Observed data', 'Color', ColorCode(5,:))
+    text(XLim(2)/2,93, 'Full permutation', 'Color', 'k')
+    text(XLim(2)/2,95, 'Permutation respecting ID', 'Color', [0.5 0.5 0.5])
+    title(sprintf('# Significant exact Fisher test (obs vs perm) at optimal #PC: %d/%d', sum(PFisher<PLim), length(PFisher)))
 
     %% Rerun the DFA with all the data and the optimal number of PC to obtain the filter
     fprintf(1, 'All calls Getting the DF Axis\n')
@@ -841,7 +1007,7 @@ for gg=1:length(UGroup)
     PC_DF_all = reshape(PC_DF_all, sum(IndWf), length(MPS_mic_wt));
 
     fprintf(1, 'Classification performance between K and S calls in Ac Grp %d: %.1f%% +/-%.1f%%\nPermutation value (respecting ID): %.1f%% +/-%.1f%%\nPermutation value (irrespective of ID): %.1f%% +/-%.1f%%\n#PC:%d \n', GR, PCC_all_mean_std(NPC_opt_ind,1), PCC_all_mean_std(NPC_opt_ind,2),PCCperm_all_mean_std(NPC_opt_ind,1), PCCperm_all_mean_std(NPC_opt_ind,2),PCCrand_all_mean_std(NPC_opt_ind,1), PCCrand_all_mean_std(NPC_opt_ind,2), NPC_opt_all)
-    save(fullfile(LocalDataDir, sprintf('DeafBats_RegularizedPermDFA_AcGroup%d.mat', GR)),  'PC_val', 'NPC_opt_all','L_all', 'PCC_all_mean_std', 'Lperm_all', 'PCCperm_all_mean_std', 'Lrand_all', 'PCCrand_all_mean_std', 'PC_DF_all', 'EigenVec_DFA_all', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
+    save(fullfile(LocalDataDir, sprintf('DeafBats_RegularizedPermDFA_AcGroup%d.mat', GR)),  'PC_val', 'NPC_opt_all','L_all', 'PFisher', 'PCC_all_mean_std', 'Lperm_all', 'PCCperm_all_mean_std', 'Lrand_all', 'PCCrand_all_mean_std', 'PC_DF_all', 'EigenVec_DFA_all', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
 
     % plot the positive direction of the DF1 axis in the MPS space
     FIG;
@@ -854,7 +1020,10 @@ for gg=1:length(UGroup)
     Axis = caxis();
     Lim = max(abs(Axis));
     caxis([-Lim Lim])
-    suplabel(sprintf('Acoustid Group %d DFA performance Saline vs Kanamycin irrespective of sex', GR), 't')
+    suplabel(sprintf('Acoustid Group %d DFA performance Saline vs Kanamycin irrespective of sex', GR), 't');
+    for cc=1:length(FIG.Children)
+        FIG.Children(cc).FontSize=12;
+    end
     print(FIG, fullfile(GGPath.folder, GGPath.name,'My Drive/BatmanData/FigureLabMeeting/DeafBatsProject', sprintf('RegPermDFA_AcGrp%d.png', GR)) , '-dpng')
     clear Score PC Mdl_all Mdlrand
 
@@ -912,12 +1081,16 @@ for gg=1:length(UGroup)
     Objective = diff(PCC_males_mean_std(:,1)) .* diff(CSVarExpl_M(PC_val_M));
     NPC_opt_ind = find(Objective-mean(PCC_males_mean_std(:,2))/2<0, 1, 'first')+1;
     NPC_opt_M = PC_val_M(NPC_opt_ind);
+    % Contingency of correct and wrong classification for the optimal NPC for
+    % Fisher exact test with treatment permutation DFA
+    CorrectObs = round((1-mean(L_males{PC_val_M==NPC_opt_M})).*size(Score_M,1));
+    ErrorObs = round(mean(L_males{PC_val_M==NPC_opt_M}).*size(Score_M,1));
     % Plot the figure
     FIG=figure();
     FIG.Position(3) = 2*FIG.Position(3);
     FIG.PaperPosition(3) = 2*FIG.PaperPosition(3);
     subplot(1,3,1)
-    shadedErrorBar(PC_val_M, PCC_males_mean_std(:,1),PCC_males_mean_std(:,2),{'-','color',ColorCode(5,:)})
+    shadedErrorBar(PC_val_M, PCC_males_mean_std(:,1),PCC_males_mean_std(:,2),{'-','color',ColorCode(5,:), 'LineWidth',2})
     xlabel('# PC')
     ylabel('% Classification correct')
     set(gca, 'YLim', [40 100])
@@ -930,8 +1103,8 @@ for gg=1:length(UGroup)
     %% Permutation tests for male calls
     % Permutation of HD irrespective of ID
     fprintf(1, 'Male calls Ac Grp%d Permutation test irrespective of ID', GR)
-    %PC_val_rand = PC_val_M(1:(NPC_opt_ind+NumPCsup));
-    PC_val_rand = PC_val_M;
+    PC_val_rand = PC_val_M(1:min(length(PC_val_M),(NPC_opt_ind+NumPCsup)));
+%     PC_val_rand = PC_val_M;
     Lrand_males = cell(length(PC_val_rand),1);
     for bb=1:NRandPerm
         fprintf(1, '\n Permutation %d/%d', bb, NRandPerm)
@@ -958,7 +1131,7 @@ for gg=1:length(UGroup)
     Perm_males = [C(1:size(C,1)/2,:), flip(C((size(C,1)/2 +1) : end,:))];
     Perm_males = Perm_males(2:end,:); % The first row is the actual true order
     Lperm_males = cell(length(PC_val_rand),1);
-
+    PFisher_males = nan(size(Perm_males,1),1);
     BatSexDeaf4DFA = BatSexDeaf(7:10); % only take male bats
     BatName4DFA = BatName(7:10); % only take male bats
     BatIDMicGR = BatID(IndMicAudioGood(MaleLogical));
@@ -981,6 +1154,15 @@ for gg=1:length(UGroup)
             end
             Mdlrand = fitcdiscr(Score_M(:,1:PC_val_rand(npc)), DeafMic_temp, 'CrossVal','on', 'KFold', 10,'Prior', [0.5 0.5], 'SaveMemory', 'on', 'FillCoeffs', 'off');
             Lperm_males{npc}(bb,:) = kfoldLoss(Mdlrand, 'Mode', 'Individual');
+            if npc==NPC_opt_ind
+                % perform a right tail Fisher's exact test to determine if the
+                % odds of correct classification is higher in the observed case
+                % than the permutation case
+                CorrectRand = round((1-mean(Lperm_males{npc}(bb,:))).*size(Score_M,1));
+                ErrorRand = round(mean(Lperm_males{npc}(bb,:)).*size(Score_M,1));
+                Tbl = table([CorrectObs ; CorrectRand],[ErrorObs ; ErrorRand], 'VariableNames', {'Correct', 'Error'}, 'RowNames', {'Observed', 'Permutation'});
+                [~,PFisher_males(bb),~] = fishertest(Tbl, 'Tail','right');
+            end
         end
     end
 
@@ -993,7 +1175,7 @@ for gg=1:length(UGroup)
     % Add the permutation values to the figure
     FIG;
     subplot(1,3,2)
-    shadedErrorBar(PC_val_rand, PCC_males_mean_std(1:(NPC_opt_ind+NumPCsup),1),PCC_males_mean_std(1:(NPC_opt_ind+NumPCsup),2),{'-','color',ColorCode(5,:)})
+    shadedErrorBar(PC_val_rand, PCC_males_mean_std(1:length(PC_val_rand),1),PCC_males_mean_std(1:length(PC_val_rand),2),{'-','color',ColorCode(5,:), 'LineWidth',2})
     xlabel('# PC')
     ylabel('% Classification correct')
     set(gca, 'YLim', [40 100])
@@ -1004,14 +1186,15 @@ for gg=1:length(UGroup)
     V = vline(NPC_opt_M, 'b--', sprintf('Optimal #PC = %d', NPC_opt_M));
     V.LineWidth = 2;
     hold on
-    shadedErrorBar(PC_val_rand, PCCrand_males_mean_std(:,1),PCCrand_males_mean_std(:,2))
+    shadedErrorBar(PC_val_rand, PCCrand_males_mean_std(:,1),PCCrand_males_mean_std(:,2), {'-','Color','k', 'LineWidth',2})
     hold on
-    shadedErrorBar(PC_val_rand, PCCperm_males_mean_std(:,1),PCCperm_males_mean_std(:,2))
+    shadedErrorBar(PC_val_rand, PCCperm_males_mean_std(:,1),PCCperm_males_mean_std(:,2), {'-', 'Color', [0.5 0.5 0.5], 'LineWidth',2})
     hold off
-    
-    text(10,55, 'Full permutation')
-    text(10,77, 'Permutation respecting ID')
-
+    XLim = get(gca,'XLim');
+    text(XLim(2)/2,97, 'Observed data', 'Color', ColorCode(5,:))
+    text(XLim(2)/2,93, 'Full permutation', 'Color', 'k')
+    text(XLim(2)/2,95, 'Permutation respecting ID', 'Color', [0.5 0.5 0.5])
+    title(sprintf('# Significant exact Fisher test (obs vs perm) at optimal #PC: %d/%d', sum(PFisher_males<PLim), length(PFisher_males)))
 
     %% Rerun the DFA with all the data and the optimal number of PC to obtain the filter
     fprintf(1, 'Male calls Ac Grp %d Getting the DF Axis\n', GR)
@@ -1030,7 +1213,7 @@ for gg=1:length(UGroup)
     PC_DF_males = reshape(PC_DF_males, sum(IndWf), length(MPS_mic_wt));
 
     fprintf(1, 'Classification performance between male K and male S calls in Ac Grp %d: %.1f%% +/-%.1f%%\nPermutation value (respecting ID): %.1f%% +/-%.1f%%\nPermutation value (irrespective of ID): %.1f%% +/-%.1f%%\n#PC:%d \n', GR, PCC_males_mean_std(NPC_opt_ind,1), PCC_males_mean_std(NPC_opt_ind,2),PCCperm_males_mean_std(NPC_opt_ind,1), PCCperm_males_mean_std(NPC_opt_ind,2),PCCrand_males_mean_std(NPC_opt_ind,1), PCCrand_males_mean_std(NPC_opt_ind,2), NPC_opt_M)
-    save(fullfile(LocalDataDir, sprintf('DeafBats_RegularizedPermDFA_MaleAcGroup%d.mat', GR)),  'PC_val_M', 'NPC_opt_M','L_males', 'PCC_males_mean_std', 'Lperm_males', 'PCCperm_males_mean_std', 'Lrand_males', 'PCCrand_males_mean_std', 'PC_DF_males', 'EigenVec_DFA_M', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
+    save(fullfile(LocalDataDir, sprintf('DeafBats_RegularizedPermDFA_MaleAcGroup%d.mat', GR)),  'PC_val_M', 'NPC_opt_M','L_males', 'PFisher_males', 'PCC_males_mean_std', 'Lperm_males', 'PCCperm_males_mean_std', 'Lrand_males', 'PCCrand_males_mean_std', 'PC_DF_males', 'EigenVec_DFA_M', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
 
     % plot the positive direction of the DF1 axis in the MPS space
     FIG;
@@ -1043,9 +1226,21 @@ for gg=1:length(UGroup)
     Axis = caxis();
     Lim = max(abs(Axis));
     caxis([-Lim Lim])
-    suplabel(sprintf('Acoustid Group %d Male Calls DFA performance Saline vs Kanamycin', GR), 't')
+    suplabel(sprintf('Acoustid Group %d Male Calls DFA performance Saline vs Kanamycin', GR), 't');
+    for cc=1:length(FIG.Children)
+        FIG.Children(cc).FontSize=12;
+    end
     print(FIG, fullfile(GGPath.folder, GGPath.name,'My Drive/BatmanData/FigureLabMeeting/DeafBatsProject', sprintf('RegPermDFA_MaleCallsAcGrp%d.png',GR)) , '-dpng')
-    
+    if GR==5
+        for cc=1:length(FIG.Children)
+            FIG.Children(cc).FontSize=8;
+        end
+        FIG.PaperOrientation = 'landscape';
+        FIG.Units = 'inches';
+        FIG.Position(3:4) = [8 4];
+        FIG.PaperSize = [8 4];
+        print(FIG,fullfile(Path2Paper,sprintf('RegPermDFA_MaleCallsAcGrp%d.pdf', GR)),'-dpdf','-fillpage')
+    end
     clear Score_M PCC_M Mdl_M Mdlrand
 
     %% For All female Calls run a PCA  and then a permutation DFA for females
@@ -1101,12 +1296,16 @@ for gg=1:length(UGroup)
     Objective = diff(PCC_females_mean_std(:,1)) .* diff(CSVarExpl_F(PC_val_F));
     NPC_opt_ind = find(Objective-mean(PCC_females_mean_std(:,2))/2<0, 1, 'first')+1;
     NPC_opt_F = PC_val_F(NPC_opt_ind);
+    % Contingency of correct and wrong classification for the optimal NPC for
+    % Fisher exact test with treatment permutation DFA
+    CorrectObs = round((1-mean(L_females{PC_val_F==NPC_opt_F})).*size(Score_F,1));
+    ErrorObs = round(mean(L_females{PC_val_F==NPC_opt_F}).*size(Score_F,1));
     % Plot the figure
     FIG=figure();
     FIG.Position(3) = 2*FIG.Position(3);
     FIG.PaperPosition(3) = 2*FIG.PaperPosition(3);
     subplot(1,3,1)
-    shadedErrorBar(PC_val_F, PCC_females_mean_std(:,1),PCC_females_mean_std(:,2),{'-','color',ColorCode(5,:)})
+    shadedErrorBar(PC_val_F, PCC_females_mean_std(:,1),PCC_females_mean_std(:,2),{'-','color',ColorCode(5,:), 'LineWidth',2})
     xlabel('# PC')
     ylabel('% Classification correct')
     set(gca, 'YLim', [40 100])
@@ -1119,8 +1318,8 @@ for gg=1:length(UGroup)
     %% Permutation tests for female calls
     % Permutation of HD irrespective of ID
     fprintf(1, 'Female calls Ac Grp%d Permutation test irrespective of ID', GR)
-    %PC_val_rand = PC_val_F(1:(NPC_opt_ind+NumPCsup));
-    PC_val_rand = PC_val_F;
+    PC_val_rand = PC_val_F(1:min(length(PC_val_F),(NPC_opt_ind+NumPCsup)));
+%     PC_val_rand = PC_val_F;
     Lrand_females = cell(length(PC_val_rand),1);
     for bb=1:NRandPerm
         fprintf(1, '\n Permutation %d/%d', bb, NRandPerm)
@@ -1147,7 +1346,7 @@ for gg=1:length(UGroup)
     Perm_females = [C(1:size(C,1)/2,:), flip(C((size(C,1)/2 +1) : end,:))];
     Perm_females = Perm_females(2:end,:); % first row is in True order
     Lperm_females = cell(length(PC_val_rand),1);
-    
+    PFisher_females = nan(size(Perm_females,1),1);
     BatSexDeaf4DFA = BatSexDeaf(1:6); % only take female bats
     BatName4DFA = BatName(1:6); % only take female bats
     BatIDMicGR = BatID(IndMicAudioGood(FemaleLogical));
@@ -1170,6 +1369,15 @@ for gg=1:length(UGroup)
             end
             Mdlrand = fitcdiscr(Score_F(:,1:PC_val_rand(npc)), DeafMic_temp, 'CrossVal','on', 'KFold', 10,'Prior', [0.5 0.5], 'SaveMemory', 'on', 'FillCoeffs', 'off');
             Lperm_females{npc}(bb,:) = kfoldLoss(Mdlrand, 'Mode', 'Individual');
+            if npc==NPC_opt_ind
+                % perform a right tail Fisher's exact test to determine if the
+                % odds of correct classification is higher in the observed case
+                % than the permutation case
+                CorrectRand = round((1-mean(Lperm_females{npc}(bb,:))).*size(Score_F,1));
+                ErrorRand = round(mean(Lperm_females{npc}(bb,:)).*size(Score_F,1));
+                Tbl = table([CorrectObs ; CorrectRand],[ErrorObs ; ErrorRand], 'VariableNames', {'Correct', 'Error'}, 'RowNames', {'Observed', 'Permutation'});
+                [~,PFisher_females(bb),~] = fishertest(Tbl, 'Tail','right');
+            end
         end
     end
 
@@ -1182,7 +1390,7 @@ for gg=1:length(UGroup)
     % Add the permutation values to the figure
     FIG;
     subplot(1,3,2)
-    shadedErrorBar(PC_val_rand, PCC_females_mean_std(1:(NPC_opt_ind+NumPCsup),1),PCC_females_mean_std(1:(NPC_opt_ind+NumPCsup),2),{'-','color',ColorCode(5,:)})
+    shadedErrorBar(PC_val_rand, PCC_females_mean_std(1:length(PC_val_rand),1),PCC_females_mean_std(1:length(PC_val_rand),2),{'-','color',ColorCode(5,:), 'LineWidth',2})
     xlabel('# PC')
     ylabel('% Classification correct')
     set(gca, 'YLim', [40 100])
@@ -1193,14 +1401,15 @@ for gg=1:length(UGroup)
     V = vline(NPC_opt_F, 'b--', sprintf('Optimal #PC = %d', NPC_opt_F));
     V.LineWidth = 2;
     hold on
-    shadedErrorBar(PC_val_rand, PCCrand_females_mean_std(:,1),PCCrand_females_mean_std(:,2))
+    shadedErrorBar(PC_val_rand, PCCrand_females_mean_std(:,1),PCCrand_females_mean_std(:,2), {'-', 'Color', 'k', 'LineWidth',2})
     hold on
-    shadedErrorBar(PC_val_rand, PCCperm_females_mean_std(:,1),PCCperm_females_mean_std(:,2))
+    shadedErrorBar(PC_val_rand, PCCperm_females_mean_std(:,1),PCCperm_females_mean_std(:,2), {'-', 'Color',[0.5 0.5 0.5], 'LineWidth',2})
     hold off
-    
-    text(10,55, 'Full permutation')
-    text(10,77, 'Permutation respecting ID')
-
+    XLim = get(gca,'XLim');
+    text(XLim(2)/2,97, 'Observed data', 'Color', ColorCode(5,:))
+    text(XLim(2)/2,93, 'Full permutation', 'Color', 'k')
+    text(XLim(2)/2,95, 'Permutation respecting ID', 'Color', [0.5 0.5 0.5])
+    title(sprintf('# Significant exact Fisher test (obs vs perm) at optimal #PC: %d/%d', sum(PFisher_females<PLim), length(PFisher_females)))
 
     %% Rerun the DFA with all the data and the optimal number of PC to obtain the filter
     fprintf(1, 'Female calls Ac Grp%d Getting the DF Axis\n', GR)
@@ -1219,7 +1428,7 @@ for gg=1:length(UGroup)
     PC_DF_females = reshape(PC_DF_females, sum(IndWf), length(MPS_mic_wt));
 
 fprintf(1, 'Classification performance between female K and female S calls in Acoustic Group %d: %.1f%% +/-%.1f%%\nPermutation value (respecting ID): %.1f%% +/-%.1f%%\nPermutation value (irrespective of ID): %.1f%% +/-%.1f%%\n#PC:%d \n', GR, PCC_females_mean_std(NPC_opt_ind,1), PCC_females_mean_std(NPC_opt_ind,2),PCCperm_females_mean_std(NPC_opt_ind,1), PCCperm_females_mean_std(NPC_opt_ind,2),PCCrand_females_mean_std(NPC_opt_ind,1), PCCrand_females_mean_std(NPC_opt_ind,2), NPC_opt_F)
-save(fullfile(LocalDataDir, sprintf('DeafBats_RegularizedPermDFA_FemaleAcGroup%d.mat', GR)),  'PC_val_F', 'NPC_opt_F','L_females', 'PCC_females_mean_std', 'Lperm_females', 'PCCperm_females_mean_std', 'Lrand_females', 'PCCrand_females_mean_std', 'PC_DF_females','EigenVec_DFA_F', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
+save(fullfile(LocalDataDir, sprintf('DeafBats_RegularizedPermDFA_FemaleAcGroup%d.mat', GR)),  'PC_val_F', 'NPC_opt_F','L_females', 'PFisher_females', 'PCC_females_mean_std', 'Lperm_females', 'PCCperm_females_mean_std', 'Lrand_females', 'PCCrand_females_mean_std', 'PC_DF_females','EigenVec_DFA_F', 'MPS_mic_wf', 'IndWf', 'MPS_mic_wt', '-append' )
 
 % plot the positive direction of the DF1 axis in the MPS space
 FIG;
@@ -1232,47 +1441,26 @@ colormap(Cmap)
 Axis = caxis();
 Lim = max(abs(Axis));
 caxis([-Lim Lim])
-suplabel(sprintf('Female Calls DFA performance Saline vs Kanamycin in Ac Group%d', GR), 't')
+suplabel(sprintf('Female Calls DFA performance Saline vs Kanamycin in Ac Group%d', GR), 't');
+for cc=1:length(FIG.Children)
+    FIG.Children(cc).FontSize=12;
+end
 print(FIG, fullfile(GGPath.folder, GGPath.name,'My Drive/BatmanData/FigureLabMeeting/DeafBatsProject', sprintf('RegPermDFA_FemaleAcGroup%d.png', GR)) , '-dpng')
-
+if GR==1
+    for cc=1:length(FIG.Children)
+        FIG.Children(cc).FontSize=8;
+    end
+    FIG.PaperOrientation = 'landscape';
+    FIG.Units = 'inches';
+    FIG.Position(3:4) = [8 4];
+    FIG.PaperSize = [8 4];
+    print(FIG,fullfile(Path2Paper,sprintf('RegPermDFA_FemaleCallsAcGrp%d.pdf', GR)),'-dpdf','-fillpage')
+end
 clear Score_F PCC_F Mdl_F Mdlrand
 
     
 end
-%% Calculate the genelarized variance for males and females calls in the PCA
-% space (determinant of the variance co-variance matrix). We only take the
-% # PC that explains 90% of the variance for this calculation.
-% 
-% Calculations per bat
-load(fullfile(LocalDataDir, 'DeafBats_PCA_AllCalls.mat'), 'Score', 'NPC90var')
-BatIDMic = str2double(BatID(MicAudioGood01));
-DValues = nan(length(BatName),1);
-for bb=1:length(BatName)
-    VCoVMat = cov(Score(BatIDMic==BatName(bb),1:NPC90var));
-    DValues(bb) = (det(VCoVMat))^(1/(2*NPC90var));
-end
-DMax = (det(cov(Score(:,1:NPC90var))))^(1/(2*NPC90var));
 
-CData = nan(length(BatName),3);
-for bb=1:length(BatName)
-    CData(bb,:) = UCSexDeaf(strcmp(USexDeaf,BatSexDeaf{bb}),:);
-end
-
-figure()
-B=bar(1:10, DValues,'FaceColor', 'flat');
-B.CData = CData;
-xlabel('BatID')
-B.Parent.XTickLabel = BatName;
-ylabel('Vocalization dispersion')
-for ct=1:length(USexDeaf)
-    text(1,B.Parent.YLim(2)-diff(B.Parent.YLim)*(2+ct)/40, USexDeaf(ct), 'Color',UCSexDeaf(ct,:), 'FontWeight','bold' )
-end
-hold on
-box off
-hline(DMax, '--k')
-hold off
-fprintf(1,'Hearing female Vocalization dispersion: %.1f +- %.1f\n', mean(DValues(contains(BatSexDeaf, 'Hearing Female'))), std(DValues(contains(BatSexDeaf, 'Hearing Female'))));
-fprintf(1,'Hearing female Vocalization dispersion: %.1f +- %.1f\n', mean(DValues(contains(BatSexDeaf, 'Hearing Male'))), std(DValues(contains(BatSexDeaf, 'Hearing Male'))));
 %%
 function [CB,Im,MPS4plot, Wt_local, Wf_local]=plot_mps(MPS, Wf, Wt, DBNOISE,CLim,Log, YLim, XLim, TwoDfilter)
 if nargin<4
