@@ -13,11 +13,11 @@ MicAudioGood01(isnan(MicAudioGood01)) = 0;
 MicAudioGood01 = logical(MicAudioGood01);
 
 % load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls_SexDimorph2.mat'), 'KSDistance','BatID_Pair_KSDistance')
-% load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls_SexDimorph2.mat'), 'KSDistance_100PC','BatID_Pair_KSDistance_100PC')
+load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls_SexDimorph2.mat'), 'KSDistance_100PC','BatID_Pair_KSDistance_100PC')
 load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls_SexDimorph2.mat'), 'KSDistance_3PC','BatID_Pair_KSDistance_3PC')
 % load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls_SexDimorph2.mat'), 'KSDistance_UMAP','BatID_Pair_KSDistance_UMAP')
 % load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls_SexDimorph.mat'), 'SexDistance', 'BatID_Pair_SexDistance','NullDistance')
-% load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls_SexDimorph.mat'), 'SexDistance_100PC','BatID_Pair_SexDistance_100PC','NullDistance_100PC')
+load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls_SexDimorph.mat'), 'SexDistance_100PC','BatID_Pair_SexDistance_100PC','NullDistance_100PC')
 load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls_SexDimorph.mat'), 'SexDistance_3PC', 'BatID_Pair_SexDistance_3PC','NullDistance_3PC')
 % load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls_SexDimorph.mat'),'SexDistance_UMAP','BatID_Pair_SexDistance_UMAP')
 
@@ -209,6 +209,7 @@ NVoc = sum(MicAudioGood01);
 
 %% Look if for each subject the calls that are the most sexually dimorphics are also the one that are the most affected by treatment
 % correct the values of distance by the distance based on point density
+% 3 first PCs
 figure(20)
 clf
 % set(gcf,'Visible','on')
@@ -227,7 +228,7 @@ for bb=1:length(BatName)
         LocalCol = ColorCode(strcmp(UPairall, UPair{1}{pp}),:);
         ColPair(strcmp(BatID_Pair_SexDistance_3PC(IndBat),UPair{1}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_SexDistance_3PC(IndBat),UPair{1}{pp})),1);
     end
-    scatter(KSDistance_3PC(IndBat) - NullDistance_3PC(IndBat), SexDistance_3PC(IndBat)- NullDistance_3PC(IndBat), 20, ColPair, 'filled');
+    scatter(KSDistance_3PC(IndBat) - NullDistance_3PC(IndBat), SexDistance_3PC(IndBat)- NullDistance_3PC(IndBat), 20, ColPair, 'filled', 'MarkerFaceAlpha',0.5, 'MarkerEdgeAlpha',0.5);
     title(sprintf('%s %d - Opposite Sex Distance', BatSexDeaf{bb}, BatName(bb)))
     ylabel('Distance Sex (3PC)'); xlabel('Distance treatment (3PC)')
     XLim = xlim();
@@ -246,7 +247,7 @@ for bb=1:length(BatName)
         LocalCol = ColorCode(strcmp(UPairall, UPair{2}{pp}),:);
         ColPair(strcmp(BatID_Pair_KSDistance_3PC(IndBat),UPair{2}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_KSDistance_3PC(IndBat),UPair{2}{pp})),1);
     end
-    scatter(KSDistance_3PC(IndBat)- NullDistance_3PC(IndBat), SexDistance_3PC(IndBat)- NullDistance_3PC(IndBat), 20, ColPair, 'filled');
+    scatter(KSDistance_3PC(IndBat)- NullDistance_3PC(IndBat), SexDistance_3PC(IndBat)- NullDistance_3PC(IndBat), 20, ColPair, 'filled', 'MarkerFaceAlpha',0.5, 'MarkerEdgeAlpha',0.5);
     title(sprintf('%s %d - Opposite Treatment Distance', BatSexDeaf{bb},BatName(bb)))
     ylabel('Distance Sex (3PC)'); xlabel('Distance treatment (3PC)')
     XLim = xlim();
@@ -261,8 +262,63 @@ for bb=1:length(BatName)
 end
 suplabel('Distance beyond expected by point density in PCA', 't');
 
+%% Look if for each subject the calls that are the most sexually dimorphics are also the one that are the most affected by treatment
+% correct the values of distance by the distance based on point density
+% 100 first PCs
+figure(20)
+clf
+% set(gcf,'Visible','on')
+CSD = [1:5 11:15];
+CTD = [6:10 16:20];
+UPair = cell(1,2);
+for bb=1:length(BatName)
+    IndBat = BatID_mic==BatName(bb);
+    UPair{2} = unique(BatID_Pair_KSDistance_100PC(IndBat))';
+    UPair{1} = unique(BatID_Pair_SexDistance_100PC(IndBat))';
+    UPairall = [UPair{:}];
+
+    subplot(4,5,CSD(bb))
+    ColPair = nan(sum(IndBat),3);
+    for pp=1:length(UPair{1})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{1}{pp}),:);
+        ColPair(strcmp(BatID_Pair_SexDistance_100PC(IndBat),UPair{1}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_SexDistance_100PC(IndBat),UPair{1}{pp})),1);
+    end
+    scatter(KSDistance_100PC(IndBat) - NullDistance_100PC(IndBat), SexDistance_100PC(IndBat)- NullDistance_100PC(IndBat), 20, ColPair, 'filled', 'MarkerFaceAlpha',0.5, 'MarkerEdgeAlpha',0.5);
+    title(sprintf('%s %d - Opposite Sex Distance', BatSexDeaf{bb}, BatName(bb)))
+    ylabel('Distance Sex (100PC)'); xlabel('Distance treatment (100PC)')
+    XLim = xlim();
+    YLim = ylim();
+    for pp=1:length(UPair{1})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{1}{pp}),:);
+        hold on
+        text(XLim(2)*0.75, YLim(2)*0.9 - YLim(2)*0.9/length(UPair{1})*(pp-1), UPair{1}{pp},'Color', LocalCol, 'FontSize',12)
+    end
+    plot([0 min(XLim(2), YLim(2))], [0 min(XLim(2), YLim(2))], '-k')
+    hold off
+
+    subplot(4,5,CTD(bb))
+    ColPair = nan(sum(IndBat),3);
+    for pp=1:length(UPair{2})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{2}{pp}),:);
+        ColPair(strcmp(BatID_Pair_KSDistance_100PC(IndBat),UPair{2}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_KSDistance_100PC(IndBat),UPair{2}{pp})),1);
+    end
+    scatter(KSDistance_100PC(IndBat)- NullDistance_100PC(IndBat), SexDistance_100PC(IndBat)- NullDistance_100PC(IndBat), 20, ColPair, 'filled', 'MarkerFaceAlpha',0.5, 'MarkerEdgeAlpha',0.5);
+    title(sprintf('%s %d - Opposite Treatment Distance', BatSexDeaf{bb},BatName(bb)))
+    ylabel('Distance Sex (100PC)'); xlabel('Distance treatment (100PC)')
+    XLim = xlim();
+    YLim = ylim();
+    for pp=1:length(UPair{2})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{2}{pp}),:);
+        hold on
+        text(XLim(2)*0.75, YLim(2)*0.9 - YLim(2)*0.9/length(UPair{2})*(pp-1), UPair{2}{pp},'Color', LocalCol, 'FontSize',12)
+    end
+    plot([0 min(XLim(2), YLim(2))], [0 min(XLim(2), YLim(2))], '-k')
+    hold off
+end
+suplabel('Distance beyond expected by point density in PCA', 't');
 %% Plot all bats
 figure(21)
+clf
 subplot(1,2,1)
 UPair = cell(1,2);
 UPair{1} = unique(BatID_Pair_KSDistance_3PC)';
@@ -275,7 +331,7 @@ for pp=1:length(UPair{1})
     LocalCol = Colors(strcmp(UPairall, UPair{1}{pp}),:);
     ColPair(strcmp(BatID_Pair_KSDistance_3PC,UPair{1}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_KSDistance_3PC,UPair{1}{pp})),1);
 end
-scatter(abs(KSDistance_3PC - NullDistance_3PC), abs(SexDistance_3PC - NullDistance_3PC), 20, ColPair, 'filled');
+scatter(KSDistance_3PC - NullDistance_3PC, SexDistance_3PC - NullDistance_3PC, 20, ColPair, 'filled');
 title('Color: Opposite Treatment Distance')
 ylabel('Distance Sex (3PC)'); xlabel('Distance treatment (3PC)')
 XLim = xlim();
@@ -293,7 +349,7 @@ for pp=1:length(UPair{2})
     LocalCol = Colors(strcmp(UPairall, UPair{2}{pp}),:);
     ColPair(strcmp(BatID_Pair_SexDistance_3PC,UPair{2}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_SexDistance_3PC,UPair{2}{pp})),1);
 end
-scatter(abs(KSDistance_3PC - NullDistance_3PC), abs(SexDistance_3PC - NullDistance_3PC), 20, ColPair, 'filled');
+scatter(KSDistance_3PC - NullDistance_3PC, SexDistance_3PC - NullDistance_3PC, 20, ColPair, 'filled');
 title('Color: Opposite Sex Distance')
 ylabel('Distance Sex (3PC)'); xlabel('Distance treatment (3PC)')
 XLim = xlim();
@@ -304,6 +360,175 @@ for pp=1:length(UPair{2})
     text(XLim(2)*0.75, YLim(2)*0.9 - YLim(2)*0.9/length(UPair{2})*(pp-1), UPair{2}{pp},'Color', LocalCol, 'FontSize',8)
 end
 hold off
+
+%% Look if for each subject the calls that are the most sexually dimorphics are also the one that are the most affected by treatment
+% correct the values of distance by the distance based on point density
+figure(22)
+clf
+% set(gcf,'Visible','on')
+CSD = [1:5 11:15];
+CTD = [6:10 16:20];
+UPair = cell(1,2);
+for bb=1:length(BatName)
+    IndBat = BatID_mic==BatName(bb);
+    UPair{2} = unique(BatID_Pair_KSDistance_3PC(IndBat))';
+    UPair{1} = unique(BatID_Pair_SexDistance_3PC(IndBat))';
+    UPairall = [UPair{:}];
+
+    subplot(4,5,CSD(bb))
+    ColPair = nan(sum(IndBat),3);
+    for pp=1:length(UPair{1})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{1}{pp}),:);
+        ColPair(strcmp(BatID_Pair_SexDistance_3PC(IndBat),UPair{1}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_SexDistance_3PC(IndBat),UPair{1}{pp})),1);
+    end
+    scatter(KSDistance_3PC(IndBat)./NullDistance_3PC(IndBat), SexDistance_3PC(IndBat)./NullDistance_3PC(IndBat), 20, ColPair, 'filled', 'MarkerFaceAlpha',0.5, 'MarkerEdgeAlpha',0.5);
+    title(sprintf('%s %d - Opposite Sex Distance', BatSexDeaf{bb}, BatName(bb)))
+    ylabel('Distance Sex (3PC)'); xlabel('Distance treatment (3PC)')
+    XLim = xlim();
+    YLim = ylim();
+    for pp=1:length(UPair{1})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{1}{pp}),:);
+        hold on
+        text(XLim(2)*0.75, YLim(2)*0.9 - YLim(2)*0.9/length(UPair{1})*(pp-1), UPair{1}{pp},'Color', LocalCol, 'FontSize',12)
+    end
+    plot([min(XLim(1), YLim(1)) min(XLim(2), YLim(2))], [min(XLim(1), YLim(1)) min(XLim(2), YLim(2))], '-k')
+    hold off
+
+    subplot(4,5,CTD(bb))
+    ColPair = nan(sum(IndBat),3);
+    for pp=1:length(UPair{2})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{2}{pp}),:);
+        ColPair(strcmp(BatID_Pair_KSDistance_3PC(IndBat),UPair{2}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_KSDistance_3PC(IndBat),UPair{2}{pp})),1);
+    end
+    scatter(KSDistance_3PC(IndBat)./NullDistance_3PC(IndBat), SexDistance_3PC(IndBat)./NullDistance_3PC(IndBat), 20, ColPair, 'filled', 'MarkerFaceAlpha',0.5, 'MarkerEdgeAlpha',0.5);
+    title(sprintf('%s %d - Opposite Treatment Distance', BatSexDeaf{bb},BatName(bb)))
+    ylabel('Distance Sex (3PC)'); xlabel('Distance treatment (3PC)')
+    XLim = xlim();
+    YLim = ylim();
+    for pp=1:length(UPair{2})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{2}{pp}),:);
+        hold on
+        text(XLim(2)*0.75, YLim(2)*0.9 - YLim(2)*0.9/length(UPair{2})*(pp-1), UPair{2}{pp},'Color', LocalCol, 'FontSize',12)
+    end
+    plot([min(XLim(1), YLim(1)) min(XLim(2), YLim(2))], [min(XLim(1), YLim(1)) min(XLim(2), YLim(2))], '-k')
+    hold off
+end
+suplabel('Distance normalized by point density in PCA', 't');
+
+%% Look if for each subject the calls that are the most sexually dimorphics are also the one that are the most affected by treatment
+% correct the values of distance by the distance based on point density
+% 100 first PCs
+figure(22)
+clf
+% set(gcf,'Visible','on')
+CSD = [1:5 11:15];
+CTD = [6:10 16:20];
+UPair = cell(1,2);
+for bb=1:length(BatName)
+    IndBat = BatID_mic==BatName(bb);
+    UPair{2} = unique(BatID_Pair_KSDistance_100PC(IndBat))';
+    UPair{1} = unique(BatID_Pair_SexDistance_100PC(IndBat))';
+    UPairall = [UPair{:}];
+
+    subplot(4,5,CSD(bb))
+    ColPair = nan(sum(IndBat),3);
+    for pp=1:length(UPair{1})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{1}{pp}),:);
+        ColPair(strcmp(BatID_Pair_SexDistance_100PC(IndBat),UPair{1}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_SexDistance_100PC(IndBat),UPair{1}{pp})),1);
+    end
+    scatter(KSDistance_100PC(IndBat)./NullDistance_100PC(IndBat), SexDistance_100PC(IndBat)./NullDistance_100PC(IndBat), 20, ColPair, 'filled', 'MarkerFaceAlpha',0.5, 'MarkerEdgeAlpha',0.5);
+    title(sprintf('%s %d - Opposite Sex Distance', BatSexDeaf{bb}, BatName(bb)))
+    ylabel('Distance Sex (100PC)'); xlabel('Distance treatment (100PC)')
+    XLim = xlim();
+    YLim = ylim();
+    for pp=1:length(UPair{1})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{1}{pp}),:);
+        hold on
+        text(XLim(2)*0.75, YLim(2)*0.9 - YLim(2)*0.9/length(UPair{1})*(pp-1), UPair{1}{pp},'Color', LocalCol, 'FontSize',12)
+    end
+    plot([min(XLim(1), YLim(1)) min(XLim(2), YLim(2))], [min(XLim(1), YLim(1)) min(XLim(2), YLim(2))], '-k')
+    hold off
+
+    subplot(4,5,CTD(bb))
+    ColPair = nan(sum(IndBat),3);
+    for pp=1:length(UPair{2})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{2}{pp}),:);
+        ColPair(strcmp(BatID_Pair_KSDistance_100PC(IndBat),UPair{2}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_KSDistance_100PC(IndBat),UPair{2}{pp})),1);
+    end
+    scatter(KSDistance_100PC(IndBat)./ NullDistance_100PC(IndBat), SexDistance_100PC(IndBat)./NullDistance_100PC(IndBat), 20, ColPair, 'filled', 'MarkerFaceAlpha',0.5, 'MarkerEdgeAlpha',0.5);
+    title(sprintf('%s %d - Opposite Treatment Distance', BatSexDeaf{bb},BatName(bb)))
+    ylabel('Distance Sex (100PC)'); xlabel('Distance treatment (100PC)')
+    XLim = xlim();
+    YLim = ylim();
+    for pp=1:length(UPair{2})
+        LocalCol = ColorCode(strcmp(UPairall, UPair{2}{pp}),:);
+        hold on
+        text(XLim(2)*0.75, YLim(2)*0.9 - YLim(2)*0.9/length(UPair{2})*(pp-1), UPair{2}{pp},'Color', LocalCol, 'FontSize',12)
+    end
+    plot([min(XLim(1), YLim(1)) min(XLim(2), YLim(2))], [min(XLim(1), YLim(1)) min(XLim(2), YLim(2))], '-k')
+    hold off
+end
+suplabel('Distance normalized by point density in PCA', 't');
+%% Plot all bats
+figure(23)
+clf
+subplot(1,2,1)
+UPair = cell(1,2);
+UPair{1} = unique(BatID_Pair_KSDistance_3PC)';
+UPair{2} = unique(BatID_Pair_SexDistance_3PC)';
+UPairall = unique([UPair{:}]);
+[Colors, GRAD, MinColVal, MaxColVal, Slide]=cubehelix_ColorVal(1:length(UPairall),1);
+
+ColPair = nan(NVoc,3);
+for pp=1:length(UPair{1})
+    LocalCol = Colors(strcmp(UPairall, UPair{1}{pp}),:);
+    ColPair(strcmp(BatID_Pair_KSDistance_3PC,UPair{1}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_KSDistance_3PC,UPair{1}{pp})),1);
+end
+scatter(KSDistance_3PC./NullDistance_3PC, SexDistance_3PC./NullDistance_3PC, 20, ColPair, 'filled');
+title('Color: Opposite Treatment Distance')
+ylabel('Distance Sex (3PC)'); xlabel('Distance treatment (3PC)')
+XLim = xlim();
+YLim = ylim();
+for pp=1:length(UPair{1})
+    LocalCol = Colors(strcmp(UPairall, UPair{1}{pp}),:);
+    hold on
+    text(XLim(2)*0.75, YLim(2)*0.9 - YLim(2)*0.9/length(UPair{1})*(pp-1), UPair{1}{pp},'Color', LocalCol, 'FontSize',12)
+end
+hold off
+
+subplot(1,2,2)
+ColPair = nan(NVoc,3);
+for pp=1:length(UPair{2})
+    LocalCol = Colors(strcmp(UPairall, UPair{2}{pp}),:);
+    ColPair(strcmp(BatID_Pair_SexDistance_3PC,UPair{2}{pp}),:) = repmat(LocalCol,sum(strcmp(BatID_Pair_SexDistance_3PC,UPair{2}{pp})),1);
+end
+scatter(KSDistance_3PC./NullDistance_3PC, SexDistance_3PC./NullDistance_3PC, 20, ColPair, 'filled');
+title('Color: Opposite Sex Distance')
+ylabel('Distance Sex (3PC)'); xlabel('Distance treatment (3PC)')
+XLim = xlim();
+YLim = ylim();
+for pp=1:length(UPair{2})
+    LocalCol = Colors(strcmp(UPairall, UPair{2}{pp}),:);
+    hold on
+    text(XLim(2)*0.75, YLim(2)*0.9 - YLim(2)*0.9/length(UPair{2})*(pp-1), UPair{2}{pp},'Color', LocalCol, 'FontSize',8)
+end
+suplabel('Normalized values by density', 't')
+hold off
+
+%% Look at the histograms of Corrected distance values
+figure(24)
+subplot(2,2,1)
+histogram(SexDistance_3PC-NullDistance_3PC)
+xlabel('Sex Distance beyond expected by point density')
+subplot(2,2,2)
+histogram(SexDistance_3PC./NullDistance_3PC)
+xlabel('Sex Distance normalized by point density')
+subplot(2,2,3)
+histogram(KSDistance_3PC-NullDistance_3PC)
+xlabel('Treatment Distance beyond expected by point density')
+subplot(2,2,4)
+histogram(KSDistance_3PC./NullDistance_3PC)
+xlabel('Treatment Distance normalized by point density')
 
 %% Now run a GLM to quantify the effect: abs(KSDistance_3PC - NullDistance_3PC) ~ abs(SexDistance_3PC - NullDistance_3PC) * Sex + (1|BatID)
 
