@@ -1,4 +1,9 @@
-%% Permutation DFA of K vs S for 7 acoustic groups
+%% Permutation DFA of K vs S for 6 acoustic groups
+% here we are using now the clustering obtained with the 10 dimensions UMAP
+% calculated in Notebbok 8ter instead of the clustering obtained with the 3
+% dimensions UMAP calculated in Notebook 8. The optimization of the number
+% of diemnsions for the UMAP clustering performance was done by looking at
+% median values of Silhouette (notebook 8ter)
 
 LocalDataDir = '/Users/elie/Documents/DeafBats/Data';
 BaseDataDir = '/Volumes/server_home/users/JulieE/DeafSalineGroup151/';
@@ -8,8 +13,9 @@ Path2Paper = fullfile(GGPath.folder, GGPath.name, 'My Drive', 'BatmanData', 'Dea
 %%
 % Loading previous data
 
-load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls2.mat'), 'CallType', 'BatID','MPS_mic', 'MPS_mic_wf', 'MPS_mic_wt')
-load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls.mat'),'MicAudioGood','TmicAll7');
+load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls2.mat'), 'CallType', 'BatID','MicAudioGood','MPS_mic', 'MPS_mic_wf', 'MPS_mic_wt')
+%load(fullfile(LocalDataDir, 'Data4_DeafBats_CatCalls.mat'),'MicAudioGood','TmicAll7');
+load(fullfile(BaseDataDir, 'Data4_DeafBats_CatCalls_UMAPMic.mat'), 'TmicAll4');
 MicAudioGood01 = MicAudioGood;
 MicAudioGood01(isnan(MicAudioGood01)) = 0;
 MicAudioGood01 = logical(MicAudioGood01);
@@ -824,7 +830,7 @@ clear Score_F PCC_F Mdl_F Mdlrand
 
 %% Now same analysis for each acoustic group
 
-UGroup = unique(TmicAll7);
+UGroup = unique(TmicAll4);
 for gg=1:length(UGroup)
     GR = UGroup(gg);
     fprintf(1,'<strong>-------------------------------------------------------------------------------</strong>\n')
@@ -832,7 +838,7 @@ for gg=1:length(UGroup)
     fprintf(1,'<strong>------------------------Acoustic Group %d All calls----------------------------</strong>\n', GR)
     
     %% For All calls PCA for all calls in that acoustic group
-    [PC,Score,~, ~, VarExpl,~] = pca(MPS_mic_norm(TmicAll7==GR,:));
+    [PC,Score,~, ~, VarExpl,~] = pca(MPS_mic_norm(TmicAll4==GR,:));
 
     % Plot the % variance explained by the PC
     figure()
@@ -847,7 +853,7 @@ for gg=1:length(UGroup)
     save(fullfile(LocalDataDir, sprintf('DeafBats_RegularizedPermDFA_AcGroup%d.mat', GR)),  'NPC90var')
 
     %% DFA for both male and female calls
-    DeafMic = Deaf(IndMicAudioGood(TmicAll7==GR));
+    DeafMic = Deaf(IndMicAudioGood(TmicAll4==GR));
 
     % Find the optimal regularization parameters that gives the best value
     % of discrimination in cross-validation
@@ -928,7 +934,7 @@ for gg=1:length(UGroup)
     PFisher = nan(size(Perm_all,1),1);
     BatSexDeaf4DFA = BatSexDeaf([1:3, 7:8, 4:6, 9:10]); % reorder to place Deaf bats first in the list, then hearing bats
     BatName4DFA = BatName([1:3, 7:8, 4:6, 9:10]);
-    BatIDMicGR = BatID(IndMicAudioGood(TmicAll7==GR));
+    BatIDMicGR = BatID(IndMicAudioGood(TmicAll4==GR));
     for bb=1:size(Perm_all,1)
         fprintf(1, '\n Permutation %d/%d', bb, size(Perm_all,1))
         DeafMic_temp = DeafMic;
@@ -1032,7 +1038,7 @@ for gg=1:length(UGroup)
     fprintf(1,'<strong>-------------------------------------------------------------------------------</strong>\n')
     fprintf(1,'<strong>-----------------------Acoustic Group %d Male Calls----------------------------</strong>\n', GR)
     SexDeafMic = SexDeaf(IndMicAudioGood);
-    MaleLogical = logical(contains(SexDeafMic, 'M').*(TmicAll7==GR));
+    MaleLogical = logical(contains(SexDeafMic, 'M').*(TmicAll4==GR));
     SexDeafMic_M=SexDeafMic(MaleLogical);
     [PC_M,Score_M,~, ~, VarExpl_M,~] = pca(MPS_mic_norm(MaleLogical,:));
     
@@ -1045,7 +1051,7 @@ for gg=1:length(UGroup)
     NPC90var_M = find(cumsum(VarExpl_M)>90,1);
     text(100,95, sprintf('90%% variance explained with %d PC',NPC90var_M ))
     text(100,90, sprintf('%.1f%% variance explained with 100 PC', CSVarExpl_M(100)))
-    if GR==5
+    if GR==4 || GR==2
         save(fullfile(LocalDataDir, sprintf('DeafBats_PCA_MaleAcGroup%d.mat', GR)), 'PC_M', 'VarExpl_M', 'NPC90var_M','Score_M')
     else
         save(fullfile(LocalDataDir, sprintf('DeafBats_PCA_MaleAcGroup%d.mat', GR)), 'PC_M', 'VarExpl_M', 'NPC90var_M')
@@ -1231,7 +1237,7 @@ for gg=1:length(UGroup)
         FIG.Children(cc).FontSize=12;
     end
     print(FIG, fullfile(GGPath.folder, GGPath.name,'My Drive/BatmanData/FigureLabMeeting/DeafBatsProject', sprintf('RegPermDFA_MaleCallsAcGrp%d.png',GR)) , '-dpng')
-    if GR==5
+    if GR==4 || GR==2
         for cc=1:length(FIG.Children)
             FIG.Children(cc).FontSize=8;
         end
@@ -1248,7 +1254,7 @@ for gg=1:length(UGroup)
     fprintf(1,'<strong>-------------------------------------------------------------------------------</strong>\n')
     fprintf(1,'<strong>---------------------Female Calls Acoustic Group %d----------------------------</strong>\n', GR)
     SexDeafMic = SexDeaf(IndMicAudioGood);
-    FemaleLogical = logical(contains(SexDeafMic, 'F').*(TmicAll7 == GR));
+    FemaleLogical = logical(contains(SexDeafMic, 'F').*(TmicAll4 == GR));
     SexDeafMic_F=SexDeafMic(FemaleLogical);
     [PC_F,Score_F,~, ~, VarExpl_F,~] = pca(MPS_mic_norm(FemaleLogical,:));
 
