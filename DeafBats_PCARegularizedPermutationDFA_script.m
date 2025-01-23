@@ -1,15 +1,15 @@
-%% Permutation DFA of K vs S for 6 acoustic groups
+%% Permutation DFA of K vs S for 4 acoustic groups
 % here we are using now the clustering obtained with the 10 dimensions UMAP
 % calculated in Notebbok 8ter instead of the clustering obtained with the 3
 % dimensions UMAP calculated in Notebook 8. The optimization of the number
-% of diemnsions for the UMAP clustering performance was done by looking at
+% of dimensions for the UMAP clustering performance was done by looking at
 % median values of Silhouette (notebook 8ter)
 
 LocalDataDir = '/Users/elie/Documents/DeafBats/Data';
 BaseDataDir = '/Volumes/server_home/users/JulieE/DeafSalineGroup151/';
 BaseCodeDir = '/Users/elie/Documents/CODE/GitHub/';
-GGPath = dir('/Users/elie/Google Drive*');
-Path2Paper = fullfile(GGPath.folder, GGPath.name, 'My Drive', 'BatmanData', 'Deaf Paper');
+BoxPath = '/Users/elie/Box';
+Path2Paper = fullfile(BoxPath, 'BatmanData', 'Deaf Paper');
 %%
 % Loading previous data
 
@@ -49,8 +49,7 @@ for ct=1:length(UCT)
 end
 %%
 % Get the color vector ready for BatName, Sex and Deafness
-GGPath = dir('/Users/elie/Google Drive*');
-Path2RecordingTable = fullfile(GGPath.folder, GGPath.name,'My Drive/JuvenileRecordings/DeafRecordingsNWAF155_Log.xlsx');
+Path2RecordingTable = fullfile(BoxPath,'JuvenileRecordings/DeafRecordingsNWAF155_Log.xlsx');
 [~,~,RecTableData]=xlsread(Path2RecordingTable,2,'A1:k3','basic');
 BatName = cell2mat(RecTableData(3,2:11));
 BatSexDeaf = cell(size(BatName));
